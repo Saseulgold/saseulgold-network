@@ -41,6 +41,7 @@ func Unwrap(item Ia) Ia {
 func Eq(a, b Ia) ABI {
 
 	cloj := func(abi *ABI) Ia {
+		f.Print("eq: ", abi.items[0], abi.items[1])
 		return abi.items[0] == abi.items[1]
 	}
 
