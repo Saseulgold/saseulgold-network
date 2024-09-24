@@ -53,6 +53,8 @@ func (this *Interpreter) reset() {
 	this.post_process = []*ABI{}
 
 	this.executions = []*ABI{}
+	this.contract = nil
+	this.paramValues = ParamValueMap{}
 }
 
 func (this *Interpreter) SetMode(mode string) {
