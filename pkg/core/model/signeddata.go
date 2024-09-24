@@ -18,7 +18,6 @@ type SignedData struct {
 	cachedLocal	CachedMap
 }
 
-
 func (this SignedData) Obj() SignedDataObject {
 	return SignedDataObject{
 		"data": this.data,
@@ -35,3 +34,6 @@ func (this SignedData) Json() string {
 func (this SignedData) Size() int {
 	return len(this.Json())
 }
+
+
+
