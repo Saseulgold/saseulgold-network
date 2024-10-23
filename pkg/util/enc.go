@@ -62,5 +62,6 @@ func Checksum(message string) string {
 }
 
 func IDHash(meessage string) string {
-	return ShortHash(meessage) + Checksum(meessage)
+	sh := ShortHash(meessage)
+	return sh + Checksum(sh)
 }

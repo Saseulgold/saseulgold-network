@@ -25,7 +25,13 @@ func TestOps23(t *testing.T) {
 	hex := "af0201"
 	fmt.Println(util.Hex2Bin(hex))
 	fmt.Println(hex)
-	Assert(t, util.Bin2Hex(util.Hex2Bin(hex)) != hex, "Bin2Hex and Hex2Bin is invalid")
+	Assert(t, util.Bin2Hex(util.Hex2Bin(hex)) == hex, "Bin2Hex and Hex2Bin is invalid")
+
+	private_key := "264d444fea3fa0fab2acbd2fe65188781688fb5458077c3bc006238a0634e6da"
+	address_expected := "a54b31040d2cb66f44098f9d7b8fb89761d73c13eba5"
+	fmt.Println("adddddd")
+	fmt.Println(util.IDHash(crypto.GetXpub(private_key)))
+	Assert(t, util.IDHash(crypto.GetXpub(private_key)) == address_expected, "IdHash is invalid")
 }
 
 func TestOps03(t *testing.T) {

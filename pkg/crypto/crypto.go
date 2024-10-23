@@ -5,8 +5,6 @@ import (
 	"crypto/rand"
 	"fmt"
 	"hello/pkg/util"
-
-	"golang.org/x/crypto/ripemd160"
 )
 
 // sodium_crypto_sign_seed_keypair
@@ -37,11 +35,4 @@ func Sign(message string, privateKey string) string {
 	xpub := GetXpub(privateKey)
 	p1 := util.Hex2Bin(privateKey + xpub)
 	return util.Bin2Hex(ed25519.Sign(p1, p0))
-}
-
-func Ripemd160(message string) string {
-	hasher := ripemd160.New()
-	hasher.Write([]byte(message))
-	hash := hasher.Sum(nil)
-	return util.Bin2Hex(hash)
 }
