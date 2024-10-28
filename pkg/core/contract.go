@@ -6,24 +6,22 @@ import (
 	// "reflect"
 )
 
+type Update struct{}
 
-type Update struct {}
-
-type Compiled  map[string]Ia
-type ParamMap  map[string]Param
-type ParamValueMap  map[string]Ia
+type Compiled map[string]Ia
+type ParamMap map[string]Param
+type ParamValueMap map[string]Ia
 
 type Contract struct {
-	itype				string
-	machine			string 	
-	name				string
-	version 		string	
-	writer			string
-	space				string
-	parameters	ParamMap
-	paramValues	ParamValueMap
-	executions	[]*ABI
-	updates			[]Update
+	itype       string
+	machine     string
+	name        string
+	version     string
+	writer      string
+	space       string
+	parameters  ParamMap
+	paramValues ParamValueMap
+	executions  []*ABI
 }
 
 func (this *Contract) SetParams(parameters ParamMap) {
@@ -36,21 +34,12 @@ func (this *Contract) AddParameter(name string, itype string) Param {
 	return param
 }
 
-func (this *Contract) AddUpdate(u Update) {
-	this.updates = append(this.updates)
-}
-
-func (this Contract) GetUpdates() []Update {
-	return this.updates
-}
-
 func NewContract() Contract {
 	c := Contract{}
 
 	c.parameters = ParamMap{}
 	c.paramValues = ParamValueMap{}
 	c.executions = []*ABI{}
-	c.updates = []Update{}
 
 	return c
 }
@@ -79,7 +68,7 @@ func (this *Contract) AddExecution(abi *ABI) {
 	this.executions = append(this.executions, abi)
 }
 
-func (this Contract) Compile() Compiled{
+func (this Contract) Compile() Compiled {
 	return Compiled{
 		"t": this.itype,
 		"m": this.machine,
@@ -100,6 +89,3 @@ func (this Contract) Json() string {
 func (this Contract) GetExecutions() []*ABI {
 	return this.executions
 }
-
-
-

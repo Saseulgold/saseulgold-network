@@ -13,31 +13,30 @@ func RaiseTypeError(msg string) {
 }
 
 type Interpreter struct {
-		mode					string
-		signed_data 	Ia
+	mode        string
+	signed_data Ia
 
-		rg_exception 	*ABI
-    rg_state 			string
-		rg_break			bool
-		rg_process		string
+	rg_exception *ABI
+	rg_state     string
+	rg_break     bool
+	rg_process   string
 
-		result 				*Ia
-		post_process 	[]*ABI
+	result *Ia
 
-		executions 		[]*ABI
-		contract			*Contract
+	executions []*ABI
+	contract   *Contract
 
-		paramValues 	ParamValueMap
+	paramValues ParamValueMap
 }
 
 var _instance *Interpreter
 
 func Instance() *Interpreter {
-    if(_instance == nil) {
-        _instance = &Interpreter{ rg_state: "init" };
-				_instance.reset()
-    }
-    return _instance
+	if _instance == nil {
+		_instance = &Interpreter{rg_state: "init"}
+		_instance.reset()
+	}
+	return _instance
 }
 
 func (this *Interpreter) reset() {
@@ -46,11 +45,10 @@ func (this *Interpreter) reset() {
 
 	this.rg_exception = nil
 	this.rg_state = "init"
-	this.rg_break = false 
+	this.rg_break = false
 	this.rg_process = ""
 
 	this.result = nil
-	this.post_process = []*ABI{}
 
 	this.executions = []*ABI{}
 	this.contract = nil
@@ -111,11 +109,6 @@ func (this *Interpreter) Read() {
 		this.EvalExecution(ex)
 	}
 
-	this.setProcessState(STATE_POST)
-
-	for _, ex := range this.post_process {
-		this.EvalExecution(ex)
-	}
 }
 
 func (this *Interpreter) GetProcessState() string {
