@@ -65,3 +65,11 @@ func IDHash(meessage string) string {
 	sh := ShortHash(meessage)
 	return sh + Checksum(sh)
 }
+
+func StateHash(owner string, space string, attr string, key string) {
+	return StatePrefix(owner, space, attr) + key
+}
+
+func StatePrefix(owner string, space string, attr string) string {
+	return Concat(owner, space, attr)	
+}

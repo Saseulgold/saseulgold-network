@@ -25,3 +25,19 @@ func AllEqual(args ...Ia) Ia {
 func Print(args ...Ia) {
 	fmt.Println(args...)
 }
+
+var memocache = make(map[string](map[Ia]Ia))
+
+func MemoFn0(lot string, f func (var0 Ia)) {
+	return func (var0 Ia) Ia {
+		if _, ok := memocache[lot]; !ok {
+			memocache[lot] = make(map[Ia]Ia)
+		}
+
+		if _, ok := memocache[lot][var0]; !ok {
+			memocache[lot][var0] = f(var0)
+		}
+
+		return memocache[lot][var0];
+	}
+}

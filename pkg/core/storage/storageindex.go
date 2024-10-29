@@ -21,7 +21,7 @@ func (si StorageFileIndex) ListFiles() []string {
 	files, _ := ioutil.ReadDir(si.Dir)
 
 	var matchedFiles []string
-	// 각 파일을 순회하며 prefix로 시작하는지 확인
+
 	for _, file := range files {
 		if !file.IsDir() && strings.HasPrefix(file.Name(), si.Prefix) {
 			matchedFiles = append(matchedFiles, file.Name())

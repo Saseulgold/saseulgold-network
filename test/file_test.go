@@ -1,7 +1,8 @@
-package storage
+package main
 
 import (
 	"hello/pkg/core/storage"
+	"hello/pkg/core/util"
 	"io/ioutil"
 	"os"
 	"testing"
