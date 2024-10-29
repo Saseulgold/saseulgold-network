@@ -1,8 +1,8 @@
 package util
 
 import (
-	"strings"
 	"bytes"
+	"strings"
 )
 
 func PadLeft(str string, padChar string, length int) string {
@@ -15,8 +15,8 @@ func PadLeft(str string, padChar string, length int) string {
 func Concat(s ...string) string {
 	var buffer bytes.Buffer
 
-	for(i := 0; i < s.length; i ++) {
+	for i := 0; i < len(s); i++ {
 		buffer.WriteString(s[i])
 	}
-	return buffer.String()	
+	return buffer.String()
 }

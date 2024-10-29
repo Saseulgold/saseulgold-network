@@ -7,8 +7,8 @@ import (
 
 func MemoTest0(t *testing.T) {
 
-	inc := func (var0) {
-		return var0 + 1
+	inc := func(var0 interface{}) interface{} {
+		return var0.(int) + 1
 	}
 
 	f := util.MemoFn0(inc)

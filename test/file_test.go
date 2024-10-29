@@ -1,12 +1,21 @@
 package main
 
 import (
+	"hello/pkg/core/config"
 	"hello/pkg/core/storage"
-	"hello/pkg/core/util"
+	"hello/pkg/util"
 	"io/ioutil"
 	"os"
 	"testing"
 )
+
+func TestHash(t *testing.T) {
+	owner := config.ZeroAddress()
+	space := config.RootSpace()
+
+	hash := util.StateHash(owner, space, "balance", owner)
+	t.Logf("hash: %s", hash)
+}
 
 // TestListFiles is a test function for StorageFileIndex's ListFiles method.
 func TestListFiles(t *testing.T) {
@@ -17,7 +26,6 @@ func TestListFiles(t *testing.T) {
 	}
 
 	defer os.RemoveAll(tempDir) // Clean up after the test
-	t.Logf("Temporary directory created at: %s", tempDir)
 
 	// Create test files
 	files := []struct {

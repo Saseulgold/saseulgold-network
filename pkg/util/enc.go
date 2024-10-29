@@ -66,10 +66,10 @@ func IDHash(meessage string) string {
 	return sh + Checksum(sh)
 }
 
-func StateHash(owner string, space string, attr string, key string) {
+func StateHash(owner string, space string, attr string, key string) string {
 	return StatePrefix(owner, space, attr) + key
 }
 
 func StatePrefix(owner string, space string, attr string) string {
-	return Concat(owner, space, attr)	
+	return Hash(Concat(owner, space, attr))
 }

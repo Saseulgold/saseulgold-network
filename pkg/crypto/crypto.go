@@ -36,3 +36,7 @@ func Sign(message string, privateKey string) string {
 	p1 := util.Hex2Bin(privateKey + xpub)
 	return util.Bin2Hex(ed25519.Sign(p1, p0))
 }
+
+func VerifySignature(signature, message, publicKey []byte) bool {
+	return ed25519.Verify(publicKey, message, signature)
+}

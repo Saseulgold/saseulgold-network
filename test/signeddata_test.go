@@ -70,6 +70,14 @@ func TestOps13(t *testing.T) {
 	}
 
 	res := sd.Sign(private_key)
+
+	xpub := util.Hex2Bin(crypto.GetXpub(private_key))
+	sig := crypto.Sign(txhash, private_key)
+
+	if !crypto.VerifySignature(util.Hex2Bin(sig), util.Hex2Bin(txhash), xpub) {
+		t.Error("Verify Signature function went something wrong...")
+	}
+
 	fmt.Println(res)
 }
 

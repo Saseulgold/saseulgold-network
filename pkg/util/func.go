@@ -28,8 +28,8 @@ func Print(args ...Ia) {
 
 var memocache = make(map[string](map[Ia]Ia))
 
-func MemoFn0(lot string, f func (var0 Ia)) {
-	return func (var0 Ia) Ia {
+func MemoFn0(lot string, f func(var0 Ia) Ia) func(v0 Ia) Ia {
+	return func(var0 Ia) Ia {
 		if _, ok := memocache[lot]; !ok {
 			memocache[lot] = make(map[Ia]Ia)
 		}
@@ -38,6 +38,6 @@ func MemoFn0(lot string, f func (var0 Ia)) {
 			memocache[lot][var0] = f(var0)
 		}
 
-		return memocache[lot][var0];
+		return memocache[lot][var0]
 	}
 }

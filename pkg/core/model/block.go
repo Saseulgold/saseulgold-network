@@ -15,17 +15,9 @@ package model
 // txhash: tx
 type TransactionMap = map[string]SignedTransaction
 
-// validator: Hypothesis
-type HypothesisMap = map[string]Hypothesis
-
-type Hypothesis struct {
-}
-
 type MainBlock struct {
-	Height          int64
-	SealedTimestamp int64
-	Transactions    TransactionMap
-	Seal            HypothesisMap
+	Height       int64
+	Transactions TransactionMap
 }
 
 func (block MainBlock) GetBlockRoot() {
