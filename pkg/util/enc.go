@@ -19,6 +19,34 @@ func Hash(data string) string {
 	return hex.EncodeToString(hashBytes)
 }
 
+func MerkleRoot(data string[]) string {
+	if len(data) == 0 {
+		return Hash("")
+	}
+
+	parent := util.Map(data, func(s Ia) Ia {
+		return Hash(s)
+	})
+
+
+	while len(parent) > 1 {
+		child := []
+		i := 0
+		while i + 1 < len(parent) {
+			if len(parent) > i + 1{
+				s := Concat(parent[i], parent[i+1])
+				child := append(child, s)
+			} else {
+				child := append(child, parent[i])
+			}
+			i += 2
+		}
+	}
+
+	return parent[0]
+}
+
+
 func HexTime(utime int64) string {
 	hexTime := strconv.FormatInt(utime, 16)
 	return PadLeft(hexTime, "0", HEX_TIME_SIZE)

@@ -6,6 +6,14 @@ import (
 
 type Ia = interface{}
 
+func Map(ts []Ia, f func(Ia) Ia) []Ia {
+    us := make([]Ia, len(ts))
+    for i := range ts {
+        us[i] = f(ts[i])
+    }
+    return us
+}
+
 func Reduce(items []Ia, initial Ia, fn func(Ia, Ia) interface{}) Ia {
 	result := initial
 	for _, item := range items {
