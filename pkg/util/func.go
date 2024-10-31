@@ -2,16 +2,17 @@ package util
 
 import (
 	"fmt"
+	"sort"
 )
 
 type Ia = interface{}
 
-func Map(ts []Ia, f func(Ia) Ia) []Ia {
-    us := make([]Ia, len(ts))
-    for i := range ts {
-        us[i] = f(ts[i])
-    }
-    return us
+func Map[T any, V any](ts []T, f func(T) V) []V {
+	us := make([]V, len(ts))
+	for i := range ts {
+		us[i] = f(ts[i])
+	}
+	return us
 }
 
 func Reduce(items []Ia, initial Ia, fn func(Ia, Ia) interface{}) Ia {
@@ -48,4 +49,34 @@ func MemoFn0(lot string, f func(var0 Ia) Ia) func(v0 Ia) Ia {
 
 		return memocache[lot][var0]
 	}
+}
+
+func SortStrings(arr []string) []string {
+	sortedArr := make([]string, len(arr))
+	copy(sortedArr, arr)
+	sort.Strings(sortedArr)
+	return sortedArr
+}
+
+func SortedKeys[T any](m map[string]T) []struct {
+	Key   string
+	Value T
+} {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	sorted := make([]struct {
+		Key   string
+		Value T
+	}, len(keys))
+	for i, k := range keys {
+		sorted[i] = struct {
+			Key   string
+			Value T
+		}{k, m[k]}
+	}
+	return sorted
 }
