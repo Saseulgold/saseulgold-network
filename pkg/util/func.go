@@ -15,6 +15,14 @@ func Map[T any, V any](ts []T, f func(T) V) []V {
 	return us
 }
 
+func Keys[V any](m map[string]V) []string {
+	var keys []string
+	for key := range m {
+		keys = append(keys, key)
+	}
+	return keys
+}
+
 func Reduce(items []Ia, initial Ia, fn func(Ia, Ia) interface{}) Ia {
 	result := initial
 	for _, item := range items {
@@ -58,25 +66,17 @@ func SortStrings(arr []string) []string {
 	return sortedArr
 }
 
-func SortedKeys[T any](m map[string]T) []struct {
-	Key   string
-	Value T
-} {
+func SortedValueK[T any](m map[string]T) []T {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 
-	sorted := make([]struct {
-		Key   string
-		Value T
-	}, len(keys))
+	sorted := make([]T, len(keys))
+
 	for i, k := range keys {
-		sorted[i] = struct {
-			Key   string
-			Value T
-		}{k, m[k]}
+		sorted[i] = m[k]
 	}
 	return sorted
 }

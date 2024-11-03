@@ -19,33 +19,34 @@ func Hash(data string) string {
 	return hex.EncodeToString(hashBytes)
 }
 
-func MerkleRoot(data string[]) string {
+func MerkleRoot(data []string) string {
 	if len(data) == 0 {
 		return Hash("")
 	}
 
-	parent := util.Map(data, func(s Ia) Ia {
+	parent := Map(data, func(s string) string {
 		return Hash(s)
 	})
 
-
-	while len(parent) > 1 {
-		child := []
+	for len(parent) > 1 {
+		child := []string{}
 		i := 0
-		while i + 1 < len(parent) {
-			if len(parent) > i + 1{
+
+		for i+1 < len(parent) {
+			if len(parent) > i+1 {
 				s := Concat(parent[i], parent[i+1])
-				child := append(child, s)
+				child = append(child, s)
 			} else {
-				child := append(child, parent[i])
+				child = append(child, parent[i])
 			}
 			i += 2
 		}
+
+		parent = child // 업데이트된 자식을 부모로 설정
 	}
 
 	return parent[0]
 }
-
 
 func HexTime(utime int64) string {
 	hexTime := strconv.FormatInt(utime, 16)

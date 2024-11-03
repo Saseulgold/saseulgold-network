@@ -2,28 +2,25 @@ package model
 
 import (
 	"encoding/json"
+	S "hello/pkg/core/structure"
 	"hello/pkg/crypto"
 	"hello/pkg/util"
 )
 
 type Ia interface{}
 
-type AttributeMap = map[string]Ia
-type CachedMap = map[string]Ia
-type TransactinData = map[string]Ia
-
 type SignedTransaction struct {
-	Data      TransactinData `json:"data"`
-	Xpub      string         `json:"xpub"`
-	Signature string         `json:"signature"`
+	Data      *S.OrderedMap `json:"data"` // OrderedMap으로 변경
+	Xpub      string        `json:"xpub"`
+	Signature string        `json:"signature"`
 }
 
-func NewSignedTransaction(data TransactinData) SignedTransaction {
+func NewSignedTransaction(data *S.OrderedMap) SignedTransaction { // OrderedMap을 인자로 받음
 	return SignedTransaction{Data: data}
 }
 
 func (tx SignedTransaction) Ser() string {
-	j, _ := json.Marshal(tx.Data)
+	j, _ := json.Marshal(tx.Data) // OrderedMap을 JSON으로 직렬화
 	return string(j)
 }
 
@@ -32,13 +29,11 @@ func (tx SignedTransaction) GetSize() int {
 }
 
 func (tx SignedTransaction) GetTxHash() string {
-	return util.TimeHash(util.Hash(tx.Ser()), tx.Data["timestamp"].(int64))
+	ts, _ := tx.Data.Get("timestamp")
+	return util.TimeHash(util.Hash(tx.Ser()), ts.(int64))
 }
 
 func (tx *SignedTransaction) Sign(privateKey string) string {
-	// xpub := crypto.GetXpub(privateKey)
-	// address :
-
 	txHash := tx.GetTxHash()
 	tx.Signature = crypto.Sign(txHash, privateKey)
 	return tx.Signature
