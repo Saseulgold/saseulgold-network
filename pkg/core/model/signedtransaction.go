@@ -1,7 +1,6 @@
 package model
 
 import (
-	"encoding/json"
 	S "hello/pkg/core/structure"
 	"hello/pkg/crypto"
 	"hello/pkg/util"
@@ -20,8 +19,7 @@ func NewSignedTransaction(data *S.OrderedMap) SignedTransaction { // OrderedMap�
 }
 
 func (tx SignedTransaction) Ser() string {
-	j, _ := json.Marshal(tx.Data) // OrderedMap을 JSON으로 직렬화
-	return string(j)
+	return tx.Data.Ser()
 }
 
 func (tx SignedTransaction) GetSize() int {

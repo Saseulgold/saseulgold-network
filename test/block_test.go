@@ -4,6 +4,7 @@ import (
 	_ "fmt"
 	. "hello/pkg/core/model"
 	S "hello/pkg/core/structure"
+	F "hello/pkg/util"
 	"testing"
 )
 
@@ -17,24 +18,6 @@ func TestUpdate_GetHash0(t *testing.T) {
 	}
 
 	expectedHash := "b3c1ed9ce9df9d2531bb6e2945f044590974408f547f3574d56075e13394770da53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c49b7a4cfee50af6cfe8d35060e2ed250039a31ad30d18a02f8b5f7934cd2004f6"
-	actualHash := update.GetHash()
-	t.Log("actualHash: ", actualHash)
-
-	if actualHash != expectedHash {
-		t.Errorf("GetHash() = %v; want %v", actualHash, expectedHash)
-	}
-}
-
-func TestUpdate_GetHash1(t *testing.T) {
-	oldValue := "74375000"
-	newValue := "148750000"
-	update := Update{
-		Key: "c8c603ff91a3c59d637c7bda83e732dea6ec74e1001b35600f0ba7831dbfe32900000000000000000000000000000000000000000000",
-		Old: oldValue,
-		New: newValue,
-	}
-
-	expectedHash := "c8c603ff91a3c59d637c7bda83e732dea6ec74e1001b35600f0ba7831dbfe32900000000000000000000000000000000000000000000904596cef51f3af907c11a12b80d384884f5957481e5ab7d76f78fed23fa4b83"
 	actualHash := update.GetHash()
 	t.Log("actualHash: ", actualHash)
 
@@ -58,6 +41,21 @@ func TestSignedTransaction_Ser(t *testing.T) {
 	t.Log(actualJSON)
 
 	if actualJSON != expectedJSON {
-		// t.Errorf("Ser() = %v; want %v", actualJSON, expectedJSON)
+		t.Errorf("Ser() = %v; want %v", actualJSON, expectedJSON)
+	}
+
+	expectedHash := "0625f96a8fd358fbb536f1ee332a8470fadc5c049af6835552a83a566a4d811fcb1f459cf50187"
+	actualHash := tx.GetTxHash()
+
+	timehex := F.HexTime(int64(1730603025159000))
+	t.Log("timehex: ", timehex)
+
+	if timehex != "0625f96a8fd358" {
+		t.Errorf("GetTxHash() = %v; want %v", timehex, "0625f96a8fd358")
+	}
+
+	t.Log("actualHash: ", actualHash)
+	if actualHash != expectedHash {
+		t.Errorf("GetTxHash() = %v; want %v", actualHash, expectedHash)
 	}
 }

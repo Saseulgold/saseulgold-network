@@ -2,7 +2,7 @@ package structure
 
 import (
 	"container/list"
-	"encoding/json"
+	"fmt"
 )
 
 type OrderedMap struct {
@@ -29,26 +29,23 @@ func (om *OrderedMap) Get(key string) (interface{}, bool) { // 반환 타입을 
 	return value, exists
 }
 
-func (om *OrderedMap) MarshalJSON() ([]byte, error) {
-	kvPairs := make([]map[string]interface{}, 0) // kvPairs의 타입을 변경
+func (om *OrderedMap) Ser() string {
+	result := "{"
 	for e := om.l.Front(); e != nil; e = e.Next() {
 		key := e.Value.(string)
-		kvPairs = append(kvPairs, map[string]interface{}{key: om.m[key]}) // m의 value 타입에 맞게 변경
+		value := om.m[key]
+
+		// Check if value is of type string, and wrap in quotes if so
+		if strValue, ok := value.(string); ok {
+			result += fmt.Sprintf(`"%s":"%s"`, key, strValue)
+		} else {
+			result += fmt.Sprintf(`"%s":%v`, key, value)
+		}
+
+		if e.Next() != nil {
+			result += "," // Add a comma if there are more elements
+		}
 	}
-	return json.Marshal(kvPairs)
+	result += "}"
+	return result
 }
-
-/*
-func main() {
-	orderedMap := NewOrderedMap()
-	orderedMap.Set("key2", "value2")
-	orderedMap.Set("key1", 42) // 다양한 타입의 값이 허용됨
-
-	jsonData, err := json.Marshal(orderedMap)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println(string(jsonData))
-}
-*/
