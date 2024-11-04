@@ -3,7 +3,6 @@ package model
 import (
 	"encoding/json"
 	F "hello/pkg/util"
-	S "hello/pkg/structure"
 )
 
 type TransactionMap = map[string]SignedTransaction
@@ -32,12 +31,12 @@ type Block struct {
 	RewardAddress     string `json:"reward_address"`
 }
 
-func NewBlock(height int64, previous_blockhash: string) Block {
-    tm = make(TransactionMap, 8)
-    uu = make(UpdateMap, 16)
-    lu = make(UpdateMap, 4)
+func NewBlock(height int64, previous_blockhash string) Block {
+	tm := make(TransactionMap, 8)
+	uu := make(UpdateMap, 16)
+	lu := make(UpdateMap, 4)
 
-    return Block { Height: height, PreviousBlockhash: previous_blockhash, Transactions: &tm, UniversalUpdates: &uu, LocalUpdates: &lu }
+	return Block{Height: height, PreviousBlockhash: previous_blockhash, Transactions: &tm, UniversalUpdates: &uu, LocalUpdates: &lu}
 }
 
 func CreateBlock(
@@ -58,22 +57,22 @@ func CreateBlock(
 	}
 }
 
-func (block *Block) AppendTransaction(SignedTransaction tx) bool {
-    txHash := tx.GetTxHash()
-    block.Transactions[txHash] = tx
-    return true
+func (block *Block) AppendTransaction(tx SignedTransaction) bool {
+	txHash := tx.GetTxHash()
+	(*block.Transactions)[txHash] = tx
+	return true
 }
 
-func (block *Block) AppendLocalUpdate(Update update) bool {
-    updateHash := update.GetHash()
-    block.LocalUpdates[updateHash] = update
-    return true
+func (block *Block) AppendLocalUpdate(update Update) bool {
+	updateHash := update.GetHash()
+	(*block.LocalUpdates)[updateHash] = update
+	return true
 }
 
-func (block *Block) AppendUniversalUpdate(Update update) bool {
-    updateHash := update.GetHash()
-    block.UniversalUpdates[updateHash] = update
-    return true
+func (block *Block) AppendUniversalUpdate(update Update) bool {
+	updateHash := update.GetHash()
+	(*block.UniversalUpdates)[updateHash] = update
+	return true
 }
 
 func (block Block) BlockHeader() string {
@@ -87,20 +86,25 @@ func (block Block) BlockRoot() string {
 }
 
 func (block Block) THashs() []string {
-	txs := F.SortedValueK(block.Transactions)
+	txs := F.SortedValueK(*block.Transactions)
 	return F.Map(txs, func(tx SignedTransaction) string {
 		return tx.GetTxHash()
 	})
 }
 
 func (block Block) UHashs() []string {
-	res := make([]string, len(block.UniversalUpdates)+len(block.LocalUpdates))
-	uhashs := F.SortedValueK(block.UniversalUpdates)
-	lhashs := F.SortedValueK(block.LocalUpdates)
-	hashs := append(uhashs, lhashs...)
+	hashs := make(map[string]Update)
+	for k, v := range *block.UniversalUpdates {
+		hashs[k] = v
+	}
+	for k, v := range *block.LocalUpdates {
+		hashs[k] = v
+	}
 
-	for _, h := range hashs {
-		res = append(res, h.GetHash())
+	res := make([]string, 0)
+
+	for _, v := range F.SortedValueK(hashs) {
+		res = append(res, v.GetHash())
 	}
 
 	return res

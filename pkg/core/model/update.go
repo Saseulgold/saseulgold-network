@@ -7,13 +7,13 @@ import (
 
 type Update struct {
 	Key string `json:"status_key"`
-	Old string `json:"old"`
-	New string `json:"new"`
+	Old Ia     `json:"old"`
+	New Ia     `json:"new"`
 }
 
 type UpdateLog struct {
-	Old string `json:"old"`
-	New string `json:"new"`
+	Old Ia `json:"old"`
+	New Ia `json:"new"`
 }
 
 func NewUpdateLog(old string, new string) UpdateLog {
@@ -25,6 +25,6 @@ func (u Update) GetHash() string {
 }
 
 func (u Update) SerUpdateLog() string {
-	j, _ := json.Marshal(NewUpdateLog(u.Old, u.New))
+	j, _ := json.Marshal(UpdateLog{Old: u.Old, New: u.New})
 	return string(j)
 }

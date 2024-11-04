@@ -34,7 +34,7 @@ func MerkleRoot(data []string) string {
 
 		for i+1 < len(parent) {
 			if len(parent) > i+1 {
-				s := Concat(parent[i], parent[i+1])
+				s := Hash(Concat(parent[i], parent[i+1]))
 				child = append(child, s)
 			} else {
 				child = append(child, parent[i])
