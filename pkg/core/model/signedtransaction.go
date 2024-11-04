@@ -9,12 +9,12 @@ import (
 type Ia interface{}
 
 type SignedTransaction struct {
-	Data      *S.OrderedMap `json:"data"` // OrderedMap으로 변경
+	Data      *S.OrderedMap `json:"data"` 
 	Xpub      string        `json:"xpub"`
 	Signature string        `json:"signature"`
 }
 
-func NewSignedTransaction(data *S.OrderedMap) SignedTransaction { // OrderedMap을 인자로 받음
+func NewSignedTransaction(data *S.OrderedMap) SignedTransaction { 
 	return SignedTransaction{Data: data}
 }
 

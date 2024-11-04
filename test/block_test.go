@@ -58,4 +58,47 @@ func TestSignedTransaction_Ser(t *testing.T) {
 	if actualHash != expectedHash {
 		t.Errorf("GetTxHash() = %v; want %v", actualHash, expectedHash)
 	}
+
+	txMap = make(map[string]SignedTransaction, 1)
+	updateMap = make(map[string]Update, 3)
+
+	
+	update0 := Update{
+		Key: "b3c1ed9ce9df9d2531bb6e2945f044590974408f547f3574d56075e13394770da53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4",
+		Old: "99999999999999996783125000",
+		New: "99999999999999993566250000"
+	}
+
+	update1 := Update{
+		Key: "c8c603ff91a3c59d637c7bda83e732dea6ec74e1001b35600f0ba7831dbfe32900000000000000000000000000000000000000000000",
+		Old: "148750000",
+		New: "223125000"
+	}
+
+	update2 := Update{
+		Key: "b3c1ed9ce9df9d2531bb6e2945f044590974408f547f3574d56075e13394770d50c3a6cd858c90574bcdc35b2da5dbc7225275f50edf",
+		Old: "6285000000",
+		New: "9427500000"
+	}
+
+	update3 := Update{
+		Key: "724d2935080d38850e49b74927eb0351146c9ee955731f4ef53f24366c5eb9b100000000000000000000000000000000000000000000",
+		Old: 4,
+		New: 5
+	}
+
+	blockPreviousBlockhash := "0625f96a9ca880efae3b7b47dc7ba9410ff36176096e9dfd321ca5e565cffaa4e908fcabcca389"
+	block4 := NewBlock(4, blockPreviousBlockhash)
+
+	block4.AppendUniversalUpdate(update0)
+	block4.AppendUniversalUpdate(update1)
+	block4.AppendUniversalUpdate(update2)
+
+	block4.AppendLocalUpdate(update3)
+
+	ur := block4.UpdateRoot()
+	expectedUpdateRoot := "68af6d7009201e21283a75b345739ccea7c821ce6a0bc4fab105c8038ba9dd09"
+
+	if ur != expectedUpdateRoot:
+		t.Errorf("GetUpdateRoot() = %v; want %v", ur, expectedUpdateRoot)
 }

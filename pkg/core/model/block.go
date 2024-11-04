@@ -3,6 +3,7 @@ package model
 import (
 	"encoding/json"
 	F "hello/pkg/util"
+	S "hello/pkg/structure"
 )
 
 type TransactionMap = map[string]SignedTransaction
@@ -21,9 +22,9 @@ func (bh BlockHeader) Ser() string {
 
 type Block struct {
 	Height            int64 `json:"height"`
-	Transactions      TransactionMap
-	UniversalUpdates  UpdateMap
-	LocalUpdates      UpdateMap
+	Transactions      *TransactionMap
+	UniversalUpdates  *UpdateMap
+	LocalUpdates      *UpdateMap
 	PreviousBlockhash string `json:"previous_blockhash"`
 	Timestamp_s       int64  `json:"timestamp_s"`
 	Vout              string `json:"vout"`
@@ -31,11 +32,19 @@ type Block struct {
 	RewardAddress     string `json:"reward_address"`
 }
 
+func NewBlock(height int64, previous_blockhash: string) Block {
+    tm = make(TransactionMap, 8)
+    uu = make(UpdateMap, 16)
+    lu = make(UpdateMap, 4)
+
+    return Block { Height: height, PreviousBlockhash: previous_blockhash, Transactions: &tm, UniversalUpdates: &uu, LocalUpdates: &lu }
+}
+
 func CreateBlock(
 	height int64,
-	transactions TransactionMap,
-	universalUpdates UpdateMap,
-	localUpdates UpdateMap,
+	transactions *TransactionMap,
+	universalUpdates *UpdateMap,
+	localUpdates *UpdateMap,
 	previousBlockhash string,
 	timestamp_s int64,
 	vout string,
@@ -47,6 +56,24 @@ func CreateBlock(
 		LocalUpdates: localUpdates, PreviousBlockhash: previousBlockhash,
 		Timestamp_s: timestamp_s, Vout: vout, Nonce: nonce, RewardAddress: rewardAddress,
 	}
+}
+
+func (block *Block) AppendTransaction(SignedTransaction tx) bool {
+    txHash := tx.GetTxHash()
+    block.Transactions[txHash] = tx
+    return true
+}
+
+func (block *Block) AppendLocalUpdate(Update update) bool {
+    updateHash := update.GetHash()
+    block.LocalUpdates[updateHash] = update
+    return true
+}
+
+func (block *Block) AppendUniversalUpdate(Update update) bool {
+    updateHash := update.GetHash()
+    block.UniversalUpdates[updateHash] = update
+    return true
 }
 
 func (block Block) BlockHeader() string {
