@@ -11,6 +11,7 @@ import (
 
 const HEX_TIME_BYTES = 7
 const HEX_TIME_SIZE = HEX_TIME_BYTES * 2
+const STATUS_HASH_BYTES = 64
 
 func Hash(data string) string {
 	hash := sha256.New()
@@ -95,10 +96,10 @@ func IDHash(meessage string) string {
 	return sh + Checksum(sh)
 }
 
-func StateHash(owner string, space string, attr string, key string) string {
-	return StatePrefix(owner, space, attr) + key
+func StatusHash(owner string, space string, attr string, key string) string {
+	return StatusPrefix(owner, space, attr) + key
 }
 
-func StatePrefix(owner string, space string, attr string) string {
+func StatusPrefix(owner string, space string, attr string) string {
 	return Hash(Concat(owner, space, attr))
 }
