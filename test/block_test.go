@@ -3,9 +3,9 @@ package main
 import (
 	_ "fmt"
 	. "hello/pkg/core/model"
+	"testing"
 	S "hello/pkg/core/structure"
 	F "hello/pkg/util"
-	"testing"
 )
 
 func TestUpdate_GetHash0(t *testing.T) {
@@ -61,7 +61,6 @@ func TestSignedTransaction_Ser(t *testing.T) {
 
 	txMap = make(map[string]SignedTransaction, 1)
 	updateMap = make(map[string]Update, 3)
-
 	
 	update0 := Update{
 		Key: "b3c1ed9ce9df9d2531bb6e2945f044590974408f547f3574d56075e13394770da53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4",
@@ -99,6 +98,39 @@ func TestSignedTransaction_Ser(t *testing.T) {
 	ur := block4.UpdateRoot()
 	expectedUpdateRoot := "68af6d7009201e21283a75b345739ccea7c821ce6a0bc4fab105c8038ba9dd09"
 
-	if ur != expectedUpdateRoot:
+	if ur != expectedUpdateRoot {
 		t.Errorf("GetUpdateRoot() = %v; want %v", ur, expectedUpdateRoot)
+	}
+
+	tr := block4.TransactionRoot()
+	expectedTxRoot := "e4dc5302d9bd06987cdba3d528d4c559bd1049cc1d72b6b0b182b814bdfdfd13"
+
+	if tr != expectedTxRoot {
+		t.Errorf("GetTransactionRoot() = %v; want %v", tr, expectedTxRoot)
+	}
+
+	br = block4.BlockRoot()
+	ebr := "13baba3285549fee795f8535b139cab35d93fb9be68a6b1c1c78b5fc08b50a3a"
+
+	if br != ebr {
+		t.Errorf("BlockRoot() = %v; want %v", br, ebr)
+	}
+
+	bhh = block4.BlockHeader()
+	ebh = "a5edd9d9431d313dc7990dfd111cc025b396aeb9b0030cc841ecbc5b20075c5d"
+
+	if bhh != ebh {
+		t.Errorf("BlockHeader() = %v; want %v", bhh, ebh)
+	}
+
+	bh := block4.BlockHash()
+	ebh := "0625f96aabeac0fcf4a36580eecd5916c40b8dd6c2f2442bc0622e048561b425d9200c60697e64"
+
+	if bh != ebh {
+		t.Errorf("BlockHash() = %v; want %v", bh, ebh)
+	}
+
 }
+
+
+
