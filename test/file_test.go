@@ -7,7 +7,6 @@ import (
 	"hello/pkg/core/storage"
 	"hello/pkg/util"
 	"io/ioutil"
-	"os"
 	"strings"
 	"testing"
 )
@@ -15,20 +14,22 @@ import (
 func TestHash(t *testing.T) {
 	owner := config.ZeroAddress()
 	space := config.RootSpace()
+	sender := "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4"
+	expected := "b3c1ed9ce9df9d2531bb6e2945f044590974408f547f3574d56075e13394770da53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4"
 
-	hash := util.StatusHash(owner, space, "balance", owner)
-	t.Logf("hash: %s", hash)
+	hash := util.StatusHash(owner, space, "balance", sender)
+
+	if hash != expected {
+		t.Errorf("Expected %s, got %s", expected, hash)
+	}
 }
 
 // TestListFiles is a test function for StorageFileIndex's ListFiles method.
 func TestListFiles(t *testing.T) {
 	// Create a temporary directory
-	tempDir, err := ioutil.TempDir("", "testdir")
-	if err != nil {
-		t.Fatalf("Failed to create temporary directory: %v", err)
-	}
+	tempDir := storage.DATA_ROOT_DIR + "/test"
 
-	defer os.RemoveAll(tempDir) // Clean up after the test
+	// defer os.RemoveAll(tempDir) // Clean up after the test
 
 	// Create test files
 	files := []struct {
@@ -41,6 +42,8 @@ func TestListFiles(t *testing.T) {
 
 	for _, file := range files {
 		err := ioutil.WriteFile(tempDir+"/"+file.name, []byte("test data"), 0644)
+		t.Logf("file: %s", file.name)
+
 		if err != nil {
 			t.Fatalf("Failed to create file %s: %v", file.name, err)
 		}
@@ -108,7 +111,7 @@ func TestNewStatusIndex(t *testing.T) {
 		"cccc" +
 		"dddd"
 
-	index := storage.NewStatusIndex(raw)
+	index := storage.NewStorageIndex(raw)
 
 	if index.FileID != "bb" {
 		t.Errorf("Expected FileID 'bb', got %s", index.FileID)

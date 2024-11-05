@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	_ "fmt"
 	. "hello/pkg/core/model"
-	"testing"
 	S "hello/pkg/core/structure"
 	F "hello/pkg/util"
+	"testing"
 )
 
 func TestUpdate_GetHash0(t *testing.T) {
@@ -128,26 +128,25 @@ func TestSignedTransaction_Ser(t *testing.T) {
 		t.Errorf("GetTransactionRoot() = %v; want %v", tr, expectedTxRoot)
 	}
 
-	br = block4.BlockRoot()
+	br := block4.BlockRoot()
 	ebr := "13baba3285549fee795f8535b139cab35d93fb9be68a6b1c1c78b5fc08b50a3a"
 
 	if br != ebr {
 		t.Errorf("BlockRoot() = %v; want %v", br, ebr)
 	}
 
-	bhh = block4.BlockHeader()
-	ebh = "a5edd9d9431d313dc7990dfd111cc025b396aeb9b0030cc841ecbc5b20075c5d"
+	bhh := block4.BlockHeader()
+	ebh := "a5edd9d9431d313dc7990dfd111cc025b396aeb9b0030cc841ecbc5b20075c5d"
 
 	if bhh != ebh {
 		t.Errorf("BlockHeader() = %v; want %v", bhh, ebh)
 	}
 
 	bh := block4.BlockHash()
-	ebh := "0625f96aabeac0fcf4a36580eecd5916c40b8dd6c2f2442bc0622e048561b425d9200c60697e64"
+	ebh = "0625f96aabeac0fcf4a36580eecd5916c40b8dd6c2f2442bc0622e048561b425d9200c60697e64"
 
 	if bh != ebh {
 		t.Errorf("BlockHash() = %v; want %v", bh, ebh)
 	}
 
 }
-

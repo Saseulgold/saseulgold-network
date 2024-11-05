@@ -1,7 +1,7 @@
 package main
 
 import (
-	"hello/pkg/core/util"
+	"hello/pkg/util"
 	"testing"
 )
 
@@ -11,7 +11,7 @@ func MemoTest0(t *testing.T) {
 		return var0.(int) + 1
 	}
 
-	f := util.MemoFn0(inc)
+	f := util.MemoFn0("inc", inc)
 	r0 := f(0)
 
 	if r0 != 1 {

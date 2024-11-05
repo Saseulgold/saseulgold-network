@@ -2,7 +2,6 @@ package storage
 
 import (
 	"io/ioutil"
-	"os"
 	"strings"
 )
 
@@ -14,8 +13,6 @@ type StorageFileIndex struct {
 }
 
 const LEDGER_FILE_SIZE_LIMIT = 268435456
-
-var DATA_ROOT_DIR = os.Getenv("QUANTUM_DATA_DIR")
 
 func (si StorageFileIndex) ListFiles() []string {
 	files, _ := ioutil.ReadDir(si.Dir)

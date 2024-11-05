@@ -2,9 +2,9 @@ package storage
 
 import (
 	"encoding/hex"
-	"io/ioutil"
-
 	F "hello/pkg/util"
+	"io/ioutil"
+	"os"
 )
 
 const (
@@ -18,6 +18,9 @@ const (
 	STATUS_KEY_BYTES = F.STATUS_HASH_BYTES
 )
 
+// var DATA_ROOT_DIR = os.Getenv("QUANTUM_DATA_DIR")
+const DATA_ROOT_DIR = "/Users/louis/qcn/data"
+
 func StatusKey(raw string) string {
 	if len(raw) < STATUS_KEY_BYTES {
 		return ""
@@ -25,14 +28,20 @@ func StatusKey(raw string) string {
 	return hex.EncodeToString([]byte(raw)[:STATUS_KEY_BYTES])
 }
 
-type StatusIndex struct {
+type StorageIndex struct {
+	Key    string
 	FileID string
 	Seek   []byte
 	Length []byte
 	IsSeek int
 }
 
-func NewStatusIndex(raw string) StatusIndex {
+func StorageKey(raw string) string {
+	return raw[:STATUS_KEY_BYTES]
+}
+
+func NewStorageIndex(raw string) StorageIndex {
+	key := StorageKey(raw)
 	offset := STATUS_KEY_BYTES
 
 	fileID := raw[offset : offset+DATA_ID_BYTES]
@@ -43,16 +52,16 @@ func NewStatusIndex(raw string) StatusIndex {
 
 	length := F.Hex2Bin(raw[offset : offset+LENGTH_BYTES])
 
-	return StatusIndex{
+	return StorageIndex{
+		Key:    key,
 		FileID: fileID,
 		Seek:   seek,
 		Length: length,
 	}
 }
 
-func ReadStatusIndex(indexFile string, bundling bool) map[string]StatusIndex {
-	indexes := make(map[string]StatusIndex)
-
+func ReadStorageIndex(indexFile string, bundling bool) map[string]StorageIndex {
+	indexes := make(map[string]StorageIndex)
 	data, _ := ioutil.ReadFile(indexFile)
 
 	for idx := 0; idx < len(data); idx += STATUS_HEAP_BYTES {
@@ -64,7 +73,7 @@ func ReadStatusIndex(indexFile string, bundling bool) map[string]StatusIndex {
 
 		if len(raw) == STATUS_HEAP_BYTES {
 			key := StatusKey(string(raw))
-			index := NewStatusIndex(string(raw))
+			index := NewStorageIndex(string(raw))
 
 			if bundling {
 				iseek := idx * STATUS_HEAP_BYTES
@@ -115,4 +124,17 @@ func SplitKey(key string) [2]string {
 	suffix := key[STATUS_PREFIX_SIZE:]
 
 	return [2]string{prefix, suffix}
+}
+
+func AppendFile(filename string, str string) error {
+	f, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	if _, err := f.WriteString(str); err != nil {
+		return err
+	}
+	return nil
 }
