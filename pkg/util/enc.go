@@ -20,6 +20,13 @@ func Hash(data string) string {
 	return hex.EncodeToString(hashBytes)
 }
 
+func FillHash(hash string) string {
+	if len(hash) < STATUS_HASH_BYTES {
+		return PadRight(hash, "0", STATUS_HASH_BYTES)
+	}
+	return hash
+}
+
 func MerkleRoot(data []string) string {
 	if len(data) == 0 {
 		return Hash("")

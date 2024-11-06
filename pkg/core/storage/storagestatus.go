@@ -2,22 +2,23 @@ package storage
 
 import (
 	"fmt"
+	C "hello/pkg/core/config"
 	"os"
 	"path/filepath"
 )
 
 // StatusFile 구조체는 상태 파일 관리를 담당합니다
 type StatusFile struct {
-	CachedUniversalIndexes map[string]StorageIndex
-	CachedLocalIndexes     map[string]StorageIndex
+	CachedUniversalIndexes map[string]StorageIndexCursor
+	CachedLocalIndexes     map[string]StorageIndexCursor
 	Tasks                  [][]interface{}
 }
 
 // NewStatusFile creates a new StatusFile instance
 func NewStatusFile() *StatusFile {
 	return &StatusFile{
-		CachedUniversalIndexes: make(map[string]StorageIndex),
-		CachedLocalIndexes:     make(map[string]StorageIndex),
+		CachedUniversalIndexes: make(map[string]StorageIndexCursor),
+		CachedLocalIndexes:     make(map[string]StorageIndexCursor),
 		Tasks:                  make([][]interface{}, 0),
 	}
 }
@@ -89,8 +90,15 @@ func (sf *StatusFile) Cache() error {
 
 // Flush clears cached indexes
 func (sf *StatusFile) Flush() {
-	sf.CachedUniversalIndexes = make(map[string]StorageIndex)
-	sf.CachedLocalIndexes = make(map[string]StorageIndex)
+	sf.CachedUniversalIndexes = make(map[string]StorageIndexCursor)
+	sf.CachedLocalIndexes = make(map[string]StorageIndexCursor)
+}
+
+func (sf *StatusFile) RootDir() string {
+	if C.CORE_TEST_MODE {
+		return DATA_ROOT_TEST_DIR
+	}
+	return DATA_ROOT_DIR
 }
 
 func (sf *StatusFile) StatusBundle() string {
@@ -125,19 +133,3 @@ func (sf *StatusFile) LocalFile() string {
 func (sf *StatusFile) UniversalFile(fileID string) string {
 	return filepath.Join(sf.StatusBundle(), fmt.Sprintf("universals-%s", fileID))
 }
-
-// Commit 메서드 추가
-
-/**
-func (sf *StatusFile) Commit() error {
-	if err := WriteStatusIndex(sf.UniversalBundleIndex(), sf.CachedUniversalIndexes); err != nil {
-		return err
-	}
-	if err := WriteStatusIndex(sf.LocalBundleIndex(), sf.CachedLocalIndexes); err != nil {
-		return err
-	}
-	return nil
-}
-	**/
-
-// ... 기타 메서드들은 비슷한 패턴으로 구현

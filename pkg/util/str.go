@@ -12,6 +12,13 @@ func PadLeft(str string, padChar string, length int) string {
 	return strings.Repeat(padChar, length-len(str)) + str
 }
 
+func PadRight(str string, padChar string, length int) string {
+	if len(str) >= length {
+		return str
+	}
+	return str + strings.Repeat(padChar, length-len(str))
+}
+
 func Concat(s ...string) string {
 	var buffer bytes.Buffer
 

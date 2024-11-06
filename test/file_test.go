@@ -24,9 +24,7 @@ func TestHash(t *testing.T) {
 	}
 }
 
-// TestListFiles is a test function for StorageFileIndex's ListFiles method.
 func TestListFiles(t *testing.T) {
-	// Create a temporary directory
 	tempDir := storage.DATA_ROOT_DIR + "/test"
 
 	// defer os.RemoveAll(tempDir) // Clean up after the test
@@ -147,10 +145,12 @@ func TestSplitKey(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		result := storage.SplitKey(tc.input)
-		if result[0] != tc.expectedPrefix || result[1] != tc.expectedSuffix {
+		prefix, suffix := storage.SplitKey(tc.input)
+		if prefix != tc.expectedPrefix || suffix != tc.expectedSuffix {
 			t.Errorf("SplitKey(%s) = [%s, %s]; want [%s, %s]",
-				tc.input, result[0], result[1], tc.expectedPrefix, tc.expectedSuffix)
+				tc.input, prefix, suffix, tc.expectedPrefix, tc.expectedSuffix)
+		} else {
+			t.Logf("SplitKey(%s) = [%s, %s]", tc.input, prefix, suffix)
 		}
 	}
 }

@@ -20,6 +20,7 @@ const (
 
 // var DATA_ROOT_DIR = os.Getenv("QUANTUM_DATA_DIR")
 const DATA_ROOT_DIR = "/Users/louis/qcn/data"
+const DATA_ROOT_TEST_DIR = "/Users/louis/qcn/data/test"
 
 func StatusKey(raw string) string {
 	if len(raw) < STATUS_KEY_BYTES {
@@ -28,19 +29,20 @@ func StatusKey(raw string) string {
 	return hex.EncodeToString([]byte(raw)[:STATUS_KEY_BYTES])
 }
 
-type StorageIndex struct {
+type StorageIndexCursor struct {
 	Key    string
 	FileID string
 	Seek   []byte
 	Length []byte
 	IsSeek int
+	Value  F.Ia
 }
 
 func StorageKey(raw string) string {
 	return raw[:STATUS_KEY_BYTES]
 }
 
-func NewStorageIndex(raw string) StorageIndex {
+func NewStorageCursor(raw string) StorageIndexCursor {
 	key := StorageKey(raw)
 	offset := STATUS_KEY_BYTES
 
@@ -52,7 +54,7 @@ func NewStorageIndex(raw string) StorageIndex {
 
 	length := F.Hex2Bin(raw[offset : offset+LENGTH_BYTES])
 
-	return StorageIndex{
+	return StorageIndexCursor{
 		Key:    key,
 		FileID: fileID,
 		Seek:   seek,
@@ -60,8 +62,8 @@ func NewStorageIndex(raw string) StorageIndex {
 	}
 }
 
-func ReadStorageIndex(indexFile string, bundling bool) map[string]StorageIndex {
-	indexes := make(map[string]StorageIndex)
+func ReadStorageIndex(indexFile string, bundling bool) map[string]StorageIndexCursor {
+	indexes := make(map[string]StorageIndexCursor)
 	data, _ := ioutil.ReadFile(indexFile)
 
 	for idx := 0; idx < len(data); idx += STATUS_HEAP_BYTES {
@@ -73,7 +75,7 @@ func ReadStorageIndex(indexFile string, bundling bool) map[string]StorageIndex {
 
 		if len(raw) == STATUS_HEAP_BYTES {
 			key := StatusKey(string(raw))
-			index := NewStorageIndex(string(raw))
+			index := NewStorageCursor(string(raw))
 
 			if bundling {
 				iseek := idx * STATUS_HEAP_BYTES
@@ -115,15 +117,15 @@ func FileIdBin(fileId string) []byte {
 	return bin
 }
 
-func SplitKey(key string) [2]string {
+func SplitKey(key string) (string, string) {
 	if len(key) < STATUS_PREFIX_SIZE {
-		return [2]string{"", ""}
+		return "", ""
 	}
 
 	prefix := key[:STATUS_PREFIX_SIZE]
 	suffix := key[STATUS_PREFIX_SIZE:]
 
-	return [2]string{prefix, suffix}
+	return prefix, suffix
 }
 
 func AppendFile(filename string, str string) error {

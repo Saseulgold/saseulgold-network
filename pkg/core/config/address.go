@@ -4,6 +4,8 @@ import (
 	"hello/pkg/util"
 )
 
+var CORE_TEST_MODE = false
+
 const SYSTEM_NONCE = "Fiat lux. "
 
 func ZeroAddress() string {
