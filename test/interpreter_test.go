@@ -1,15 +1,16 @@
 package main
 
 import (
-	"testing"
-	. "hello/pkg/core"
 	_ "fmt"
+	. "hello/pkg/core"
+	. "hello/pkg/core/vm"
+	"testing"
 )
 
 func GetContract0() Contract {
 	return NewContract()
 }
-		
+
 func TestCase0(t *testing.T) {
 	contract := NewContract()
 	contract.SetName("test0")
@@ -34,6 +35,6 @@ func TestCase0(t *testing.T) {
 
 	instance := Instance()
 
-	params := ParamValueMap{ "amount0": HInteger(1) }
+	params := ParamValueMap{"amount0": HInteger(1)}
 	instance.ExecuteContract(&contract, params)
 }

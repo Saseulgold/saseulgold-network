@@ -1,20 +1,21 @@
 package core
 
 import (
+	"fmt"
+	. "hello/pkg/core"
 	f "hello/pkg/util"
 	"reflect"
-	"fmt"
 )
 
-type Clojure 	func(interpreter *Interpreter) Ia
+type Clojure func(interpreter *Interpreter) Ia
 
 var appLogger = f.GetLogger()
 
 type ABI struct {
-	name			string
-	items 		[]Ia
-	cloj			Clojure
-	Res				Ia
+	name  string
+	items []Ia
+	cloj  Clojure
+	Res   Ia
 }
 
 func Unwrap(item Ia) Ia {
@@ -22,9 +23,9 @@ func Unwrap(item Ia) Ia {
 
 	switch item.(type) {
 	case ParamValue:
-		return item.(ParamValue).v
+		return item.(*ParamValue).GetValue()
 	case *ParamValue:
-		return item.(ParamValue).v
+		return item.(*ParamValue).GetValue()
 	case *ABI:
 		return item.(*ABI).Res
 	case ABI:
@@ -37,15 +38,15 @@ func Unwrap(item Ia) Ia {
 		return item
 	case HBool:
 		return item
-	default: 
+	default:
 		fmt.Println(item)
-		panic("unknown type for unwrap" )
+		panic("unknown type for unwrap")
 	}
 	return nil
 }
 
 func OpEq(a, b Ia) *ABI {
-	abi := &ABI{ name: "eq", items: []Ia{a, b}, Res: nil}
+	abi := &ABI{name: "eq", items: []Ia{a, b}, Res: nil}
 
 	cloj := func(interpreter *Interpreter) Ia {
 		return abi.items[0] == abi.items[1]
@@ -56,20 +57,20 @@ func OpEq(a, b Ia) *ABI {
 }
 
 func ABIException(msg string) *ABI {
-	abi := &ABI{ name: "raise_exception", items: []Ia{msg}, Res: nil }
+	abi := &ABI{name: "raise_exception", items: []Ia{msg}, Res: nil}
 
 	cloj := func(interpreter *Interpreter) Ia {
-		return msg;
+		return msg
 	}
 	abi.cloj = cloj
 	return abi
 }
 
 func OpCondition(a *ABI) *ABI {
-	abi := &ABI{ name: "condition", items: []Ia{a}, Res: nil }
+	abi := &ABI{name: "condition", items: []Ia{a}, Res: nil}
 
 	cloj := func(interpreter *Interpreter) Ia {
-		fmt.Println("processed: ", abi.items)	
+		fmt.Println("processed: ", abi.items)
 		res := Unwrap(abi.items[0]).(bool)
 		return res
 	}
@@ -78,25 +79,25 @@ func OpCondition(a *ABI) *ABI {
 }
 
 func OpMul(a, b Ia) *ABI {
-	abi := &ABI{ name: "add", items: []Ia{a, b}, Res: nil}
+	abi := &ABI{name: "add", items: []Ia{a, b}, Res: nil}
 
 	cloj := func(interpreter *Interpreter) Ia {
 		_a := abi.items[0]
 		_b := abi.items[1]
 
 		switch _a.(type) {
-			case HInteger:
-				if __b, ok := _b.(HInteger); ok {
-					return _a.(HInteger) * __b
-				}
+		case HInteger:
+			if __b, ok := _b.(HInteger); ok {
+				return _a.(HInteger) * __b
+			}
 
-			case HFloat:
-				if __b, ok := _b.(HFloat); ok {
-					return _a.(HFloat) * __b
-				}
+		case HFloat:
+			if __b, ok := _b.(HFloat); ok {
+				return _a.(HFloat) * __b
+			}
 
-			default:
-				break
+		default:
+			break
 		}
 		RaiseTypeError(fmt.Sprintf("Can't Mul between %s, %s", reflect.TypeOf(_a), reflect.TypeOf(_b)))
 		return nil
@@ -106,27 +107,26 @@ func OpMul(a, b Ia) *ABI {
 	return abi
 }
 
-
 func OpAdd(a, b Ia) *ABI {
-	abi := &ABI{ name: "add", items: []Ia{a, b}, Res: nil}
+	abi := &ABI{name: "add", items: []Ia{a, b}, Res: nil}
 
 	cloj := func(interpreter *Interpreter) Ia {
 		_a := abi.items[0]
 		_b := abi.items[1]
 
 		switch _a.(type) {
-			case HInteger:
-				if __b, ok := _b.(HInteger); ok {
-					return _a.(HInteger) + __b
-				}
+		case HInteger:
+			if __b, ok := _b.(HInteger); ok {
+				return _a.(HInteger) + __b
+			}
 
-			case HFloat:
-				if __b, ok := _b.(HFloat); ok {
-					return _a.(HFloat) + __b
-				}
+		case HFloat:
+			if __b, ok := _b.(HFloat); ok {
+				return _a.(HFloat) + __b
+			}
 
-			default:
-				break
+		default:
+			break
 		}
 		RaiseTypeError(fmt.Sprintf("Can't Add between %s, %s", reflect.TypeOf(_a), reflect.TypeOf(_b)))
 		return nil
@@ -136,11 +136,10 @@ func OpAdd(a, b Ia) *ABI {
 	return abi
 }
 
-
 func (abi *ABI) Eval(interpreter *Interpreter) Ia {
 	nitems := []Ia{}
 
-	if(abi.Res != nil) {
+	if abi.Res != nil {
 		return abi.Res
 	}
 
@@ -156,21 +155,20 @@ func (abi *ABI) Eval(interpreter *Interpreter) Ia {
 		} else {
 			_res = item
 		}
-		
+
 		nitems = append(nitems, _res)
 	}
 
 	abi.SetItems(nitems)
 
-	f.Print("processed: ", abi.items, len(abi.items))	
+	f.Print("processed: ", abi.items, len(abi.items))
 	res := abi.cloj(interpreter)
 	f.Print("Res: ", res)
-	fmt.Printf("set Res: %p", abi)	
+	fmt.Printf("set Res: %p", abi)
 	abi.SetRes(res)
 
 	return abi.Res
 }
-
 
 func (this *ABI) SetItems(items []Ia) {
 	this.items = items

@@ -1,5 +1,9 @@
 package core
 
+import (
+	. "hello/pkg/core"
+)
+
 const STATE_NULL = "null"
 const STATE_READ = "read"
 const STATE_CONDITION = "condition"

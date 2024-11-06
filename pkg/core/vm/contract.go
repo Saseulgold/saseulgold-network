@@ -3,6 +3,7 @@ package core
 import (
 	// f "hello/pkg/util"
 	"encoding/json"
+	. "hello/pkg/core"
 	// "reflect"
 )
 
