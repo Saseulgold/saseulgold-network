@@ -1,10 +1,15 @@
 package storage
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	. "hello/pkg/core/config"
 	C "hello/pkg/core/config"
+	F "hello/pkg/util"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // StatusFile 구조체는 상태 파일 관리를 담당합니다
@@ -88,7 +93,6 @@ func (sf *StatusFile) Cache() error {
 	return nil
 }
 
-// Flush clears cached indexes
 func (sf *StatusFile) Flush() {
 	sf.CachedUniversalIndexes = make(map[string]StorageIndexCursor)
 	sf.CachedLocalIndexes = make(map[string]StorageIndexCursor)
@@ -106,15 +110,19 @@ func (sf *StatusFile) StatusBundle() string {
 }
 
 func (sf *StatusFile) LocalBundle() string {
-	return filepath.Join(DATA_ROOT_DIR, "localbundle")
+	return filepath.Join(DATA_ROOT_DIR, "lbundle")
 }
 
 func (sf *StatusFile) LocalBundleIndex() string {
-	return filepath.Join(DATA_ROOT_DIR, "localbundleindex")
+	return filepath.Join(DATA_ROOT_DIR, "lbundle_index")
 }
 
 func (sf *StatusFile) UniversalBundleIndex() string {
-	return filepath.Join(DATA_ROOT_DIR, "universalsbundleindex")
+	return filepath.Join(DATA_ROOT_DIR, "ubundle_index")
+}
+
+func (sf *StatusFile) UniversalBundle(fileID string) string {
+	return filepath.Join(DATA_ROOT_DIR, fmt.Sprintf("ubundle-%s", fileID))
 }
 
 // 파일 경로 관련 메서드들
@@ -132,4 +140,124 @@ func (sf *StatusFile) LocalFile() string {
 
 func (sf *StatusFile) UniversalFile(fileID string) string {
 	return filepath.Join(sf.StatusBundle(), fmt.Sprintf("universals-%s", fileID))
+}
+
+func (sf *StatusFile) maxFileId(prefix string) string {
+	files, err := filepath.Glob(filepath.Join(sf.StatusBundle(), prefix+"*"))
+	if err != nil {
+		return "00"
+	}
+
+	if len(files) > 0 {
+		fileIds := make([]string, len(files))
+		for i, file := range files {
+			fileIds[i] = strings.TrimPrefix(filepath.Base(file), prefix)
+		}
+
+		maxId := fileIds[0]
+		for _, id := range fileIds[1:] {
+			if id > maxId {
+				maxId = id
+			}
+		}
+		return maxId
+	}
+
+	return fmt.Sprintf("%02x", 0)
+}
+
+func (sf *StatusFile) WriteUniversal(universalUpdates map[string]map[string]interface{}) error {
+	null := byte(0)
+	latestFileID := sf.maxFileId("ubundle-")
+	latestFile := sf.UniversalBundle(latestFileID)
+	indexFile := sf.UniversalBundleIndex()
+
+	// 파일 생성 또는 열기
+	if err := AppendFile(latestFile, ""); err != nil {
+		return err
+	}
+
+	// 파일 크기 가져오기
+	latestFileInfo, err := os.Stat(latestFile)
+	if err != nil {
+		return err
+	}
+	seek := latestFileInfo.Size()
+
+	indexFileInfo, err := os.Stat(indexFile)
+	if err != nil {
+		return err
+	}
+	iseek := indexFileInfo.Size()
+
+	for key, update := range universalUpdates {
+		key = F.FillHash(key)
+		index, exists := sf.CachedUniversalIndexes[key]
+
+		data, err := json.Marshal(update["new"])
+		if err != nil {
+			return err
+		}
+
+		length := int64(len(data))
+		var oldLength int64
+		if exists {
+			oldLength = index.Length
+		}
+
+		var (
+			fileID    int
+			currSeek  int64
+			currIseek int64
+		)
+
+		if oldLength < length {
+			// 새로운 위치에 데이터 추가
+			fileID = latestFileID
+			currSeek = seek
+			seek += length
+
+			if Config.LEDGER_FILESIZE_LIMIT < currSeek+length {
+				fileID = sf.fileId(fileID)
+				currSeek = 0
+				seek = length
+			}
+
+			if oldLength == 0 {
+				// 새로운 데이터
+				currIseek = iseek
+				iseek += PROTOCOL_STATUS_HEAP_BYTES
+			} else {
+				// 기존 데이터 업데이트
+				currIseek = index.Iseek
+			}
+		} else {
+			// 기존 위치에 덮어쓰기
+			fileID = index.FileID
+			currSeek = index.Seek
+			currIseek = index.Iseek
+			length = oldLength
+			// 데이터 패딩
+			if int64(len(data)) < length {
+				data = append(data, bytes.Repeat([]byte{null}, int(length-int64(len(data))))...)
+			}
+		}
+
+		// 인덱스 업데이트
+		newIndex := StorageIndexCursor{
+			FileID: fileID,
+			Seek:   currSeek,
+			Length: length,
+			Iseek:  currIseek,
+		}
+
+		indexData := sf.indexRaw(key, fileID, currSeek, length)
+
+		sf.CachedUniversalIndexes[key] = newIndex
+		sf.Tasks = append(sf.Tasks,
+			[]interface{}{sf.UniversalBundle(fileID), currSeek, data},
+			[]interface{}{sf.UniversalBundleIndex(fileID), currIseek, indexData})
+	}
+
+	return nil
 }

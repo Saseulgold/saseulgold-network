@@ -5,6 +5,8 @@ import (
 	F "hello/pkg/util"
 	"io/ioutil"
 	"os"
+	"path/filepath"
+	"strings"
 )
 
 const (
@@ -18,10 +20,6 @@ const (
 	STATUS_KEY_BYTES = F.STATUS_HASH_BYTES
 )
 
-// var DATA_ROOT_DIR = os.Getenv("QUANTUM_DATA_DIR")
-const DATA_ROOT_DIR = "/Users/louis/qcn/data"
-const DATA_ROOT_TEST_DIR = "/Users/louis/qcn/data/test"
-
 func StatusKey(raw string) string {
 	if len(raw) < STATUS_KEY_BYTES {
 		return ""
@@ -32,8 +30,8 @@ func StatusKey(raw string) string {
 type StorageIndexCursor struct {
 	Key    string
 	FileID string
-	Seek   []byte
-	Length []byte
+	Seek   uint64
+	Length uint64
 	IsSeek int
 	Value  F.Ia
 }
@@ -139,4 +137,46 @@ func AppendFile(filename string, str string) error {
 		return err
 	}
 	return nil
+}
+
+func ListFiles(dirname string, recursive bool) []string {
+	info, err := os.Stat(dirname)
+	if err != nil || !info.IsDir() {
+		return []string{}
+	}
+
+	items := []string{}
+	contents, err := filepath.Glob(filepath.Join(dirname, "*"))
+	if err != nil {
+		return []string{}
+	}
+
+	for _, item := range contents {
+		info, err := os.Stat(item)
+		if err != nil {
+			continue
+		}
+
+		if info.IsDir() && recursive {
+			items = append(items, ListFiles(item, recursive)...)
+		} else if !info.IsDir() {
+			items = append(items, item)
+		}
+	}
+
+	return items
+}
+
+// GrepFiles returns a list of files matching the given prefix
+func GrepFiles(dirname string, prefix string) []string {
+	files := ListFiles(dirname, true)
+	matches := []string{}
+
+	for _, file := range files {
+		if strings.HasPrefix(file, prefix) {
+			matches = append(matches, file)
+		}
+	}
+
+	return matches
 }
