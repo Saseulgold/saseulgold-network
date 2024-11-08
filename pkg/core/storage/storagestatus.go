@@ -142,6 +142,10 @@ func (sf *StatusFile) UniversalFile(fileID string) string {
 	return filepath.Join(sf.StatusBundle(), fmt.Sprintf("universals-%s", fileID))
 }
 
+func (sf *StatusFile) NextFileID(fileID string) string {
+	return string(F.Hex2Int64(fileID) + 1)
+}
+
 func (sf *StatusFile) maxFileId(prefix string) string {
 	files, err := filepath.Glob(filepath.Join(sf.StatusBundle(), prefix+"*"))
 	if err != nil {
@@ -172,23 +176,22 @@ func (sf *StatusFile) WriteUniversal(universalUpdates map[string]map[string]inte
 	latestFile := sf.UniversalBundle(latestFileID)
 	indexFile := sf.UniversalBundleIndex()
 
-	// 파일 생성 또는 열기
 	if err := AppendFile(latestFile, ""); err != nil {
 		return err
 	}
 
-	// 파일 크기 가져오기
 	latestFileInfo, err := os.Stat(latestFile)
 	if err != nil {
 		return err
 	}
-	seek := latestFileInfo.Size()
+	seek := uint64(latestFileInfo.Size())
 
 	indexFileInfo, err := os.Stat(indexFile)
 	if err != nil {
 		return err
 	}
-	iseek := indexFileInfo.Size()
+
+	iseek := uint64(indexFileInfo.Size())
 
 	for key, update := range universalUpdates {
 		key = F.FillHash(key)
@@ -199,16 +202,16 @@ func (sf *StatusFile) WriteUniversal(universalUpdates map[string]map[string]inte
 			return err
 		}
 
-		length := int64(len(data))
-		var oldLength int64
+		length := uint64(len(data))
+		var oldLength uint64
 		if exists {
 			oldLength = index.Length
 		}
 
 		var (
-			fileID    int
-			currSeek  int64
-			currIseek int64
+			fileID    string
+			currSeek  uint64
+			currIseek uint64
 		)
 
 		if oldLength < length {
@@ -217,8 +220,8 @@ func (sf *StatusFile) WriteUniversal(universalUpdates map[string]map[string]inte
 			currSeek = seek
 			seek += length
 
-			if Config.LEDGER_FILESIZE_LIMIT < currSeek+length {
-				fileID = sf.fileId(fileID)
+			if C.LEDGER_FILESIZE_LIMIT < currSeek+length {
+				fileID = sf.NextFileID(fileID)
 				currSeek = 0
 				seek = length
 			}
@@ -226,7 +229,7 @@ func (sf *StatusFile) WriteUniversal(universalUpdates map[string]map[string]inte
 			if oldLength == 0 {
 				// 새로운 데이터
 				currIseek = iseek
-				iseek += PROTOCOL_STATUS_HEAP_BYTES
+				iseek += C.STATUS_HEAP_BYTES
 			} else {
 				// 기존 데이터 업데이트
 				currIseek = index.Iseek
@@ -238,11 +241,12 @@ func (sf *StatusFile) WriteUniversal(universalUpdates map[string]map[string]inte
 			currIseek = index.Iseek
 			length = oldLength
 			// 데이터 패딩
-			if int64(len(data)) < length {
-				data = append(data, bytes.Repeat([]byte{null}, int(length-int64(len(data))))...)
+			if uint64(len(data)) < length {
+				data = append(data, bytes.Repeat([]byte{null}, int(length-uint64(len(data))))...)
 			}
 		}
 
+		/**
 		// 인덱스 업데이트
 		newIndex := StorageIndexCursor{
 			FileID: fileID,
@@ -257,7 +261,8 @@ func (sf *StatusFile) WriteUniversal(universalUpdates map[string]map[string]inte
 		sf.Tasks = append(sf.Tasks,
 			[]interface{}{sf.UniversalBundle(fileID), currSeek, data},
 			[]interface{}{sf.UniversalBundleIndex(fileID), currIseek, indexData})
+		**/
+		fmt.Println("sf.a", currIseek)
 	}
-
 	return nil
 }

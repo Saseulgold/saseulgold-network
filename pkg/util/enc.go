@@ -6,12 +6,10 @@ import (
 	_ "fmt"
 	"strconv"
 
+	C "hello/pkg/core/config"
+
 	"golang.org/x/crypto/ripemd160"
 )
-
-const HEX_TIME_BYTES = 7
-const HEX_TIME_SIZE = HEX_TIME_BYTES * 2
-const STATUS_HASH_BYTES = 64
 
 func Hash(data string) string {
 	hash := sha256.New()
@@ -21,8 +19,8 @@ func Hash(data string) string {
 }
 
 func FillHash(hash string) string {
-	if len(hash) < STATUS_HASH_BYTES {
-		return PadRight(hash, "0", STATUS_HASH_BYTES)
+	if len(hash) < C.STATUS_HASH_BYTES {
+		return PadRight(hash, "0", C.STATUS_HASH_BYTES)
 	}
 	return hash
 }
@@ -58,7 +56,7 @@ func MerkleRoot(data []string) string {
 
 func HexTime(utime int64) string {
 	hexTime := strconv.FormatInt(utime, 16)
-	return PadLeft(hexTime, "0", HEX_TIME_SIZE)
+	return PadLeft(hexTime, "0", C.HEX_TIME_SIZE)
 }
 
 func TimeHash(obj string, t int64) string {
@@ -69,6 +67,22 @@ func Hex2Bin(hexStr string) []byte {
 	decoded, err := hex.DecodeString(hexStr)
 	if err != nil {
 		panic("Hex2Bin failed")
+	}
+	return decoded
+}
+
+func Hex2UInt64(hexStr string) uint64 {
+	decoded, err := strconv.ParseUint(hexStr, 16, 64)
+	if err != nil {
+		panic("Hex2UInt64 failed")
+	}
+	return decoded
+}
+
+func Hex2Int64(hexStr string) int64 {
+	decoded, err := strconv.ParseInt(hexStr, 16, 64)
+	if err != nil {
+		panic("Hex2Int64 failed")
 	}
 	return decoded
 }
@@ -109,4 +123,8 @@ func StatusHash(owner string, space string, attr string, key string) string {
 
 func StatusPrefix(owner string, space string, attr string) string {
 	return Hash(Concat(owner, space, attr))
+}
+
+func RootSpace() string {
+	return Hash(C.SYSTEM_NONCE)
 }

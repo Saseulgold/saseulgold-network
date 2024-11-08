@@ -2,6 +2,7 @@ package storage
 
 import (
 	"encoding/hex"
+	C "hello/pkg/core/config"
 	F "hello/pkg/util"
 	"io/ioutil"
 	"os"
@@ -9,22 +10,11 @@ import (
 	"strings"
 )
 
-const (
-	STATUS_HEAP_BYTES  = 16
-	DATA_ID_BYTES      = 2
-	STATUS_PREFIX_SIZE = 4
-
-	SEEK_BYTES   = 4
-	LENGTH_BYTES = 4
-
-	STATUS_KEY_BYTES = F.STATUS_HASH_BYTES
-)
-
 func StatusKey(raw string) string {
-	if len(raw) < STATUS_KEY_BYTES {
+	if len(raw) < C.STATUS_KEY_BYTES {
 		return ""
 	}
-	return hex.EncodeToString([]byte(raw)[:STATUS_KEY_BYTES])
+	return hex.EncodeToString([]byte(raw)[:C.STATUS_KEY_BYTES])
 }
 
 type StorageIndexCursor struct {
@@ -32,25 +22,26 @@ type StorageIndexCursor struct {
 	FileID string
 	Seek   uint64
 	Length uint64
-	IsSeek int
+	Iseek  uint64
 	Value  F.Ia
 }
 
 func StorageKey(raw string) string {
-	return raw[:STATUS_KEY_BYTES]
+	return raw[:C.STATUS_KEY_BYTES]
 }
 
 func NewStorageCursor(raw string) StorageIndexCursor {
 	key := StorageKey(raw)
-	offset := STATUS_KEY_BYTES
+	offset := C.STATUS_KEY_BYTES
 
-	fileID := raw[offset : offset+DATA_ID_BYTES]
-	offset += DATA_ID_BYTES
+	fileID := raw[offset : offset+C.DATA_ID_BYTES]
+	offset += C.DATA_ID_BYTES
 
-	seek := F.Hex2Bin(raw[offset : offset+SEEK_BYTES])
-	offset += SEEK_BYTES
+	seekBytes := raw[offset : offset+C.SEEK_BYTES]
+	seek := uint64(seekBytes[0]) | uint64(seekBytes[1])<<8 | uint64(seekBytes[2])<<16 | uint64(seekBytes[3])<<24
+	offset += C.SEEK_BYTES
 
-	length := F.Hex2Bin(raw[offset : offset+LENGTH_BYTES])
+	length := F.Hex2UInt64(raw[offset : offset+C.LENGTH_BYTES])
 
 	return StorageIndexCursor{
 		Key:    key,
@@ -64,19 +55,19 @@ func ReadStorageIndex(indexFile string, bundling bool) map[string]StorageIndexCu
 	indexes := make(map[string]StorageIndexCursor)
 	data, _ := ioutil.ReadFile(indexFile)
 
-	for idx := 0; idx < len(data); idx += STATUS_HEAP_BYTES {
-		end := idx + STATUS_HEAP_BYTES
+	for idx := 0; idx < len(data); idx += C.STATUS_HEAP_BYTES {
+		end := idx + C.STATUS_HEAP_BYTES
 		if end > len(data) {
 			end = len(data)
 		}
 		raw := data[idx:end]
 
-		if len(raw) == STATUS_HEAP_BYTES {
+		if len(raw) == C.STATUS_HEAP_BYTES {
 			key := StatusKey(string(raw))
 			index := NewStorageCursor(string(raw))
 
 			if bundling {
-				iseek := idx * STATUS_HEAP_BYTES
+				iseek := idx * C.STATUS_HEAP_BYTES
 				index.IsSeek = iseek
 			}
 
@@ -108,20 +99,20 @@ func FileIdBin(fileId string) []byte {
 		return nil
 	}
 
-	if len(bin) > DATA_ID_BYTES {
-		return bin[:DATA_ID_BYTES]
+	if len(bin) > C.DATA_ID_BYTES {
+		return bin[:C.DATA_ID_BYTES]
 	}
 
 	return bin
 }
 
 func SplitKey(key string) (string, string) {
-	if len(key) < STATUS_PREFIX_SIZE {
+	if len(key) < C.STATUS_PREFIX_SIZE {
 		return "", ""
 	}
 
-	prefix := key[:STATUS_PREFIX_SIZE]
-	suffix := key[STATUS_PREFIX_SIZE:]
+	prefix := key[:C.STATUS_PREFIX_SIZE]
+	suffix := key[C.STATUS_PREFIX_SIZE:]
 
 	return prefix, suffix
 }
