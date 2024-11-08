@@ -1,7 +1,7 @@
 package config
 
-const DATA_ROOT_DIR = "/Users/louis/qcn/data"
-const DATA_ROOT_TEST_DIR = "/Users/louis/qcn/data/test"
+const DATA_ROOT_DIR = "data"
+const DATA_ROOT_TEST_DIR = "data/test"
 const LEDGER_FILESIZE_LIMIT = 268435456
 
 const HEX_TIME_BYTES = 7

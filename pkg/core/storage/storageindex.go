@@ -1,6 +1,7 @@
 package storage
 
 import (
+	C "hello/pkg/core/config"
 	F "hello/pkg/util"
 	"sort"
 )
@@ -88,8 +89,8 @@ func (s *StatusIndex) AddUniversalIndexes(indexes map[string]StorageIndexCursor)
 }
 
 func (s *StatusIndex) Split(key string) (string, string) {
-	prefix := key[:STATUS_PREFIX_SIZE]
-	suffix := key[STATUS_PREFIX_SIZE:]
+	prefix := key[:C.STATUS_KEY_BYTES]
+	suffix := key[C.STATUS_KEY_BYTES:]
 	return prefix, suffix
 }
 

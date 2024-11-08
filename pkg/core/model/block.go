@@ -2,6 +2,7 @@ package model
 
 import (
 	"encoding/json"
+	"fmt"
 	F "hello/pkg/util"
 )
 
@@ -10,12 +11,13 @@ type UpdateMap = map[string]Update
 
 type BlockHeader struct {
 	Height      int64  `json:"height"`
-	Timestamp_s int64  `json:"timestamp_s"`
+	Timestamp_s int64  `json:"s_timestamp"`
 	BlockRoot   string `json:"block_root"`
 }
 
 func (bh BlockHeader) Ser() string {
 	j, _ := json.Marshal(bh)
+	fmt.Println("bh Ser:", string(j))
 	return string(j)
 }
 
@@ -25,7 +27,7 @@ type Block struct {
 	UniversalUpdates  *UpdateMap
 	LocalUpdates      *UpdateMap
 	PreviousBlockhash string `json:"previous_blockhash"`
-	Timestamp_s       int64  `json:"timestamp_s"`
+	Timestamp_s       int64  `json:"s_timestamp"`
 	Vout              string `json:"vout"`
 	Nonce             string `json:"nonce"`
 	RewardAddress     string `json:"reward_address"`
@@ -55,6 +57,10 @@ func CreateBlock(
 		LocalUpdates: localUpdates, PreviousBlockhash: previousBlockhash,
 		Timestamp_s: timestamp_s, Vout: vout, Nonce: nonce, RewardAddress: rewardAddress,
 	}
+}
+
+func (block *Block) SetTimestamp(timestamp int64) {
+	block.Timestamp_s = timestamp
 }
 
 func (block *Block) AppendTransaction(tx SignedTransaction) bool {

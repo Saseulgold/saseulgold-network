@@ -7,6 +7,7 @@ import (
 	. "hello/pkg/core/config"
 	C "hello/pkg/core/config"
 	F "hello/pkg/util"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -39,6 +40,7 @@ func (sf *StatusFile) Touch() error {
 		sf.InfoFile(),
 		sf.LocalFile(),
 		sf.LocalBundle(),
+		sf.UniversalBundle("0000"),
 		sf.LocalBundleIndex(),
 		sf.UniversalBundleIndex(),
 	}
@@ -170,7 +172,17 @@ func (sf *StatusFile) maxFileId(prefix string) string {
 	return fmt.Sprintf("%02x", 0)
 }
 
-func (sf *StatusFile) WriteUniversal(universalUpdates map[string]map[string]interface{}) error {
+func (sf *StatusFile) indexRaw(key string, fileID string, seek uint64, length uint64) string {
+	keyStr := key
+	fileIdStr := fileID
+	seekStr := fmt.Sprintf("%d", seek)
+	lengthStr := fmt.Sprintf("%d", length)
+
+	result := keyStr + fileIdStr + seekStr + lengthStr
+	return result
+}
+
+func (sf *StatusFile) WriteUniversal(universalUpdates map[string]StorageIndexCursor) error {
 	null := byte(0)
 	latestFileID := sf.maxFileId("ubundle-")
 	latestFile := sf.UniversalBundle(latestFileID)
@@ -197,7 +209,7 @@ func (sf *StatusFile) WriteUniversal(universalUpdates map[string]map[string]inte
 		key = F.FillHash(key)
 		index, exists := sf.CachedUniversalIndexes[key]
 
-		data, err := json.Marshal(update["new"])
+		data, err := json.Marshal(update.New)
 		if err != nil {
 			return err
 		}
@@ -215,7 +227,7 @@ func (sf *StatusFile) WriteUniversal(universalUpdates map[string]map[string]inte
 		)
 
 		if oldLength < length {
-			// 새로운 위치에 데이터 추가
+			// Add data to new location
 			fileID = latestFileID
 			currSeek = seek
 			seek += length
@@ -227,27 +239,25 @@ func (sf *StatusFile) WriteUniversal(universalUpdates map[string]map[string]inte
 			}
 
 			if oldLength == 0 {
-				// 새로운 데이터
+				// New data
 				currIseek = iseek
 				iseek += C.STATUS_HEAP_BYTES
 			} else {
-				// 기존 데이터 업데이트
+				// Update existing data
 				currIseek = index.Iseek
 			}
 		} else {
-			// 기존 위치에 덮어쓰기
+			// Overwrite existing location
 			fileID = index.FileID
 			currSeek = index.Seek
 			currIseek = index.Iseek
 			length = oldLength
-			// 데이터 패딩
+			// Pad data
 			if uint64(len(data)) < length {
 				data = append(data, bytes.Repeat([]byte{null}, int(length-uint64(len(data))))...)
 			}
 		}
 
-		/**
-		// 인덱스 업데이트
 		newIndex := StorageIndexCursor{
 			FileID: fileID,
 			Seek:   currSeek,
@@ -260,9 +270,67 @@ func (sf *StatusFile) WriteUniversal(universalUpdates map[string]map[string]inte
 		sf.CachedUniversalIndexes[key] = newIndex
 		sf.Tasks = append(sf.Tasks,
 			[]interface{}{sf.UniversalBundle(fileID), currSeek, data},
-			[]interface{}{sf.UniversalBundleIndex(fileID), currIseek, indexData})
-		**/
+			[]interface{}{sf.UniversalBundleIndex(), currIseek, indexData})
 		fmt.Println("sf.a", currIseek)
 	}
 	return nil
+}
+
+func (sf *StatusFile) WriteTasks() error {
+	// Tasks를 JSON으로 직렬화
+	tasksData, err := json.Marshal(sf.Tasks)
+	if err != nil {
+		return fmt.Errorf("Failed to serialize tasks: %v", err)
+	}
+
+	// Write to temporary file
+	if err := ioutil.WriteFile(sf.TempFile(), tasksData, 0644); err != nil {
+		return fmt.Errorf("Failed to write temporary file: %v", err)
+	}
+
+	// Tasks 초기화
+	sf.Tasks = [][]interface{}{}
+	return nil
+}
+
+func (sf *StatusFile) Commit() error {
+	// 임시 파일 읽기
+	raw, err := ioutil.ReadFile(sf.TempFile())
+	if err != nil {
+		return fmt.Errorf("Failed to read temporary file: %v", err)
+	}
+
+	// Restore serialized data
+	var tasks [][]interface{}
+	if err := json.Unmarshal(raw, &tasks); err != nil {
+		return fmt.Errorf("Failed to unmarshal data: %v", err)
+	}
+
+	// 각 태스크 처리
+	for _, item := range tasks {
+		file := item[0].(string)
+		seek := item[1].(int64)
+		data := item[2].(string)
+
+		if file == sf.InfoFile() {
+			// 파일 전체 덮어쓰기
+			if err := ioutil.WriteFile(file, []byte(data), 0644); err != nil {
+				return fmt.Errorf("Failed to overwrite file: %v", err)
+			}
+		} else {
+			// Write at specific position
+			f, err := os.OpenFile(file, os.O_WRONLY, 0644)
+			if err != nil {
+				return fmt.Errorf("Failed to open file: %v", err)
+			}
+			defer f.Close()
+
+			if _, err := f.WriteAt([]byte(data), seek); err != nil {
+				return fmt.Errorf("Failed to write file: %v", err)
+			}
+		}
+	}
+
+	// 임시 파일 비우기
+	return ioutil.WriteFile(sf.TempFile(), []byte{}, 0644)
 }

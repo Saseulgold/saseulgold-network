@@ -24,6 +24,8 @@ type StorageIndexCursor struct {
 	Length uint64
 	Iseek  uint64
 	Value  F.Ia
+	Old    F.Ia
+	New    F.Ia
 }
 
 func StorageKey(raw string) string {
@@ -68,7 +70,7 @@ func ReadStorageIndex(indexFile string, bundling bool) map[string]StorageIndexCu
 
 			if bundling {
 				iseek := idx * C.STATUS_HEAP_BYTES
-				index.IsSeek = iseek
+				index.Iseek = uint64(iseek)
 			}
 
 			indexes[key] = index

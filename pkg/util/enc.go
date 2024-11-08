@@ -6,9 +6,9 @@ import (
 	_ "fmt"
 	"strconv"
 
-	C "hello/pkg/core/config"
-
 	"golang.org/x/crypto/ripemd160"
+
+	C "hello/pkg/core/config"
 )
 
 func Hash(data string) string {
@@ -36,19 +36,15 @@ func MerkleRoot(data []string) string {
 
 	for len(parent) > 1 {
 		child := []string{}
-		i := 0
-
-		for i+1 < len(parent) {
-			if len(parent) > i+1 {
+		for i := 0; i < len(parent); i += 2 {
+			if i+1 < len(parent) {
 				s := Hash(Concat(parent[i], parent[i+1]))
 				child = append(child, s)
 			} else {
 				child = append(child, parent[i])
 			}
-			i += 2
 		}
-
-		parent = child // 업데이트된 자식을 부모로 설정
+		parent = child
 	}
 
 	return parent[0]
