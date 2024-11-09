@@ -118,6 +118,15 @@ func TestStatusFile_AddUniversalIndexes(t *testing.T) {
 	}
 	testIndexes[testKey] = testCursor
 
+	testKey2 := "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210" // 64바이트 키
+	testCursor2 := S.StorageIndexCursor{
+		Key:    testKey2,
+		FileID: "02",
+		Seek:   5678,
+		Length: 9012,
+	}
+	testIndexes[testKey2] = testCursor2
+
 	// Cache 초기화
 	err := sf.Cache()
 	if err != nil {
@@ -125,32 +134,13 @@ func TestStatusFile_AddUniversalIndexes(t *testing.T) {
 	}
 
 	// 유니버설 인덱스 추가
-	sf.CachedUniversalIndexes = testIndexes
-
-	// 검증
-	if len(sf.CachedUniversalIndexes) != 1 {
-		t.Error("Expected CachedUniversalIndexes to have 1 entry")
+	err = sf.WriteUniversal(testIndexes)
+	if err != nil {
+		t.Errorf("Error occurred during WriteUniversal(): %v", err)
 	}
 
-	if cursor, exists := sf.CachedUniversalIndexes[testKey]; !exists {
-		t.Error("Test key not found in CachedUniversalIndexes")
-	} else {
-		if cursor.Key != testKey {
-			t.Errorf("Expected key %s, got %s", testKey, cursor.Key)
-		}
-		if cursor.FileID != "01" {
-			t.Errorf("Expected FileID 01, got %s", cursor.FileID)
-		}
-		if cursor.Seek != 1234 {
-			t.Errorf("Expected Seek 1234, got %d", cursor.Seek)
-		}
-		if cursor.Length != 5678 {
-			t.Errorf("Expected Length 5678, got %d", cursor.Length)
-		}
-	}
-
-	t.Log("AddUniversalIndexes test completed successfully")
-	sf.WriteUniversal(testIndexes)
+	t.Logf("Tasks : %+v", sf.Tasks)
 	sf.WriteTasks()
-	// sf.Commit()
+
+	sf.Commit()
 }

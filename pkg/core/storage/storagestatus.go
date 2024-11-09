@@ -31,24 +31,30 @@ func NewStatusFile() *StatusFile {
 
 // Touch creates necessary directories and files
 func (sf *StatusFile) Touch() error {
-	if err := os.MkdirAll(sf.StatusBundle(), 0755); err != nil {
+	bundlePath := sf.StatusBundle()
+	if err := os.MkdirAll(bundlePath, 0755); err != nil {
 		return err
 	}
+
+	fmt.Println("sf.StatusBundle(): ", sf.StatusBundle())
 
 	files := []string{
 		sf.TempFile(),
 		sf.InfoFile(),
 		sf.LocalFile(),
 		sf.LocalBundle(),
-		sf.UniversalBundle("0000"),
+		sf.UniversalBundle("00"),
 		sf.LocalBundleIndex(),
 		sf.UniversalBundleIndex(),
 	}
 
 	for _, file := range files {
-		if err := AppendFile(file, ""); err != nil {
+		fmt.Println("f: ", file)
+		f, err := os.OpenFile(file, os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
 			return err
 		}
+		f.Close()
 	}
 	return nil
 }
@@ -73,21 +79,19 @@ func (sf *StatusFile) Cache() error {
 			return err
 		}
 
-		/**
 		if err := sf.Commit(); err != nil {
 			return err
 		}
-		**/
 
 		var err error
 
-		sf.CachedUniversalIndexes = ReadStorageIndex(sf.UniversalBundleIndex(), true)
+		sf.CachedUniversalIndexes = ReadStatusStorageIndex(sf.UniversalBundleIndex(), true)
 
 		if err != nil {
 			return err
 		}
 
-		sf.CachedLocalIndexes = ReadStorageIndex(sf.LocalBundleIndex(), true)
+		sf.CachedLocalIndexes = ReadStatusStorageIndex(sf.LocalBundleIndex(), true)
 		if err != nil {
 			return err
 		}
@@ -101,30 +105,34 @@ func (sf *StatusFile) Flush() {
 }
 
 func (sf *StatusFile) RootDir() string {
+	return QUANTUM_ROOT_DIR
+}
+
+func (sf *StatusFile) DataRootDir() string {
 	if C.CORE_TEST_MODE {
-		return DATA_ROOT_TEST_DIR
+		return filepath.Join(QUANTUM_ROOT_DIR, DATA_ROOT_TEST_DIR)
 	}
-	return DATA_ROOT_DIR
+	return filepath.Join(QUANTUM_ROOT_DIR, DATA_ROOT_DIR)
 }
 
 func (sf *StatusFile) StatusBundle() string {
-	return filepath.Join(DATA_ROOT_DIR, "statusbundle")
+	return filepath.Join(sf.DataRootDir(), "statusbundle")
 }
 
 func (sf *StatusFile) LocalBundle() string {
-	return filepath.Join(DATA_ROOT_DIR, "lbundle")
+	return filepath.Join(sf.StatusBundle(), "lbundle")
 }
 
 func (sf *StatusFile) LocalBundleIndex() string {
-	return filepath.Join(DATA_ROOT_DIR, "lbundle_index")
+	return filepath.Join(sf.StatusBundle(), "lbundle_index")
 }
 
 func (sf *StatusFile) UniversalBundleIndex() string {
-	return filepath.Join(DATA_ROOT_DIR, "ubundle_index")
+	return filepath.Join(sf.StatusBundle(), "ubundle_index")
 }
 
 func (sf *StatusFile) UniversalBundle(fileID string) string {
-	return filepath.Join(DATA_ROOT_DIR, fmt.Sprintf("ubundle-%s", fileID))
+	return filepath.Join(sf.StatusBundle(), fmt.Sprintf("ubundle-%s", fileID))
 }
 
 // 파일 경로 관련 메서드들
@@ -309,7 +317,7 @@ func (sf *StatusFile) Commit() error {
 	// 각 태스크 처리
 	for _, item := range tasks {
 		file := item[0].(string)
-		seek := item[1].(int64)
+		seek := int64(item[1].(float64))
 		data := item[2].(string)
 
 		if file == sf.InfoFile() {

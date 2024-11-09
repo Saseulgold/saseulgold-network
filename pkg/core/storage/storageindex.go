@@ -89,8 +89,8 @@ func (s *StatusIndex) AddUniversalIndexes(indexes map[string]StorageIndexCursor)
 }
 
 func (s *StatusIndex) Split(key string) (string, string) {
-	prefix := key[:C.STATUS_KEY_BYTES]
-	suffix := key[C.STATUS_KEY_BYTES:]
+	prefix := key[:C.STATUS_PREFIX_SIZE]
+	suffix := key[C.STATUS_PREFIX_SIZE:]
 	return prefix, suffix
 }
 

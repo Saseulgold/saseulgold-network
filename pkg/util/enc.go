@@ -87,6 +87,54 @@ func Bin2Hex(byte []byte) string {
 	return hex.EncodeToString(byte)
 }
 
+// DecBin converts a decimal number to a binary string representation with specified length
+// length=1: uint8, length=2: uint16 (big endian), length=3/4: uint32 (big endian), else: uint64 (big endian)
+func DecBin(dec int, length int) []byte {
+	switch length {
+	case 1:
+		return []byte{byte(dec)}
+	case 2:
+		b := make([]byte, 2)
+		b[0] = byte(dec >> 8)
+		b[1] = byte(dec)
+		return b
+	case 3, 4:
+		b := make([]byte, 4)
+		b[0] = byte(dec >> 24)
+		b[1] = byte(dec >> 16)
+		b[2] = byte(dec >> 8)
+		b[3] = byte(dec)
+		return b
+	default:
+		b := make([]byte, 8)
+		b[0] = byte(dec >> 56)
+		b[1] = byte(dec >> 48)
+		b[2] = byte(dec >> 40)
+		b[3] = byte(dec >> 32)
+		b[4] = byte(dec >> 24)
+		b[5] = byte(dec >> 16)
+		b[6] = byte(dec >> 8)
+		b[7] = byte(dec)
+		return b
+	}
+}
+
+func BinDec(bin []byte) int {
+	return HexDec(Bin2Hex(bin))
+}
+
+func HexDec(hex string) int {
+	if len(hex) < 2 {
+		val, _ := strconv.ParseInt(hex, 16, 64)
+		return int(val)
+	}
+
+	lastDigit, _ := strconv.ParseInt(hex[len(hex)-1:], 16, 64)
+	rest := HexDec(hex[:len(hex)-1])
+
+	return 16*rest + int(lastDigit)
+}
+
 func StringToByte(str string) []byte {
 	byteArray := make([]byte, len(str))
 
