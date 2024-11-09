@@ -172,3 +172,23 @@ func StatusPrefix(owner string, space string, attr string) string {
 func RootSpace() string {
 	return Hash(C.SYSTEM_NONCE)
 }
+
+func IsHex(hex string) bool {
+	if len(hex) == 0 {
+		return false
+	}
+
+	// Check if string length is even
+	if len(hex)%2 != 0 {
+		return false
+	}
+
+	// Check if string only contains valid hex characters
+	for _, c := range hex {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+			return false
+		}
+	}
+
+	return true
+}
