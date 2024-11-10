@@ -173,6 +173,10 @@ func RootSpace() string {
 	return Hash(C.SYSTEM_NONCE)
 }
 
+func SpaceID(owner string, space string) string {
+	return Hash(Concat(owner, space))
+}
+
 func IsHex(hex string) bool {
 	if len(hex) == 0 {
 		return false

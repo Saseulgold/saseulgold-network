@@ -5,6 +5,8 @@ import (
 	F "hello/pkg/util"
 )
 
+type Ia interface{}
+
 type Update struct {
 	Key string `json:"status_key"`
 	Old Ia     `json:"old"`

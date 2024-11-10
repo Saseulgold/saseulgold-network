@@ -1,120 +1,156 @@
-package core
+package vm
 
 import (
-	. "hello/pkg/core"
+	C "hello/pkg/core/config"
+	. "hello/pkg/core/model"
+	. "hello/pkg/crypto"
 )
 
-const STATE_NULL = "null"
-const STATE_READ = "read"
-const STATE_CONDITION = "condition"
-const STATE_EXECUTION = "execution"
-const STATE_MAIN = "main"
-const STATE_POST = "post"
+type State int
 
-func RaiseTypeError(msg string) {
-	emsg := "Exception: TypeError - " + msg
-	panic(emsg)
-}
+const (
+	StateNull State = iota
+	StateRead
+	StateCondition
+	StateExecution
+)
+
+type Process int
+
+const (
+	ProcessNull Process = iota
+	ProcessMain
+	ProcessPost
+)
 
 type Interpreter struct {
-	mode        string
-	signed_data Ia
+	mode string
 
-	rg_exception *ABI
-	rg_state     string
-	rg_break     bool
-	rg_process   string
-
-	result *Ia
-
-	executions []*ABI
-	contract   *Contract
-
-	paramValues ParamValueMap
+	signedData       *SignedData
+	code             *Method
+	postProcess      *Method
+	breakFlag        bool
+	result           string
+	weight           int64
+	methods          []string
+	state            State
+	process          Process
+	universals       map[string]interface{}
+	locals           map[string]interface{}
+	universalUpdates map[string]map[string]interface{}
+	localUpdates     map[string]map[string]interface{}
 }
 
-var _instance *Interpreter
-
-func Instance() *Interpreter {
-	if _instance == nil {
-		_instance = &Interpreter{rg_state: "init"}
-		_instance.reset()
+func NewInterpreter() *Interpreter {
+	return &Interpreter{
+		signedData:       nil,
+		code:             nil,
+		postProcess:      nil,
+		universals:       make(map[string]interface{}),
+		locals:           make(map[string]interface{}),
+		universalUpdates: make(map[string]map[string]interface{}),
+		localUpdates:     make(map[string]map[string]interface{}),
 	}
-	return _instance
 }
 
-func (this *Interpreter) reset() {
-	/** TODO CHECK WHEN THIS SHOULD BE EXECUTED **/
-	this.signed_data = nil
+func (i *Interpreter) Reset() {
+	i.signedData = nil
+	i.code = nil
+	i.postProcess = nil
+	i.breakFlag = false
+	i.result = ""
+	i.weight = 0
 
-	this.rg_exception = nil
-	this.rg_state = "init"
-	this.rg_break = false
-	this.rg_process = ""
-
-	this.result = nil
-
-	this.executions = []*ABI{}
-	this.contract = nil
-	this.paramValues = ParamValueMap{}
+	i.universalUpdates = make(map[string]map[string]interface{})
+	i.localUpdates = make(map[string]map[string]interface{})
 }
 
-func (this *Interpreter) SetMode(mode string) {
-	this.mode = mode
-}
-
-func (this *Interpreter) setState(state string) {
-	// READ OR ... //
-	this.rg_state = state
-}
-
-func (this *Interpreter) setProcessState(process string) {
-	// MAIN OR POST //
-	this.rg_process = process
-}
-
-func (this *Interpreter) GetMode() string {
-	return this.mode
-}
-
-func (this *Interpreter) EvalExecution(entry *ABI) {
-	nitems := []Ia{}
-
-	for _, item := range entry.items {
-		nitems = append(nitems, item)
+func (i *Interpreter) Init(mode string) {
+	if mode == "" {
+		mode = "transaction"
 	}
 
-	entry.SetItems(nitems)
-	entry.Eval(this)
+	if i.mode != mode {
+		i.mode = mode
+		i.methods = make([]string, 0)
+
+		i.loadMethod("BasicOperator")
+		i.loadMethod("ArithmeticOperator")
+		i.loadMethod("ComparisonOperator")
+		i.loadMethod("UtilOperator")
+		i.loadMethod("CastOperator")
+		i.loadMethod("ReadOperator")
+
+		if mode == "transaction" {
+			i.loadMethod("WriteOperator")
+		} else {
+			i.loadMethod("ChainOperator")
+		}
+	}
 }
 
-func (this *Interpreter) setParamValues(paramValues ParamValueMap) {
-	this.paramValues = paramValues
+func (i *Interpreter) loadMethod(name string) {
+	// TODO: Implement method loading logic
 }
 
-func (this *Interpreter) GetParamValue(key string) Ia {
-	return this.paramValues[key]
+func (i *Interpreter) Set(data *SignedData, code *Method, postProcess *Method) {
+	i.signedData = data
+	i.code = code
+	i.postProcess = postProcess
+	i.breakFlag = false
+	i.weight = 0
+	i.result = "Conditional Error"
+	i.setDefaultValue()
 }
 
-func (this *Interpreter) ExecuteContract(contract *Contract, paramValues ParamValueMap) {
-	this.contract = contract
-	this.executions = contract.GetExecutions()
-	this.setParamValues(paramValues)
+func (i *Interpreter) Process(abi interface{}) interface{} {
+	if abiMap, ok := abi.(map[string]interface{}); ok {
+		for key, item := range abiMap {
+			if len(key) > 0 {
+				prefix := key[0:1]
+				vars := i.Process(item)
 
-	this.Read()
-	this.reset()
+				if prefix == "$" {
+					return nil
+				} else {
+					abiMap[key] = vars
+				}
+			}
+		}
+	}
+	return abi
 }
 
-func (this *Interpreter) Read() {
-	this.setState(STATE_READ)
-	this.setProcessState(STATE_MAIN)
-
-	for _, ex := range this.executions {
-		this.EvalExecution(ex)
+func (i *Interpreter) setDefaultValue() {
+	if i.signedData.GetAttribute("version") == nil {
+		i.signedData.SetAttribute("version", C.VERSION)
 	}
 
+	// Set parameter defaults
+	for name, param := range i.code.Parameters() {
+		requirements := param.GetAttribute("requirements")
+		if !requirements && i.signedData.GetAttribute(name) == nil {
+			defaultVal := param.Get("default")
+			i.signedData.SetAttribute(name, defaultVal)
+		}
+	}
+
+	// Contract specific defaults
+	if i.mode == "transaction" {
+		if i.signedData.GetAttribute("from") == nil {
+			i.signedData.SetAttribute("from", GetAddress(i.signedData.PublicKey))
+		}
+
+		if i.signedData.GetAttribute("hash") == nil {
+			i.signedData.SetAttribute("hash", i.signedData.Hash)
+		}
+
+		if i.signedData.GetAttribute("size") == nil {
+			i.signedData.SetAttribute("size", i.signedData.Size())
+		}
+
+		i.weight += i.signedData.GetInt64("size")
+	}
 }
 
-func (this *Interpreter) GetProcessState() string {
-	return this.rg_process
-}
+// Additional methods would follow...

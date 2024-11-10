@@ -1,179 +1,331 @@
-package core
+package vm
 
-import (
-	"fmt"
-	. "hello/pkg/core"
-	f "hello/pkg/util"
-	"reflect"
-)
+type ABI struct{}
 
-type Clojure func(interpreter *Interpreter) Ia
-
-var appLogger = f.GetLogger()
-
-type ABI struct {
-	name  string
-	items []Ia
-	cloj  Clojure
-	Res   Ia
+// Machine
+func (a *ABI) LegacyCondition(abi interface{}, errMsg string) []interface{} {
+	if errMsg == "" {
+		errMsg = "Conditional error"
+	}
+	return []interface{}{abi, errMsg}
 }
 
-func Unwrap(item Ia) Ia {
-	appLogger.Println("unwrap - item type: ", reflect.TypeOf(item))
+// Basic
+func (a *ABI) Condition(abi interface{}, errMsg string) map[string][]interface{} {
+	if errMsg == "" {
+		errMsg = "Conditional error"
+	}
+	return map[string][]interface{}{
+		"$condition": {abi, errMsg},
+	}
+}
 
-	switch item.(type) {
-	case ParamValue:
-		return item.(*ParamValue).GetValue()
-	case *ParamValue:
-		return item.(*ParamValue).GetValue()
-	case *ABI:
-		return item.(*ABI).Res
-	case ABI:
-		return item.(ABI).Res
-	case HFloat:
-		return item
-	case HInteger:
-		return item
-	case HString:
-		return item
-	case HBool:
-		return item
+func (a *ABI) Response(abi interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$response": {abi},
+	}
+}
+
+func (a *ABI) Weight() map[string][]interface{} {
+	return map[string][]interface{}{
+		"$weight": {},
+	}
+}
+
+func (a *ABI) If(condition, trueVal, falseVal interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$if": {condition, trueVal, falseVal},
+	}
+}
+
+func (a *ABI) And(vars interface{}) map[string]interface{} {
+	return map[string]interface{}{
+		"$and": vars,
+	}
+}
+
+func (a *ABI) Or(vars interface{}) map[string]interface{} {
+	return map[string]interface{}{
+		"$or": vars,
+	}
+}
+
+func (a *ABI) Get(abi interface{}, key interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$get": {abi, key},
+	}
+}
+
+// Arithmetic
+func (a *ABI) Add(vars interface{}) map[string]interface{} {
+	return map[string]interface{}{
+		"$add": vars,
+	}
+}
+
+func (a *ABI) Sub(vars interface{}) map[string]interface{} {
+	return map[string]interface{}{
+		"$sub": vars,
+	}
+}
+
+func (a *ABI) Div(vars interface{}) map[string]interface{} {
+	return map[string]interface{}{
+		"$div": vars,
+	}
+}
+
+func (a *ABI) Mul(vars interface{}) map[string]interface{} {
+	return map[string]interface{}{
+		"$mul": vars,
+	}
+}
+
+func (a *ABI) PreciseAdd(a1, b interface{}, scale interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$precise_add": {a1, b, scale},
+	}
+}
+
+func (a *ABI) PreciseSub(a1, b interface{}, scale interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$precise_sub": {a1, b, scale},
+	}
+}
+
+func (a *ABI) PreciseDiv(a1, b interface{}, scale interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$precise_div": {a1, b, scale},
+	}
+}
+
+func (a *ABI) PreciseMul(a1, b interface{}, scale interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$precise_mul": {a1, b, scale},
+	}
+}
+
+func (a *ABI) Scale(value interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$scale": {value},
+	}
+}
+
+// Cast
+func (a *ABI) GetType(obj interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$get_type": {obj},
+	}
+}
+
+func (a *ABI) IsNumeric(vars interface{}) map[string]interface{} {
+	return map[string]interface{}{
+		"$is_numeric": vars,
+	}
+}
+
+func (a *ABI) IsInt(vars interface{}) map[string]interface{} {
+	return map[string]interface{}{
+		"$is_int": vars,
+	}
+}
+
+func (a *ABI) IsString(vars interface{}) map[string]interface{} {
+	return map[string]interface{}{
+		"$is_string": vars,
+	}
+}
+
+func (a *ABI) IsNull(vars interface{}) map[string]interface{} {
+	return map[string]interface{}{
+		"$is_null": vars,
+	}
+}
+
+func (a *ABI) IsBool(vars interface{}) map[string]interface{} {
+	return map[string]interface{}{
+		"$is_bool": vars,
+	}
+}
+
+func (a *ABI) IsArray(vars interface{}) map[string]interface{} {
+	return map[string]interface{}{
+		"$is_array": vars,
+	}
+}
+
+func (a *ABI) IsDouble(vars interface{}) map[string]interface{} {
+	return map[string]interface{}{
+		"$is_double": vars,
+	}
+}
+
+// Comparison
+func (a *ABI) Eq(abi1, abi2 interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$eq": {abi1, abi2},
+	}
+}
+
+func (a *ABI) Ne(abi1, abi2 interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$ne": {abi1, abi2},
+	}
+}
+
+func (a *ABI) Gt(abi1, abi2 interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$gt": {abi1, abi2},
+	}
+}
+
+func (a *ABI) Lt(abi1, abi2 interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$lt": {abi1, abi2},
+	}
+}
+
+func (a *ABI) Gte(abi1, abi2 interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$gte": {abi1, abi2},
+	}
+}
+
+func (a *ABI) Lte(abi1, abi2 interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$lte": {abi1, abi2},
+	}
+}
+
+func (a *ABI) In(target, cases interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$in": {target, cases},
+	}
+}
+
+// I/O
+func (a *ABI) Param(vars interface{}) map[string]interface{} {
+	switch v := vars.(type) {
+	case string:
+		return map[string]interface{}{
+			"$load_param": []interface{}{v},
+		}
+	case []interface{}:
+		return map[string]interface{}{
+			"$load_param": v,
+		}
 	default:
-		fmt.Println(item)
-		panic("unknown type for unwrap")
-	}
-	return nil
-}
-
-func OpEq(a, b Ia) *ABI {
-	abi := &ABI{name: "eq", items: []Ia{a, b}, Res: nil}
-
-	cloj := func(interpreter *Interpreter) Ia {
-		return abi.items[0] == abi.items[1]
-	}
-
-	abi.cloj = cloj
-	return abi
-}
-
-func ABIException(msg string) *ABI {
-	abi := &ABI{name: "raise_exception", items: []Ia{msg}, Res: nil}
-
-	cloj := func(interpreter *Interpreter) Ia {
-		return msg
-	}
-	abi.cloj = cloj
-	return abi
-}
-
-func OpCondition(a *ABI) *ABI {
-	abi := &ABI{name: "condition", items: []Ia{a}, Res: nil}
-
-	cloj := func(interpreter *Interpreter) Ia {
-		fmt.Println("processed: ", abi.items)
-		res := Unwrap(abi.items[0]).(bool)
-		return res
-	}
-	abi.cloj = cloj
-	return abi
-}
-
-func OpMul(a, b Ia) *ABI {
-	abi := &ABI{name: "add", items: []Ia{a, b}, Res: nil}
-
-	cloj := func(interpreter *Interpreter) Ia {
-		_a := abi.items[0]
-		_b := abi.items[1]
-
-		switch _a.(type) {
-		case HInteger:
-			if __b, ok := _b.(HInteger); ok {
-				return _a.(HInteger) * __b
-			}
-
-		case HFloat:
-			if __b, ok := _b.(HFloat); ok {
-				return _a.(HFloat) * __b
-			}
-
-		default:
-			break
+		return map[string]interface{}{
+			"$load_param": vars,
 		}
-		RaiseTypeError(fmt.Sprintf("Can't Mul between %s, %s", reflect.TypeOf(_a), reflect.TypeOf(_b)))
-		return nil
 	}
-
-	abi.cloj = cloj
-	return abi
 }
 
-func OpAdd(a, b Ia) *ABI {
-	abi := &ABI{name: "add", items: []Ia{a, b}, Res: nil}
-
-	cloj := func(interpreter *Interpreter) Ia {
-		_a := abi.items[0]
-		_b := abi.items[1]
-
-		switch _a.(type) {
-		case HInteger:
-			if __b, ok := _b.(HInteger); ok {
-				return _a.(HInteger) + __b
-			}
-
-		case HFloat:
-			if __b, ok := _b.(HFloat); ok {
-				return _a.(HFloat) + __b
-			}
-
-		default:
-			break
-		}
-		RaiseTypeError(fmt.Sprintf("Can't Add between %s, %s", reflect.TypeOf(_a), reflect.TypeOf(_b)))
-		return nil
+func (a *ABI) ReadUniversalBypass(writer, space, attr, key, defaultVal interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$read_universal_bypass": {writer, space, attr, key, defaultVal},
 	}
-
-	abi.cloj = cloj
-	return abi
 }
 
-func (abi *ABI) Eval(interpreter *Interpreter) Ia {
-	nitems := []Ia{}
-
-	if abi.Res != nil {
-		return abi.Res
+func (a *ABI) ReadUniversal(attr, key, defaultVal interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$read_universal": {attr, key, defaultVal},
 	}
-
-	for _, item := range abi.items {
-		var _res Ia = nil
-
-		if _item, ok := item.(*ABI); ok {
-			_res = _item.Eval(interpreter)
-		} else if _item, ok := item.(Param); ok {
-			_res = interpreter.GetParamValue(_item.GetKey())
-		} else if _item, ok := item.(ParamValue); ok {
-			_res = _item.GetValue()
-		} else {
-			_res = item
-		}
-
-		nitems = append(nitems, _res)
-	}
-
-	abi.SetItems(nitems)
-
-	f.Print("processed: ", abi.items, len(abi.items))
-	res := abi.cloj(interpreter)
-	f.Print("Res: ", res)
-	fmt.Printf("set Res: %p", abi)
-	abi.SetRes(res)
-
-	return abi.Res
 }
 
-func (this *ABI) SetItems(items []Ia) {
-	this.items = items
+func (a *ABI) ReadLocal(attr, key, defaultVal interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$read_local": {attr, key, defaultVal},
+	}
 }
 
-func (this *ABI) SetRes(res Ia) {
-	this.Res = res
+func (a *ABI) WriteUniversalBypass(writer, space, attr, key, value interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$write_universal_bypass": {writer, space, attr, key, value},
+	}
+}
+
+func (a *ABI) WriteUniversal(attr, key, value interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$write_universal": {attr, key, value},
+	}
+}
+
+func (a *ABI) WriteLocal(attr, key, value interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$write_local": {attr, key, value},
+	}
+}
+
+// Util
+func (a *ABI) ArrayPush(obj, key, value interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$array_push": {obj, key, value},
+	}
+}
+
+func (a *ABI) Concat(vars interface{}) map[string]interface{} {
+	return map[string]interface{}{
+		"$concat": vars,
+	}
+}
+
+func (a *ABI) Strlen(target interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$strlen": {target},
+	}
+}
+
+func (a *ABI) RegMatch(reg, value interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$reg_match": {reg, value},
+	}
+}
+
+func (a *ABI) EncodeJSON(target interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$encode_json": {target},
+	}
+}
+
+func (a *ABI) DecodeJSON(target interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$decode_json": {target},
+	}
+}
+
+func (a *ABI) HashLimit(target interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$hash_limit": {target},
+	}
+}
+
+func (a *ABI) HashMany(vars interface{}) map[string]interface{} {
+	return map[string]interface{}{
+		"$hash_many": vars,
+	}
+}
+
+func (a *ABI) Hash(target interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$hash": {target},
+	}
+}
+
+func (a *ABI) ShortHash(target interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$short_hash": {target},
+	}
+}
+
+func (a *ABI) IDHash(target interface{}) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$id_hash": {target},
+	}
+}
+
+func (a *ABI) SignVerify(obj interface{}, publicKey string, signature string) map[string][]interface{} {
+	return map[string][]interface{}{
+		"$sign_verify": {obj, publicKey, signature},
+	}
 }

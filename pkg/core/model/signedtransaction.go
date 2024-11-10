@@ -6,15 +6,13 @@ import (
 	"hello/pkg/util"
 )
 
-type Ia interface{}
-
 type SignedTransaction struct {
-	Data      *S.OrderedMap `json:"data"` 
+	Data      *S.OrderedMap `json:"data"`
 	Xpub      string        `json:"xpub"`
 	Signature string        `json:"signature"`
 }
 
-func NewSignedTransaction(data *S.OrderedMap) SignedTransaction { 
+func NewSignedTransaction(data *S.OrderedMap) SignedTransaction {
 	return SignedTransaction{Data: data}
 }
 
