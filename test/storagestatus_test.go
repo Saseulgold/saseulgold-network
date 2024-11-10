@@ -142,5 +142,8 @@ func TestStatusFile_AddUniversalIndexes(t *testing.T) {
 	t.Logf("Tasks : %+v", sf.Tasks)
 	sf.WriteTasks()
 
-	sf.Commit()
+	err = sf.Commit()
+	if err != nil {
+		t.Errorf("Error occurred during Commit(): %v", err)
+	}
 }

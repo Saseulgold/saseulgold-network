@@ -79,9 +79,11 @@ func (sf *StatusFile) Cache() error {
 			return err
 		}
 
+		/** TODO
 		if err := sf.Commit(); err != nil {
 			return err
 		}
+		*/
 
 		var err error
 
@@ -285,7 +287,7 @@ func (sf *StatusFile) WriteUniversal(universalUpdates map[string]StorageIndexCur
 }
 
 func (sf *StatusFile) WriteTasks() error {
-	// Tasks를 JSON으로 직렬화
+	// Serialize tasks to JSON
 	tasksData, err := json.Marshal(sf.Tasks)
 	if err != nil {
 		return fmt.Errorf("Failed to serialize tasks: %v", err)
@@ -296,49 +298,61 @@ func (sf *StatusFile) WriteTasks() error {
 		return fmt.Errorf("Failed to write temporary file: %v", err)
 	}
 
-	// Tasks 초기화
+	// Reset tasks
 	sf.Tasks = [][]interface{}{}
 	return nil
 }
 
 func (sf *StatusFile) Commit() error {
-	// 임시 파일 읽기
+	// Read tasks from temp file
 	raw, err := ioutil.ReadFile(sf.TempFile())
 	if err != nil {
-		return fmt.Errorf("Failed to read temporary file: %v", err)
+		return fmt.Errorf("Failed to read temp file: %v", err)
 	}
 
-	// Restore serialized data
 	var tasks [][]interface{}
 	if err := json.Unmarshal(raw, &tasks); err != nil {
-		return fmt.Errorf("Failed to unmarshal data: %v", err)
+		return fmt.Errorf("Failed to unmarshal tasks: %v", err)
 	}
 
-	// 각 태스크 처리
+	// Process each task
 	for _, item := range tasks {
 		file := item[0].(string)
 		seek := int64(item[1].(float64))
-		data := item[2].(string)
+
+		var data []byte
+		switch v := item[2].(type) {
+		case string:
+			data = []byte(v)
+		case []byte:
+			data = v
+		default:
+			return fmt.Errorf("unexpected data type: %T", item[2])
+		}
 
 		if file == sf.InfoFile() {
-			// 파일 전체 덮어쓰기
-			if err := ioutil.WriteFile(file, []byte(data), 0644); err != nil {
-				return fmt.Errorf("Failed to overwrite file: %v", err)
+			// Overwrite info file
+			if err := ioutil.WriteFile(file, data, 0644); err != nil {
+				return fmt.Errorf("Failed to write info file: %v", err)
 			}
 		} else {
-			// Write at specific position
-			f, err := os.OpenFile(file, os.O_WRONLY, 0644)
+			// Write data at specific position
+			f, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE, 0644)
 			if err != nil {
 				return fmt.Errorf("Failed to open file: %v", err)
 			}
 			defer f.Close()
 
-			if _, err := f.WriteAt([]byte(data), seek); err != nil {
-				return fmt.Errorf("Failed to write file: %v", err)
+			if _, err := f.WriteAt(data, seek); err != nil {
+				return fmt.Errorf("Failed to write data: %v", err)
+			}
+
+			if err := f.Sync(); err != nil {
+				return fmt.Errorf("Failed to sync file: %v", err)
 			}
 		}
 	}
 
-	// 임시 파일 비우기
+	// Clear temp file
 	return ioutil.WriteFile(sf.TempFile(), []byte{}, 0644)
 }

@@ -1,8 +1,21 @@
 package config
 
-const QUANTUM_ROOT_DIR = "/Users/louis/qcn"
+import (
+	"os"
+)
+
+// const QUANTUM_ROOT_DIR = "/Users/louis/qcn"
+var QUANTUM_ROOT_DIR = func() string {
+	dir := os.Getenv("QUANTUM_ROOT_DIR")
+	println("QUANTUM_ROOT_DIR env value:", dir)
+	if dir != "" {
+		return dir
+	}
+	return ""
+}()
+
 const DATA_ROOT_DIR = "data"
-const DATA_ROOT_TEST_DIR = "data/testdata"
+const DATA_ROOT_TEST_DIR = "testoutdata"
 const LEDGER_FILESIZE_LIMIT = 268435456
 
 const HEX_TIME_BYTES = 7
