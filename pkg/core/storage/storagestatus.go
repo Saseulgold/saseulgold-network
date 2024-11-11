@@ -106,15 +106,11 @@ func (sf *StatusFile) Flush() {
 	sf.CachedLocalIndexes = make(map[string]StorageIndexCursor)
 }
 
-func (sf *StatusFile) RootDir() string {
-	return QUANTUM_ROOT_DIR
-}
-
 func (sf *StatusFile) DataRootDir() string {
 	if C.CORE_TEST_MODE {
-		return filepath.Join(QUANTUM_ROOT_DIR, DATA_ROOT_TEST_DIR)
+		return DATA_ROOT_TEST_DIR
 	}
-	return filepath.Join(QUANTUM_ROOT_DIR, DATA_ROOT_DIR)
+	return DATA_ROOT_DIR
 }
 
 func (sf *StatusFile) StatusBundle() string {

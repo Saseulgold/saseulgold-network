@@ -8,9 +8,9 @@ import (
 type Ia interface{}
 
 type Update struct {
-	Key string `json:"status_key"`
-	Old Ia     `json:"old"`
-	New Ia     `json:"new"`
+	Key string
+	Old Ia `json:"old"`
+	New Ia `json:"new"`
 }
 
 type UpdateLog struct {

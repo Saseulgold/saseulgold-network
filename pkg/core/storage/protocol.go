@@ -190,20 +190,24 @@ func ChainKey(raw []byte) string {
 }
 
 func ChainIndex(raw []byte) []interface{} {
-	offset := C.CHAIN_KEY_BYTES
+	offset := C.TIME_HASH_BYTES
 
+	// height 추출
 	height := F.BinDec(raw[offset : offset+C.CHAIN_HEIGHT_BYTES])
 	offset += C.CHAIN_HEIGHT_BYTES
 
-	fileID := hex.EncodeToString(raw[offset : offset+C.DATA_ID_BYTES])
+	// fileID 추출
+	fileID := F.Bin2Hex(raw[offset : offset+C.DATA_ID_BYTES])
 	offset += C.DATA_ID_BYTES
 
+	// seek 추출
 	seek := F.BinDec(raw[offset : offset+C.SEEK_BYTES])
 	offset += C.SEEK_BYTES
 
+	// length 추출
 	length := F.BinDec(raw[offset : offset+C.LENGTH_BYTES])
-
 	return []interface{}{height, fileID, seek, length}
+
 }
 
 func ReadChainIndexes(directory string) map[string][]interface{} {

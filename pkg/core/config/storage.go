@@ -4,6 +4,8 @@ import (
 	"os"
 )
 
+var IS_TEST = false
+
 // const QUANTUM_ROOT_DIR = "/Users/louis/qcn"
 var QUANTUM_ROOT_DIR = func() string {
 	dir := os.Getenv("QUANTUM_ROOT_DIR")
@@ -14,8 +16,13 @@ var QUANTUM_ROOT_DIR = func() string {
 	return ""
 }()
 
-const DATA_ROOT_DIR = "data"
-const DATA_ROOT_TEST_DIR = "testoutdata"
+var DATA_ROOT_DIR = func() string {
+	return QUANTUM_ROOT_DIR + "/data"
+}()
+var DATA_ROOT_TEST_DIR = func() string {
+	return QUANTUM_ROOT_DIR + "/testdata"
+}()
+
 const LEDGER_FILESIZE_LIMIT = 268435456
 
 const HEX_TIME_BYTES = 7

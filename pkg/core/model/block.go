@@ -22,30 +22,33 @@ func (bh BlockHeader) Ser() string {
 }
 
 type Block struct {
-	Height            int64 `json:"height"`
-	Transactions      *TransactionMap
-	UniversalUpdates  *UpdateMap
-	LocalUpdates      *UpdateMap
-	PreviousBlockhash string `json:"previous_blockhash"`
-	Timestamp_s       int64  `json:"s_timestamp"`
-	Vout              string `json:"vout"`
-	Nonce             string `json:"nonce"`
-	RewardAddress     string `json:"reward_address"`
+	Height            int64          `json:"height"`
+	Transactions      TransactionMap `json:"transactions"`
+	UniversalUpdates  UpdateMap      `json:"universal_updates"`
+	LocalUpdates      UpdateMap      `json:"local_updates"`
+	PreviousBlockhash string         `json:"previous_blockhash"`
+	Timestamp_s       int64          `json:"s_timestamp"`
+	Vout              string         `json:"vout"`
+	Nonce             string         `json:"nonce"`
+	RewardAddress     string         `json:"reward_address"`
+	Difficulty        int64          `json:"difficulty"`
 }
 
 func NewBlock(height int64, previous_blockhash string) Block {
-	tm := make(TransactionMap, 8)
-	uu := make(UpdateMap, 16)
-	lu := make(UpdateMap, 4)
-
-	return Block{Height: height, PreviousBlockhash: previous_blockhash, Transactions: &tm, UniversalUpdates: &uu, LocalUpdates: &lu}
+	return Block{
+		Height:            height,
+		PreviousBlockhash: previous_blockhash,
+		Transactions:      make(TransactionMap, 8),
+		UniversalUpdates:  make(UpdateMap, 16),
+		LocalUpdates:      make(UpdateMap, 4),
+	}
 }
 
 func CreateBlock(
 	height int64,
-	transactions *TransactionMap,
-	universalUpdates *UpdateMap,
-	localUpdates *UpdateMap,
+	transactions TransactionMap,
+	universalUpdates UpdateMap,
+	localUpdates UpdateMap,
 	previousBlockhash string,
 	timestamp_s int64,
 	vout string,
@@ -65,19 +68,19 @@ func (block *Block) SetTimestamp(timestamp int64) {
 
 func (block *Block) AppendTransaction(tx SignedTransaction) bool {
 	txHash := tx.GetTxHash()
-	(*block.Transactions)[txHash] = tx
+	block.Transactions[txHash] = tx
 	return true
 }
 
 func (block *Block) AppendLocalUpdate(update Update) bool {
 	updateHash := update.GetHash()
-	(*block.LocalUpdates)[updateHash] = update
+	block.LocalUpdates[updateHash] = update
 	return true
 }
 
 func (block *Block) AppendUniversalUpdate(update Update) bool {
 	updateHash := update.GetHash()
-	(*block.UniversalUpdates)[updateHash] = update
+	block.UniversalUpdates[updateHash] = update
 	return true
 }
 
@@ -92,7 +95,7 @@ func (block Block) BlockRoot() string {
 }
 
 func (block Block) THashs() []string {
-	txs := F.SortedValueK(*block.Transactions)
+	txs := F.SortedValueK(block.Transactions)
 	return F.Map(txs, func(tx SignedTransaction) string {
 		return tx.GetTxHash()
 	})
@@ -100,10 +103,10 @@ func (block Block) THashs() []string {
 
 func (block Block) UHashs() []string {
 	hashs := make(map[string]Update)
-	for k, v := range *block.UniversalUpdates {
+	for k, v := range block.UniversalUpdates {
 		hashs[k] = v
 	}
-	for k, v := range *block.LocalUpdates {
+	for k, v := range block.LocalUpdates {
 		hashs[k] = v
 	}
 
@@ -127,4 +130,45 @@ func (block Block) UpdateRoot() string {
 func (block Block) BlockHash() string {
 	s := F.Concat(block.PreviousBlockhash, block.BlockHeader())
 	return F.TimeHash(s, block.Timestamp_s)
+}
+
+func (block Block) BaseObj() map[string]interface{} {
+	return map[string]interface{}{
+		"height":             block.Height,
+		"s_timestamp":        block.Timestamp_s,
+		"previous_blockhash": block.PreviousBlockhash,
+		"blockhash":          block.BlockHash(),
+		"difficulty":         block.Difficulty,
+		"reward_address":     block.RewardAddress,
+		"vout":               block.Vout,
+		"nonce":              block.Nonce,
+	}
+}
+
+func (block Block) FullObj() map[string]interface{} {
+	obj := block.BaseObj()
+	// obj["seal"] = block.Seal
+	obj["transactions"] = block.Transactions
+	obj["universal_updates"] = block.UniversalUpdates
+	obj["local_updates"] = block.LocalUpdates
+	return obj
+}
+
+func (block Block) Ser() string {
+	j, _ := json.Marshal(block.BaseObj())
+	return string(j)
+}
+func (block *Block) Init() {
+	if block.Transactions == nil {
+		tm := make(TransactionMap, 8)
+		block.Transactions = tm
+	}
+	if block.UniversalUpdates == nil {
+		uu := make(UpdateMap, 16)
+		block.UniversalUpdates = uu
+	}
+	if block.LocalUpdates == nil {
+		m := make(UpdateMap, 4)
+		block.LocalUpdates = m
+	}
 }

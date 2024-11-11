@@ -2,7 +2,9 @@ package storage
 
 import (
 	"bytes"
+	"encoding/json"
 	C "hello/pkg/core/config"
+	. "hello/pkg/core/model"
 	F "hello/pkg/util"
 	"io"
 	"math"
@@ -12,8 +14,36 @@ import (
 
 type ChainStorage struct{}
 
+func (c *ChainStorage) Block(directory string, needle interface{}) (*Block, error) {
+	data, err := c.ReadData(directory, needle.([]interface{}))
+	if err != nil {
+		return nil, err
+	}
+
+	var block Block
+	if err := json.Unmarshal(data, &block); err != nil {
+		return nil, err
+	}
+
+	return &block, nil
+}
+
 func (c *ChainStorage) IndexFile(directory string) string {
-	return filepath.Join(directory, "index")
+	path := C.DATA_ROOT_DIR
+	if C.IS_TEST {
+		path = C.DATA_ROOT_TEST_DIR
+	}
+	println("Chain index file path:", filepath.Join(path, directory, "index"))
+	return filepath.Join(path, directory, "index")
+}
+
+func (c *ChainStorage) DataFile(directory, fileID string) string {
+	path := C.DATA_ROOT_DIR
+	if C.IS_TEST {
+		path = C.DATA_ROOT_TEST_DIR
+	}
+	println("Chain data file path:", filepath.Join(path, directory, fileID))
+	return filepath.Join(path, directory, fileID)
 }
 
 func (c *ChainStorage) Touch(directory string) error {
@@ -46,6 +76,7 @@ func (c *ChainStorage) Index(directory string, needle interface{}) ([]interface{
 func (c *ChainStorage) ReadIdx(directory string, height int) int {
 	idx := 0
 	lastIdx := c.LastIdx(directory)
+	println("마지막 인덱스:", lastIdx)
 	lastIndex, _ := c.ReadIndex(directory, lastIdx)
 	lastHeight := 0
 	if len(lastIndex) > 0 {
@@ -64,6 +95,7 @@ func (c *ChainStorage) ReadIndex(directory string, idx int) ([]interface{}, erro
 	if idx > 0 {
 		iseek := C.CHAIN_HEADER_BYTES + (idx-1)*C.CHAIN_HEAP_BYTES
 		raw, err := ReadPart(c.IndexFile(directory), int64(iseek), C.CHAIN_HEAP_BYTES)
+
 		if err != nil {
 			return nil, err
 		}
@@ -163,10 +195,6 @@ func (c *ChainStorage) indexRaw(key, fileID string, height, seek, length int) []
 		FileIdBin(fileID)...),
 		F.DecBin(seek, C.SEEK_BYTES)...),
 		F.DecBin(length, C.LENGTH_BYTES)...)
-}
-
-func (c *ChainStorage) DataFile(directory, fileID string) string {
-	return filepath.Join(directory, fileID)
 }
 
 func (c *ChainStorage) SearchIndex(directory string, hash string) ([]interface{}, error) {
