@@ -1,0 +1,8 @@
+package config
+
+const (
+	BLOCK_TX_SIZE_LIMIT  = 16777216
+	BLOCK_TX_COUNT_LIMIT = 2048
+	TX_SIZE_LIMIT        = 1048576
+	STATUS_SIZE_LIMIT    = 65536
+)

@@ -13,6 +13,8 @@ const (
 	StateRead
 	StateCondition
 	StateExecution
+	StateMain
+	StatePost
 )
 
 type Process int
@@ -127,10 +129,10 @@ func (i *Interpreter) setDefaultValue() {
 	}
 
 	// Set parameter defaults
-	for name, param := range i.code.Parameters() {
-		requirements := param.GetAttribute("requirements")
+	for name, param := range i.code.GetParameters() {
+		requirements := param.GetRequirements()
 		if !requirements && i.signedData.GetAttribute(name) == nil {
-			defaultVal := param.Get("default")
+			defaultVal := param.GetDefault()
 			i.signedData.SetAttribute(name, defaultVal)
 		}
 	}
@@ -153,4 +155,77 @@ func (i *Interpreter) setDefaultValue() {
 	}
 }
 
-// Additional methods would follow...
+func (i *Interpreter) Execute() (string, bool) {
+	executions := i.code.GetExecutions()
+	postExecutions := i.postProcess.GetExecutions()
+
+	i.state = StateCondition
+	i.process = ProcessMain
+
+	// main, condition
+	for key, execution := range executions {
+		executions[key] = i.Process(execution)
+
+		if i.breakFlag {
+			return i.result, false
+		}
+	}
+
+	// TODO: Hash(executions)
+	processLength := len(executions)
+
+	switch i.mode {
+	case "transaction":
+		if processLength > C.TX_SIZE_LIMIT {
+			return "Too long processing.", false
+		}
+	default:
+		if processLength > C.BLOCK_TX_SIZE_LIMIT {
+			return "Too long processing.", false
+		}
+	}
+
+	// post, condition
+	i.process = ProcessPost
+
+	for key, execution := range postExecutions {
+		postExecutions[key] = i.Process(execution)
+
+		if i.breakFlag {
+			return i.result, false
+		}
+	}
+
+	// main, execution
+	i.state = StateExecution
+	i.process = ProcessMain
+
+	for key, execution := range executions {
+		executions[key] = i.Process(execution)
+
+		if i.breakFlag {
+			return i.result, true
+		}
+	}
+
+	// post, execution
+	i.process = ProcessPost
+
+	for key, execution := range postExecutions {
+		postExecutions[key] = i.Process(execution)
+
+		if i.breakFlag {
+			return i.result, true
+		}
+	}
+
+	return "", true
+}
+
+func (i *Interpreter) SetCode(code *Method) {
+	i.code = code
+}
+
+func (i *Interpreter) SetPostProcess(postProcess *Method) {
+	i.postProcess = postProcess
+}

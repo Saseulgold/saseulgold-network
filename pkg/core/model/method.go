@@ -2,90 +2,91 @@ package model
 
 import (
 	"encoding/json"
+	. "hello/pkg/core/abi"
 	F "hello/pkg/util"
 )
 
-type Parameters map[string]interface{}
+type Parameters map[string]Parameter
 type Execution interface{}
-type Excutions []Execution
+type Executions []Execution
 
 type ParamValues map[string]interface{}
 
 type Method struct {
-	methodType string
-	machine    string
-	name       string
-	version    string
-	space      string
-	writer     string
-	parameters Parameters
-	executions []Execution
+	Type       string
+	Machine    string
+	Name       string
+	Version    string
+	Space      string
+	Writer     string
+	Parameters Parameters
+	Executions []Execution
 }
 
 func NewMethod(initialInfo map[string]interface{}) *Method {
 	m := &Method{
-		parameters: make(Parameters),
-		executions: make([]Execution, 0),
+		Parameters: make(Parameters),
+		Executions: make([]Execution, 0),
 	}
 
 	if t, ok := initialInfo["t"]; ok {
-		m.methodType = t.(string)
+		m.Type = t.(string)
 	} else if t, ok := initialInfo["type"]; ok {
-		m.methodType = t.(string)
+		m.Type = t.(string)
 	} else {
-		m.methodType = "request"
+		m.Type = "request"
 	}
 
 	if v, ok := initialInfo["m"]; ok {
-		m.machine = v.(string)
+		m.Machine = v.(string)
 	} else if v, ok := initialInfo["machine"]; ok {
-		m.machine = v.(string)
+		m.Machine = v.(string)
 	} else {
-		m.machine = "0.2.0"
+		m.Machine = "0.2.0"
 	}
 
 	if v, ok := initialInfo["n"]; ok {
-		m.name = v.(string)
+		m.Name = v.(string)
 	} else if v, ok := initialInfo["name"]; ok {
-		m.name = v.(string)
+		m.Name = v.(string)
 	} else {
-		m.name = ""
+		m.Name = ""
 	}
 
 	if v, ok := initialInfo["v"]; ok {
-		m.version = v.(string)
+		m.Version = v.(string)
 	} else if v, ok := initialInfo["version"]; ok {
-		m.version = v.(string)
+		m.Version = v.(string)
 	} else {
-		m.version = "1"
+		m.Version = "1"
 	}
 
 	if v, ok := initialInfo["s"]; ok {
-		m.space = v.(string)
+		m.Space = v.(string)
 	} else if v, ok := initialInfo["space"]; ok {
-		m.space = v.(string)
+		m.Space = v.(string)
 	} else {
-		m.space = ""
+		m.Space = ""
 	}
 
 	if v, ok := initialInfo["w"]; ok {
-		m.writer = v.(string)
+		m.Writer = v.(string)
 	} else if v, ok := initialInfo["writer"]; ok {
-		m.writer = v.(string)
+		m.Writer = v.(string)
 	} else {
-		m.writer = ""
+		m.Writer = ""
 	}
 
 	if v, ok := initialInfo["p"]; ok {
-		m.parameters = v.(Parameters)
+		m.Parameters = v.(Parameters)
 	} else if v, ok := initialInfo["parameters"]; ok {
-		m.parameters = v.(Parameters)
+		m.Parameters = v.(Parameters)
 	}
 
 	if v, ok := initialInfo["e"]; ok {
-		m.executions = v.([]Execution)
+		m.Executions = v.([]Execution)
 	} else if v, ok := initialInfo["executions"]; ok {
-		m.executions = v.([]Execution)
+		m.Executions = v.([]Execution)
 	}
 
 	return m
@@ -93,14 +94,14 @@ func NewMethod(initialInfo map[string]interface{}) *Method {
 
 func (m *Method) Compile() map[string]interface{} {
 	return map[string]interface{}{
-		"t": m.methodType,
-		"m": m.machine,
-		"n": m.name,
-		"v": m.version,
-		"s": m.space,
-		"w": m.writer,
-		"p": m.parameters,
-		"e": m.executions,
+		"t": m.Type,
+		"m": m.Machine,
+		"n": m.Name,
+		"v": m.Version,
+		"s": m.Space,
+		"w": m.Writer,
+		"p": m.Parameters,
+		"e": m.Executions,
 	}
 }
 
@@ -114,91 +115,94 @@ func (m *Method) CID() string {
 }
 
 func (m *Method) GetType() string {
-	return m.methodType
+	return m.Type
 }
 
 func (m *Method) SetType(methodType string) {
 	if methodType != "" {
-		m.methodType = methodType
+		m.Type = methodType
 	}
 }
 
 func (m *Method) GetMachine() string {
-	return m.machine
+	return m.Machine
 }
 
 func (m *Method) SetMachine(machine string) {
 	if machine != "" {
-		m.machine = machine
+		m.Machine = machine
 	}
 }
 
 func (m *Method) GetName() string {
-	return m.name
+	return m.Name
 }
 
 func (m *Method) SetName(name string) {
 	if name != "" {
-		m.name = name
+		m.Name = name
 	}
 }
 
 func (m *Method) GetVersion() string {
-	return m.version
+	return m.Version
 }
 
 func (m *Method) SetVersion(version string) {
 	if version != "" {
-		m.version = version
+		m.Version = version
 	}
 }
 
 func (m *Method) GetSpace() string {
-	return m.space
+	return m.Space
 }
 
 func (m *Method) SetSpace(space string) {
 	if space != "" {
-		m.space = space
+		m.Space = space
 	}
 }
 
 func (m *Method) GetWriter() string {
-	return m.writer
+	return m.Writer
 }
 
 func (m *Method) SetWriter(writer string) {
 	if writer != "" {
-		m.writer = writer
+		m.Writer = writer
 	}
 }
 
 func (m *Method) GetParameters() Parameters {
-	return m.parameters
+	return m.Parameters
 }
 
 func (m *Method) SetParameters(parameters Parameters) {
 	if parameters != nil {
-		m.parameters = parameters
+		m.Parameters = parameters
 	}
 }
 
 func (m *Method) AddParameter(parameter Parameter) {
-	if parameter.ObjValidity() && m.parameters[parameter.GetName()] == nil {
-		m.parameters[parameter.GetName()] = parameter.Obj()
+	if parameter.ObjValidity() {
+		_, exists := m.Parameters[parameter.GetName()]
+		if !exists {
+			m.Parameters[parameter.GetName()] = parameter
+		}
 	}
 }
 
 func (m *Method) GetExecutions() []Execution {
-	return m.executions
+	return m.Executions
 }
 
 func (m *Method) SetExecutions(executions []Execution) {
 	if executions != nil {
-		m.executions = executions
+		m.Executions = executions
 	}
 }
 
-func (m *Method) AddExecution(execution interface{}) {
-	m.executions = append(m.executions, execution)
+func (m *Method) AddExecution(execution ABI) {
+	m.Executions = append(m.Executions, execution)
 }

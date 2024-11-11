@@ -178,7 +178,7 @@ func TestBlock_WithMultipleUpdates(t *testing.T) {
 	t.Logf("Update Root: %s", block.UpdateRoot())
 
 	t.Logf("\n=== Transaction List ===")
-	for txHash, tx := range *block.Transactions {
+	for txHash, tx := range block.Transactions {
 		t.Logf("Transaction Hash: %s", txHash)
 		if val, _ := tx.Data.Get("type"); val != nil {
 			t.Logf("- Type: %v", val)
@@ -198,14 +198,14 @@ func TestBlock_WithMultipleUpdates(t *testing.T) {
 	}
 
 	t.Logf("\n=== Universal Updates List ===")
-	for _, update := range *block.UniversalUpdates {
+	for _, update := range block.UniversalUpdates {
 		t.Logf("Key: %s", update.Key)
 		t.Logf("Old Value: %v", update.Old)
 		t.Logf("New Value: %v\n", update.New)
 	}
 
 	t.Logf("\n=== Local Updates List ===")
-	for _, update := range *block.LocalUpdates {
+	for _, update := range block.LocalUpdates {
 		t.Logf("Key: %s", update.Key)
 		t.Logf("Old Value: %v", update.Old)
 		t.Logf("New Value: %v\n", update.New)

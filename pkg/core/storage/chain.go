@@ -38,12 +38,10 @@ func (c *ChainStorage) IndexFile(directory string) string {
 }
 
 func (c *ChainStorage) DataFile(directory, fileID string) string {
-	path := C.DATA_ROOT_DIR
 	if C.IS_TEST {
-		path = C.DATA_ROOT_TEST_DIR
+		return filepath.Join(C.DATA_ROOT_TEST_DIR, directory, fileID)
 	}
-	println("Chain data file path:", filepath.Join(path, directory, fileID))
-	return filepath.Join(path, directory, fileID)
+	return filepath.Join(C.DATA_ROOT_DIR, directory, fileID)
 }
 
 func (c *ChainStorage) Touch(directory string) error {

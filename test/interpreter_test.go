@@ -1,40 +1,103 @@
 package main
 
 import (
-	_ "fmt"
-	. "hello/pkg/core"
-	. "hello/pkg/core/vm"
+	abi "hello/pkg/core/abi"
+	. "hello/pkg/core/model"
+	vm "hello/pkg/core/vm"
 	"testing"
 )
 
-func GetContract0() Contract {
-	return NewContract()
-}
+func TestInterpreterMethod(t *testing.T) {
 
-func TestCase0(t *testing.T) {
-	contract := NewContract()
-	contract.SetName("test0")
-	contract.SetVersion("0.0.1")
-	contract.SetMachine("m")
+	// Create and initialize interpreter
+	interpreter := vm.NewInterpreter()
+	interpreter.Init("transaction")
 
-	param0 := contract.AddParameter("amount0", IntegerFlag)
+	// Create test data
+	signedData := NewSignedData()
+	signedData.SetAttribute("value", 5)
 
-	const arg0 HInteger = 1
-	const arg1 HInteger = 2
+	post := &Method{Parameters: Parameters{},
+		Executions: []Execution{},
+	}
 
-	addOp0 := OpAdd(param0, arg0)
-	addOp1 := OpAdd(addOp0, arg1)
+	// Create first test method - arithmetic operation test
+	method1 := &Method{Parameters: Parameters{
+		"value": NewParameter(map[string]interface{}{
+			"name":         "value",
+			"requirements": true,
+			"default":      nil,
+		}),
+	},
+		Executions: []Execution{
+			abi.Mul([]interface{}{abi.Param("value"), 2}),
+			abi.Add([]interface{}{abi.Param("value"), 10}),
+			abi.Div([]interface{}{abi.Param("value"), 5}),
+		},
+	}
 
-	contract.AddExecution(addOp1)
+	t.Logf("Method1 executions: %v", method1.GetExecutions())
 
-	var const0 HInteger = 1
-	eq := OpEq(const0, addOp1)
+	// Execute method1
+	interpreter.SetCode(method1)
+	interpreter.SetPostProcess(post)
+	result1, err := interpreter.Execute()
 
-	cond0 := OpCondition(eq)
-	contract.AddExecution(cond0)
+	if !err {
+		t.Errorf("Error occurred during Method1 execution: %v", err)
+	}
+	t.Logf("Method1 execution result: %v", result1)
 
-	instance := Instance()
+	// Create second test method - conditional statement test
+	method2 := &Method{
+		Parameters: Parameters{
+			"value": NewParameter(map[string]interface{}{
+				"name":         "value",
+				"requirements": true,
+				"default":      nil,
+			}),
+		},
+		Executions: []Execution{
+			abi.Condition(abi.Gt(abi.Param("value"), 10), "Value must be greater than 10"),
+			abi.If(abi.Lt(abi.Param("value"), 100),
+				abi.Mul([]interface{}{abi.Param("value"), 2}),
+				abi.Div([]interface{}{abi.Param("value"), 2})),
+		},
+	}
 
-	params := ParamValueMap{"amount0": HInteger(1)}
-	instance.ExecuteContract(&contract, params)
+	// Execute method2
+	interpreter.SetCode(method2)
+	result2, err := interpreter.Execute()
+	if !err {
+		t.Logf("Expected error occurred during Method2 execution: %v", err)
+	} else {
+		t.Logf("Method2 execution result: %v", result2)
+	}
+
+	// Create third test method - complex operation test
+	method3 := &Method{
+		Parameters: Parameters{
+			"value": NewParameter(map[string]interface{}{
+				"name":         "value",
+				"requirements": true,
+				"default":      nil,
+			}),
+		},
+		Executions: []Execution{
+			abi.Condition(abi.IsNumeric(abi.Param("value")), "Must be numeric type"),
+			abi.PreciseMul(abi.Param("value"), 1.5, 2),
+			abi.If(abi.Gt(abi.Param("value"), 50),
+				abi.Add([]interface{}{abi.Param("value"), 100}),
+				abi.Sub([]interface{}{abi.Param("value"), 50})),
+		},
+	}
+
+	// Execute method3
+	interpreter.SetCode(method3)
+	result3, err := interpreter.Execute()
+	if !err {
+		t.Errorf("Error occurred during Method3 execution: %v", err)
+	}
+	t.Logf("Method3 execution result: %v", result3)
+
 }
