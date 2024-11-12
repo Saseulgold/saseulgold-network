@@ -4,15 +4,8 @@ import (
 	"reflect"
 )
 
-type BasicOperator struct {
-	state  string
-	break_ bool
-	result interface{}
-	weight int64
-}
-
-func (b *BasicOperator) Condition(vars []interface{}) bool {
-	if b.state != "CONDITION" {
+func OpCondition(i *Interpreter, vars []interface{}) bool {
+	if i.state != StateCondition {
 		return true
 	}
 
@@ -32,9 +25,9 @@ func (b *BasicOperator) Condition(vars []interface{}) bool {
 	}
 
 	if !abi {
-		b.break_ = true
+		i.breakFlag = true
 		if errMsg != "" {
-			b.result = errMsg
+			i.result = errMsg
 		}
 		return false
 	}
@@ -42,27 +35,27 @@ func (b *BasicOperator) Condition(vars []interface{}) bool {
 	return true
 }
 
-func (b *BasicOperator) Response(vars []interface{}) interface{} {
-	if b.state != "EXECUTION" {
+func OpResponse(i *Interpreter, vars []interface{}) interface{} {
+	if i.state != StateExecution {
 		return map[string][]interface{}{
 			"$response": vars,
 		}
 	}
 
-	b.break_ = true
+	i.breakFlag = true
 	if len(vars) > 0 {
-		b.result = vars[0]
+		i.result = vars[0]
 	} else {
-		b.result = nil
+		i.result = nil
 	}
 	return nil
 }
 
-func (b *BasicOperator) Weight(vars []interface{}) int64 {
-	return b.weight
+func OpWeight(i *Interpreter, vars []interface{}) int64 {
+	return i.weight
 }
 
-func (b *BasicOperator) If(vars []interface{}) interface{} {
+func OpIf(i *Interpreter, vars []interface{}) interface{} {
 	var condition bool
 	var trueVal, falseVal interface{}
 
@@ -86,7 +79,7 @@ func (b *BasicOperator) If(vars []interface{}) interface{} {
 	return falseVal
 }
 
-func (b *BasicOperator) And(vars []interface{}) bool {
+func OpAnd(i *Interpreter, vars []interface{}) bool {
 	var result *bool
 
 	for _, v := range vars {
@@ -108,7 +101,7 @@ func (b *BasicOperator) And(vars []interface{}) bool {
 	return *result
 }
 
-func (b *BasicOperator) Or(vars []interface{}) bool {
+func OpOr(i *Interpreter, vars []interface{}) bool {
 	var result *bool
 
 	for _, v := range vars {
@@ -130,7 +123,7 @@ func (b *BasicOperator) Or(vars []interface{}) bool {
 	return *result
 }
 
-func (b *BasicOperator) Get(vars []interface{}) interface{} {
+func OpGet(i *Interpreter, vars []interface{}) interface{} {
 	if len(vars) < 2 {
 		return nil
 	}
@@ -161,7 +154,7 @@ func (b *BasicOperator) Get(vars []interface{}) interface{} {
 	return defaultVal
 }
 
-func (b *BasicOperator) In(vars []interface{}) bool {
+func OpIn(i *Interpreter, vars []interface{}) bool {
 	if len(vars) < 2 {
 		return false
 	}

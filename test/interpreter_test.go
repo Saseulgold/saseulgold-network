@@ -39,6 +39,7 @@ func TestInterpreterMethod(t *testing.T) {
 	t.Logf("Method1 executions: %v", method1.GetExecutions())
 
 	// Execute method1
+	interpreter.Reset()
 	interpreter.SetCode(method1)
 	interpreter.SetPostProcess(post)
 	result1, err := interpreter.Execute()
@@ -66,7 +67,9 @@ func TestInterpreterMethod(t *testing.T) {
 	}
 
 	// Execute method2
+	interpreter.Reset()
 	interpreter.SetCode(method2)
+	interpreter.SetPostProcess(post)
 	result2, err := interpreter.Execute()
 	if !err {
 		t.Logf("Expected error occurred during Method2 execution: %v", err)
@@ -93,7 +96,9 @@ func TestInterpreterMethod(t *testing.T) {
 	}
 
 	// Execute method3
+	interpreter.Reset()
 	interpreter.SetCode(method3)
+	interpreter.SetPostProcess(post)
 	result3, err := interpreter.Execute()
 	if !err {
 		t.Errorf("Error occurred during Method3 execution: %v", err)

@@ -1,0 +1,41 @@
+package vm
+
+var OperatorFunctions = map[string][]string{
+	"BasicOperator": {
+		"OpAdd",
+		"OpSub",
+		"OpMul",
+		"OpDiv",
+		"OpMod",
+		"OpPow",
+		"OpEq",
+		"OpNeq",
+		"OpGt",
+		"OpGte",
+		"OpLt",
+		"OpLte",
+		"OpAnd",
+		"OpOr",
+		"OpNot",
+	},
+	"UtilOperator": {
+		"OpArrayPush",
+		"OpConcat",
+		"OpCount",
+		"OpStrlen",
+		"OpEncodeJson",
+		"OpDecodeJson",
+		"OpHashLimit",
+		"OpHashMany",
+		"OpHash",
+		"OpShortHash",
+		"OpIdHash",
+		"OpSignVerify",
+	},
+	"CastOperator": {
+		"OpToString",
+		"OpToInt",
+		"OpToFloat",
+		"OpToBool",
+	},
+}

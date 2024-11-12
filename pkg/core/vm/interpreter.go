@@ -4,6 +4,7 @@ import (
 	C "hello/pkg/core/config"
 	. "hello/pkg/core/model"
 	. "hello/pkg/crypto"
+	"reflect"
 )
 
 type State int
@@ -32,9 +33,9 @@ type Interpreter struct {
 	code             *Method
 	postProcess      *Method
 	breakFlag        bool
-	result           string
+	result           interface{}
 	weight           int64
-	methods          []string
+	methods          map[string]interface{}
 	state            State
 	process          Process
 	universals       map[string]interface{}
@@ -68,31 +69,35 @@ func (i *Interpreter) Reset() {
 }
 
 func (i *Interpreter) Init(mode string) {
+	println("Init mode:", mode)
+
 	if mode == "" {
 		mode = "transaction"
 	}
 
 	if i.mode != mode {
 		i.mode = mode
-		i.methods = make([]string, 0)
+		i.methods = make(map[string]interface{})
 
 		i.loadMethod("BasicOperator")
 		i.loadMethod("ArithmeticOperator")
-		i.loadMethod("ComparisonOperator")
-		i.loadMethod("UtilOperator")
 		i.loadMethod("CastOperator")
-		i.loadMethod("ReadOperator")
-
-		if mode == "transaction" {
-			i.loadMethod("WriteOperator")
-		} else {
-			i.loadMethod("ChainOperator")
-		}
+		i.loadMethod("UtilOperator")
+		/*
+			if mode == "transaction" {
+				i.loadMethod("WriteOperator")
+			} else {
+				i.loadMethod("ChainOperator")
+			}
+		*/
 	}
 }
 
 func (i *Interpreter) loadMethod(name string) {
-	// TODO: Implement method loading logic
+	for _, methodName := range OperatorFunctions[name] {
+		println("Load method:", methodName)
+		i.methods[methodName] = reflect.ValueOf(i).MethodByName(methodName).Interface()
+	}
 }
 
 func (i *Interpreter) Set(data *SignedData, code *Method, postProcess *Method) {
@@ -106,19 +111,14 @@ func (i *Interpreter) Set(data *SignedData, code *Method, postProcess *Method) {
 }
 
 func (i *Interpreter) Process(abi interface{}) interface{} {
-	if abiMap, ok := abi.(map[string]interface{}); ok {
-		for key, item := range abiMap {
-			if len(key) > 0 {
-				prefix := key[0:1]
-				vars := i.Process(item)
+	println("Process ABI:", abi)
 
-				if prefix == "$" {
-					return nil
-				} else {
-					abiMap[key] = vars
-				}
-			}
+	if abiArr, ok := abi.([]interface{}); ok {
+		for idx, item := range abiArr {
+			processed := i.Process(item)
+			abiArr[idx] = processed
 		}
+		return abiArr
 	}
 	return abi
 }
@@ -155,7 +155,7 @@ func (i *Interpreter) setDefaultValue() {
 	}
 }
 
-func (i *Interpreter) Execute() (string, bool) {
+func (i *Interpreter) Execute() (interface{}, bool) {
 	executions := i.code.GetExecutions()
 	postExecutions := i.postProcess.GetExecutions()
 
