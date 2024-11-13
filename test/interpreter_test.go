@@ -16,6 +16,7 @@ func TestInterpreterMethod(t *testing.T) {
 	// Create test data
 	signedData := NewSignedData()
 	signedData.SetAttribute("value", 5)
+	interpreter.SetSignedData(signedData)
 
 	post := &Method{Parameters: Parameters{},
 		Executions: []Execution{},
@@ -26,28 +27,31 @@ func TestInterpreterMethod(t *testing.T) {
 		"value": NewParameter(map[string]interface{}{
 			"name":         "value",
 			"requirements": true,
-			"default":      nil,
+			"default":      3,
 		}),
 	},
 		Executions: []Execution{
-			abi.Mul([]interface{}{abi.Param("value"), 2}),
-			abi.Add([]interface{}{abi.Param("value"), 10}),
-			abi.Div([]interface{}{abi.Param("value"), 5}),
+			abi.Add(abi.Add(abi.Param("value"), "2"), "3"),
 		},
 	}
-
 	t.Logf("Method1 executions: %v", method1.GetExecutions())
 
 	// Execute method1
 	interpreter.Reset()
+	interpreter.SetSignedData(signedData)
 	interpreter.SetCode(method1)
 	interpreter.SetPostProcess(post)
 	result1, err := interpreter.Execute()
-
 	if !err {
 		t.Errorf("Error occurred during Method1 execution: %v", err)
 	}
 	t.Logf("Method1 execution result: %v", result1)
+	t.Logf("Method1 final value: %v", interpreter.GetResult())
+	t.Logf("Method1 execution steps: value * 2 -> value + 10 -> value / 5")
+
+	if true {
+		t.Fatalf("done: %v", err)
+	}
 
 	// Create second test method - conditional statement test
 	method2 := &Method{

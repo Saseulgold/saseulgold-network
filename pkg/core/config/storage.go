@@ -4,7 +4,7 @@ import (
 	"os"
 )
 
-var IS_TEST = false
+var IS_TEST = true
 
 // const QUANTUM_ROOT_DIR = "/Users/louis/qcn"
 var QUANTUM_ROOT_DIR = func() string {

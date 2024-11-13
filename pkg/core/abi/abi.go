@@ -1,6 +1,20 @@
 package abi
 
-type ABI map[string][]interface{}
+import (
+	"fmt"
+)
+
+func DebugLog(args ...interface{}) {
+	// if C.IS_TEST {
+	if true {
+		fmt.Println(args...)
+	}
+}
+
+type ABI struct {
+	Key   string
+	Value interface{}
+}
 
 // Basic
 func Condition(abi interface{}, errMsg string) ABI {
@@ -8,190 +22,221 @@ func Condition(abi interface{}, errMsg string) ABI {
 		errMsg = "Conditional error"
 	}
 	return ABI{
-		"$condition": {abi, errMsg},
+		Key:   "$condition",
+		Value: []interface{}{abi, errMsg},
 	}
 }
 
 func Response(abi interface{}) ABI {
 	return ABI{
-		"$response": {abi},
+		Key:   "$response",
+		Value: []interface{}{abi},
 	}
 }
 
 func Weight() ABI {
 	return ABI{
-		"$weight": {},
+		Key:   "$weight",
+		Value: []interface{}{},
 	}
 }
 
 func If(condition, trueVal, falseVal interface{}) ABI {
 	return ABI{
-		"$if": {condition, trueVal, falseVal},
+		Key:   "$if",
+		Value: []interface{}{condition, trueVal, falseVal},
 	}
 }
 
-func And(vars interface{}) ABI {
+func And(vars ...interface{}) ABI {
 	return ABI{
-		"$and": []interface{}{vars},
+		Key:   "$and",
+		Value: vars,
 	}
 }
 
-func Or(vars interface{}) ABI {
+func Or(vars ...interface{}) ABI {
 	return ABI{
-		"$or": []interface{}{vars},
+		Key:   "$or",
+		Value: vars,
 	}
 }
 
 func Get(abi interface{}, key interface{}) ABI {
 	return ABI{
-		"$get": {abi, key},
+		Key:   "$get",
+		Value: []interface{}{abi, key},
 	}
 }
 
 // Arithmetic
-func Add(vars interface{}) ABI {
+func Add(vars ...interface{}) ABI {
 	return ABI{
-		"$add": []interface{}{vars},
+		Key:   "$add",
+		Value: vars,
 	}
 }
 
-func Sub(vars interface{}) ABI {
+func Sub(vars ...interface{}) ABI {
 	return ABI{
-		"$sub": []interface{}{vars},
+		Key:   "$sub",
+		Value: vars,
 	}
 }
 
-func Div(vars interface{}) ABI {
+func Div(vars ...interface{}) ABI {
 	return ABI{
-		"$div": []interface{}{vars},
+		Key:   "$div",
+		Value: vars,
 	}
 }
 
-func Mul(vars interface{}) ABI {
+func Mul(vars ...interface{}) ABI {
 	return ABI{
-		"$mul": []interface{}{vars},
+		Key:   "$mul",
+		Value: vars,
 	}
 }
 
 func PreciseAdd(a1, b interface{}, scale interface{}) ABI {
 	return ABI{
-		"$precise_add": {a1, b, scale},
+		Key:   "$precise_add",
+		Value: []interface{}{a1, b, scale},
 	}
 }
 
 func PreciseSub(a1, b interface{}, scale interface{}) ABI {
 	return ABI{
-		"$precise_sub": {a1, b, scale},
+		Key:   "$precise_sub",
+		Value: []interface{}{a1, b, scale},
 	}
 }
 
 func PreciseDiv(a1, b interface{}, scale interface{}) ABI {
 	return ABI{
-		"$precise_div": {a1, b, scale},
+		Key:   "$precise_div",
+		Value: []interface{}{a1, b, scale},
 	}
 }
 
 func PreciseMul(a1, b interface{}, scale interface{}) ABI {
 	return ABI{
-		"$precise_mul": {a1, b, scale},
+		Key:   "$precise_mul",
+		Value: []interface{}{a1, b, scale},
 	}
 }
 
 func Scale(value interface{}) ABI {
 	return ABI{
-		"$scale": {value},
+		Key:   "$scale",
+		Value: []interface{}{value},
 	}
 }
 
 // Cast
 func GetType(obj interface{}) ABI {
 	return ABI{
-		"$get_type": {obj},
+		Key:   "$get_type",
+		Value: []interface{}{obj},
 	}
 }
 
 func IsNumeric(vars interface{}) ABI {
 	return ABI{
-		"$is_numeric": []interface{}{vars},
+		Key:   "$is_numeric",
+		Value: []interface{}{vars},
 	}
 }
 
 func IsInt(vars interface{}) ABI {
 	return ABI{
-		"$is_int": []interface{}{vars},
+		Key:   "$is_int",
+		Value: []interface{}{vars},
 	}
 }
 
 func IsString(vars interface{}) ABI {
 	return ABI{
-		"$is_string": []interface{}{vars},
+		Key:   "$is_string",
+		Value: []interface{}{vars},
 	}
 }
 
 func IsNull(vars interface{}) ABI {
 	return ABI{
-		"$is_null": []interface{}{vars},
+		Key:   "$is_null",
+		Value: []interface{}{vars},
 	}
 }
 
 func IsBool(vars interface{}) ABI {
 	return ABI{
-		"$is_bool": []interface{}{vars},
+		Key:   "$is_bool",
+		Value: []interface{}{vars},
 	}
 }
 
 func IsArray(vars interface{}) ABI {
 	return ABI{
-		"$is_array": []interface{}{vars},
+		Key:   "$is_array",
+		Value: []interface{}{vars},
 	}
 }
 
 func IsDouble(vars interface{}) ABI {
 	return ABI{
-		"$is_double": []interface{}{vars},
+		Key:   "$is_double",
+		Value: []interface{}{vars},
 	}
 }
 
 // Comparison
 func Eq(abi1, abi2 interface{}) ABI {
 	return ABI{
-		"$eq": {abi1, abi2},
+		Key:   "$eq",
+		Value: []interface{}{abi1, abi2},
 	}
 }
 
 func Ne(abi1, abi2 interface{}) ABI {
 	return ABI{
-		"$ne": {abi1, abi2},
+		Key:   "$ne",
+		Value: []interface{}{abi1, abi2},
 	}
 }
 
 func Gt(abi1, abi2 interface{}) ABI {
 	return ABI{
-		"$gt": {abi1, abi2},
+		Key:   "$gt",
+		Value: []interface{}{abi1, abi2},
 	}
 }
 
 func Lt(abi1, abi2 interface{}) ABI {
 	return ABI{
-		"$lt": {abi1, abi2},
+		Key:   "$lt",
+		Value: []interface{}{abi1, abi2},
 	}
 }
 
 func Gte(abi1, abi2 interface{}) ABI {
 	return ABI{
-		"$gte": {abi1, abi2},
+		Key:   "$gte",
+		Value: []interface{}{abi1, abi2},
 	}
 }
 
 func Lte(abi1, abi2 interface{}) ABI {
 	return ABI{
-		"$lte": {abi1, abi2},
+		Key:   "$lte",
+		Value: []interface{}{abi1, abi2},
 	}
 }
 
 func In(target, cases interface{}) ABI {
 	return ABI{
-		"$in": {target, cases},
+		Key:   "$in",
+		Value: []interface{}{target, cases},
 	}
 }
 
@@ -200,124 +245,145 @@ func Param(vars interface{}) ABI {
 	switch v := vars.(type) {
 	case string:
 		return ABI{
-			"$load_param": []interface{}{v},
+			Key:   "$load_param",
+			Value: []interface{}{v},
 		}
 	case []interface{}:
 		return ABI{
-			"$load_param": v,
+			Key:   "$load_param",
+			Value: v,
 		}
 	default:
 		return ABI{
-			"$load_param": []interface{}{vars},
+			Key:   "$load_param",
+			Value: []interface{}{vars},
 		}
 	}
 }
 
 func ReadUniversalBypass(writer, space, attr, key, defaultVal interface{}) ABI {
 	return ABI{
-		"$read_universal_bypass": {writer, space, attr, key, defaultVal},
+		Key:   "$read_universal_bypass",
+		Value: []interface{}{writer, space, attr, key, defaultVal},
 	}
 }
 
 func ReadUniversal(attr, key, defaultVal interface{}) ABI {
 	return ABI{
-		"$read_universal": {attr, key, defaultVal},
+		Key:   "$read_universal",
+		Value: []interface{}{attr, key, defaultVal},
 	}
 }
 
 func ReadLocal(attr, key, defaultVal interface{}) ABI {
 	return ABI{
-		"$read_local": {attr, key, defaultVal},
+		Key:   "$read_local",
+		Value: []interface{}{attr, key, defaultVal},
 	}
 }
 
 func WriteUniversalBypass(writer, space, attr, key, value interface{}) ABI {
 	return ABI{
-		"$write_universal_bypass": {writer, space, attr, key, value},
+		Key:   "$write_universal_bypass",
+		Value: []interface{}{writer, space, attr, key, value},
 	}
 }
 
 func WriteUniversal(attr, key, value interface{}) ABI {
 	return ABI{
-		"$write_universal": {attr, key, value},
+		Key:   "$write_universal",
+		Value: []interface{}{attr, key, value},
 	}
 }
 
 func WriteLocal(attr, key, value interface{}) ABI {
 	return ABI{
-		"$write_local": {attr, key, value},
+		Key:   "$write_local",
+		Value: []interface{}{attr, key, value},
 	}
 }
 
 // Util
 func ArrayPush(obj, key, value interface{}) ABI {
 	return ABI{
-		"$array_push": {obj, key, value},
+		Key:   "$array_push",
+		Value: []interface{}{obj, key, value},
 	}
 }
 
 func Concat(vars interface{}) ABI {
 	return ABI{
-		"$concat": []interface{}{vars},
+		Key:   "$concat",
+		Value: []interface{}{vars},
 	}
 }
 
 func Strlen(target interface{}) ABI {
 	return ABI{
-		"$strlen": {target},
+		Key:   "$strlen",
+		Value: []interface{}{target},
 	}
 }
 
 func RegMatch(reg, value interface{}) ABI {
 	return ABI{
-		"$reg_match": {reg, value},
+		Key:   "$reg_match",
+		Value: []interface{}{reg, value},
 	}
 }
 
 func EncodeJSON(target interface{}) ABI {
 	return ABI{
-		"$encode_json": {target},
+		Key:   "$encode_json",
+		Value: []interface{}{target},
 	}
 }
 
 func DecodeJSON(target interface{}) ABI {
 	return ABI{
-		"$decode_json": {target},
+		Key:   "$decode_json",
+		Value: []interface{}{target},
 	}
 }
 
 func HashLimit(target interface{}) ABI {
 	return ABI{
-		"$hash_limit": {target},
+		Key:   "$hash_limit",
+		Value: []interface{}{target},
 	}
 }
 
 func HashMany(vars interface{}) ABI {
 	return ABI{
-		"$hash_many": []interface{}{vars},
+		Key:   "$hash_many",
+		Value: []interface{}{vars},
 	}
 }
 
 func Hash(target interface{}) ABI {
 	return ABI{
-		"$hash": {target},
+		Key:   "$hash",
+		Value: []interface{}{target},
 	}
 }
 
 func ShortHash(target interface{}) ABI {
 	return ABI{
-		"$short_hash": {target},
+		Key:   "$short_hash",
+		Value: []interface{}{target},
 	}
 }
 
 func IDHash(target interface{}) ABI {
 	return ABI{
-		"$id_hash": {target},
+		Key:   "$id_hash",
+		Value: []interface{}{target},
 	}
 }
 
 func SignVerify(obj interface{}, publicKey string, signature string) ABI {
 	return ABI{
-		"$sign_verify": {obj, publicKey, signature},
+		Key:   "$sign_verify",
+		Value: []interface{}{obj, publicKey, signature},
 	}
 }

@@ -1,18 +1,29 @@
 package vm
 
 import (
+	. "hello/pkg/core/abi"
 	"hello/pkg/util"
 )
 
-func OpAdd(i *Interpreter, vars []interface{}) interface{} {
+func OpAdd(i *Interpreter, vars interface{}) interface{} {
 	result := "0"
 
-	for _, v := range vars {
-		val := "0"
-		if str, ok := v.(string); ok && util.IsNumeric(str) {
-			val = str
+	if arr, ok := vars.([]interface{}); ok {
+		for _, v := range arr {
+			DebugLog("OpAdd: value:", v)
+			val := "0"
+			if str, ok := v.(string); ok && util.IsNumeric(str) {
+				val = str
+			} else {
+				DebugLog("OpAdd: value is not numeric")
+			}
+
+			result = util.Add(result, val, nil)
+			DebugLog("OpAdd result:", result, val)
 		}
-		result = util.Add(result, val, nil)
+	} else {
+		DebugLog("OpAdd: vars is not array type")
+		return "0"
 	}
 
 	return result

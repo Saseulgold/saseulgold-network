@@ -26,16 +26,19 @@ const (
 	ProcessPost
 )
 
+type MethodFunc func(*Interpreter, interface{}) interface{}
+
 type Interpreter struct {
 	mode string
 
-	signedData       *SignedData
-	code             *Method
-	postProcess      *Method
-	breakFlag        bool
+	SignedData  *SignedData
+	code        *Method
+	postProcess *Method
+	breakFlag   bool
+
 	result           interface{}
 	weight           int64
-	methods          map[string]interface{}
+	methods          map[string]MethodFunc
 	state            State
 	process          Process
 	universals       map[string]interface{}
@@ -46,7 +49,7 @@ type Interpreter struct {
 
 func NewInterpreter() *Interpreter {
 	return &Interpreter{
-		signedData:       nil,
+		SignedData:       nil,
 		code:             nil,
 		postProcess:      nil,
 		universals:       make(map[string]interface{}),
@@ -57,7 +60,7 @@ func NewInterpreter() *Interpreter {
 }
 
 func (i *Interpreter) Reset() {
-	i.signedData = nil
+	i.SignedData = nil
 	i.code = nil
 	i.postProcess = nil
 	i.breakFlag = false
@@ -66,6 +69,10 @@ func (i *Interpreter) Reset() {
 
 	i.universalUpdates = make(map[string]map[string]interface{})
 	i.localUpdates = make(map[string]map[string]interface{})
+}
+
+func (i *Interpreter) SetSignedData(signedData *SignedData) {
+	i.SignedData = signedData
 }
 
 func (i *Interpreter) Init(mode string) {
@@ -77,12 +84,13 @@ func (i *Interpreter) Init(mode string) {
 
 	if i.mode != mode {
 		i.mode = mode
-		i.methods = make(map[string]interface{})
+		i.methods = make(map[string]MethodFunc)
 
 		i.loadMethod("BasicOperator")
 		i.loadMethod("ArithmeticOperator")
 		i.loadMethod("CastOperator")
 		i.loadMethod("UtilOperator")
+		i.loadMethod("ReadOperator")
 		/*
 			if mode == "transaction" {
 				i.loadMethod("WriteOperator")
@@ -94,13 +102,13 @@ func (i *Interpreter) Init(mode string) {
 }
 
 func (i *Interpreter) loadMethod(name string) {
-	for methodName, methodFunc := range OperatorFunctions[name] {
-		i.methods[methodName] = methodFunc
+	for methodName, method := range OperatorFunctions[name] {
+		i.methods[methodName] = method
 	}
 }
 
 func (i *Interpreter) Set(data *SignedData, code *Method, postProcess *Method) {
-	i.signedData = data
+	i.SignedData = data
 	i.code = code
 	i.postProcess = postProcess
 	i.breakFlag = false
@@ -110,61 +118,60 @@ func (i *Interpreter) Set(data *SignedData, code *Method, postProcess *Method) {
 }
 
 func (i *Interpreter) Process(abi interface{}) interface{} {
+	DebugLog("Process:", i.mode, "abi:", abi)
 
-	switch v := abi.(type) {
-	case string:
-		println("Processed string:", v)
-		return v
-	case bool:
-		println("Processed bool:", v)
-		return v
+	switch op := abi.(type) {
 	case ABI:
-		println("Processed ABI:", v)
-		return v
-	}
-
-	if abiArr, ok := abi.([]interface{}); ok {
-		for idx, item := range abiArr {
-			println("Processed array:", item)
-			processed := i.Process(item)
-			abiArr[idx] = processed
+		method, ok := i.methods[op.Key]
+		if !ok {
+			panic("Method not found: " + op.Key)
 		}
-		return abiArr
-	} else {
+		DebugLog("Process method:", i.mode, "method:", op.Key, "value:", op.Value)
 
+		if arr, ok := op.Value.([]interface{}); ok {
+			for index, v := range arr {
+				if _, isABI := v.(ABI); isABI {
+					arr[index] = i.Process(v)
+				}
+			}
+			op.Value = arr
+		}
+		return method(i, op.Value)
+	default:
+		DebugLog("Process default:", i.mode, "value:", op)
+		return op
 	}
-	return abi
 }
 
 func (i *Interpreter) setDefaultValue() {
-	if i.signedData.GetAttribute("version") == nil {
-		i.signedData.SetAttribute("version", C.VERSION)
+	if i.SignedData.GetAttribute("version") == nil {
+		i.SignedData.SetAttribute("version", C.VERSION)
 	}
 
 	// Set parameter defaults
 	for name, param := range i.code.GetParameters() {
 		requirements := param.GetRequirements()
-		if !requirements && i.signedData.GetAttribute(name) == nil {
+		if !requirements && i.SignedData.GetAttribute(name) == nil {
 			defaultVal := param.GetDefault()
-			i.signedData.SetAttribute(name, defaultVal)
+			i.SignedData.SetAttribute(name, defaultVal)
 		}
 	}
 
 	// Contract specific defaults
 	if i.mode == "transaction" {
-		if i.signedData.GetAttribute("from") == nil {
-			i.signedData.SetAttribute("from", GetAddress(i.signedData.PublicKey))
+		if i.SignedData.GetAttribute("from") == nil {
+			i.SignedData.SetAttribute("from", GetAddress(i.SignedData.PublicKey))
 		}
 
-		if i.signedData.GetAttribute("hash") == nil {
-			i.signedData.SetAttribute("hash", i.signedData.Hash)
+		if i.SignedData.GetAttribute("hash") == nil {
+			i.SignedData.SetAttribute("hash", i.SignedData.Hash)
 		}
 
-		if i.signedData.GetAttribute("size") == nil {
-			i.signedData.SetAttribute("size", i.signedData.Size())
+		if i.SignedData.GetAttribute("size") == nil {
+			i.SignedData.SetAttribute("size", i.SignedData.Size())
 		}
 
-		i.weight += i.signedData.GetInt64("size")
+		i.weight += i.SignedData.GetInt64("size")
 	}
 }
 
@@ -174,9 +181,11 @@ func (i *Interpreter) Execute() (interface{}, bool) {
 
 	i.state = StateCondition
 	i.process = ProcessMain
+	DebugLog("Execute main:", i.mode, "executions:", executions)
 
 	// main, condition
 	for key, execution := range executions {
+		DebugLog("processloop:", i.mode, "execution:", key, "value:", execution)
 		executions[key] = i.Process(execution)
 
 		if i.breakFlag {
