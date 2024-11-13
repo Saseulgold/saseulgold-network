@@ -4,7 +4,7 @@ import (
 	"hello/pkg/util"
 )
 
-func OpAdd(i *Interpreter, vars []interface{}) string {
+func OpAdd(i *Interpreter, vars []interface{}) interface{} {
 	result := "0"
 
 	for _, v := range vars {
@@ -18,7 +18,7 @@ func OpAdd(i *Interpreter, vars []interface{}) string {
 	return result
 }
 
-func OpSub(i *Interpreter, vars []interface{}) string {
+func OpSub(i *Interpreter, vars []interface{}) interface{} {
 	var result string
 
 	for _, v := range vars {
@@ -41,7 +41,7 @@ func OpSub(i *Interpreter, vars []interface{}) string {
 	return result
 }
 
-func OpMul(i *Interpreter, vars []interface{}) string {
+func OpMul(i *Interpreter, vars []interface{}) interface{} {
 	var result string
 
 	for _, v := range vars {
@@ -64,7 +64,7 @@ func OpMul(i *Interpreter, vars []interface{}) string {
 	return result
 }
 
-func OpDiv(i *Interpreter, vars []interface{}) string {
+func OpDiv(i *Interpreter, vars []interface{}) interface{} {
 	var result string
 
 	for _, v := range vars {
@@ -91,7 +91,7 @@ func OpDiv(i *Interpreter, vars []interface{}) string {
 	return result
 }
 
-func OpPreciseAdd(i *Interpreter, vars []interface{}) string {
+func OpPreciseAdd(i *Interpreter, vars []interface{}) interface{} {
 	if len(vars) < 2 {
 		return "0"
 	}
@@ -119,7 +119,7 @@ func OpPreciseAdd(i *Interpreter, vars []interface{}) string {
 	return util.Add(left, right, &scale)
 }
 
-func OpPreciseSub(i *Interpreter, vars []interface{}) string {
+func OpPreciseSub(i *Interpreter, vars []interface{}) interface{} {
 	if len(vars) < 2 {
 		return "0"
 	}
@@ -147,7 +147,7 @@ func OpPreciseSub(i *Interpreter, vars []interface{}) string {
 	return util.Sub(left, right, &scale)
 }
 
-func OpPreciseMul(i *Interpreter, vars []interface{}) string {
+func OpPreciseMul(i *Interpreter, vars []interface{}) interface{} {
 	if len(vars) < 2 {
 		return "0"
 	}
@@ -175,7 +175,7 @@ func OpPreciseMul(i *Interpreter, vars []interface{}) string {
 	return util.Mul(left, right, &scale)
 }
 
-func OpPreciseDiv(i *Interpreter, vars []interface{}) string {
+func OpPreciseDiv(i *Interpreter, vars []interface{}) interface{} {
 	if len(vars) < 2 {
 		return "0"
 	}
@@ -206,7 +206,7 @@ func OpPreciseDiv(i *Interpreter, vars []interface{}) string {
 	return "0"
 }
 
-func OpScale(i *Interpreter, vars []interface{}) int {
+func OpScale(i *Interpreter, vars []interface{}) interface{} {
 	if len(vars) == 0 {
 		return 0
 	}

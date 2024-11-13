@@ -1,10 +1,10 @@
 package vm
 
 import (
+	. "hello/pkg/core/abi"
 	C "hello/pkg/core/config"
 	. "hello/pkg/core/model"
 	. "hello/pkg/crypto"
-	"reflect"
 )
 
 type State int
@@ -94,9 +94,8 @@ func (i *Interpreter) Init(mode string) {
 }
 
 func (i *Interpreter) loadMethod(name string) {
-	for _, methodName := range OperatorFunctions[name] {
-		println("Load method:", methodName)
-		i.methods[methodName] = reflect.ValueOf(i).MethodByName(methodName).Interface()
+	for methodName, methodFunc := range OperatorFunctions[name] {
+		i.methods[methodName] = methodFunc
 	}
 }
 
@@ -111,14 +110,28 @@ func (i *Interpreter) Set(data *SignedData, code *Method, postProcess *Method) {
 }
 
 func (i *Interpreter) Process(abi interface{}) interface{} {
-	println("Process ABI:", abi)
+
+	switch v := abi.(type) {
+	case string:
+		println("Processed string:", v)
+		return v
+	case bool:
+		println("Processed bool:", v)
+		return v
+	case ABI:
+		println("Processed ABI:", v)
+		return v
+	}
 
 	if abiArr, ok := abi.([]interface{}); ok {
 		for idx, item := range abiArr {
+			println("Processed array:", item)
 			processed := i.Process(item)
 			abiArr[idx] = processed
 		}
 		return abiArr
+	} else {
+
 	}
 	return abi
 }
@@ -228,4 +241,8 @@ func (i *Interpreter) SetCode(code *Method) {
 
 func (i *Interpreter) SetPostProcess(postProcess *Method) {
 	i.postProcess = postProcess
+}
+
+func (i *Interpreter) GetResult() interface{} {
+	return i.result
 }

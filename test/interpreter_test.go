@@ -66,6 +66,8 @@ func TestInterpreterMethod(t *testing.T) {
 		},
 	}
 
+	t.Logf("Method2 executions: %v", method2.GetExecutions())
+
 	// Execute method2
 	interpreter.Reset()
 	interpreter.SetCode(method2)
@@ -94,15 +96,16 @@ func TestInterpreterMethod(t *testing.T) {
 				abi.Sub([]interface{}{abi.Param("value"), 50})),
 		},
 	}
+	t.Logf("Method3 executions: %v", method3.GetExecutions())
 
 	// Execute method3
 	interpreter.Reset()
 	interpreter.SetCode(method3)
 	interpreter.SetPostProcess(post)
-	result3, err := interpreter.Execute()
+	_, err = interpreter.Execute()
 	if !err {
 		t.Errorf("Error occurred during Method3 execution: %v", err)
 	}
-	t.Logf("Method3 execution result: %v", result3)
+	t.Logf("Method3 execution result: %v", interpreter.GetResult())
 
 }

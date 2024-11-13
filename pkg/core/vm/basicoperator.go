@@ -4,7 +4,7 @@ import (
 	"reflect"
 )
 
-func OpCondition(i *Interpreter, vars []interface{}) bool {
+func OpCondition(i *Interpreter, vars []interface{}) interface{} {
 	if i.state != StateCondition {
 		return true
 	}
@@ -51,7 +51,7 @@ func OpResponse(i *Interpreter, vars []interface{}) interface{} {
 	return nil
 }
 
-func OpWeight(i *Interpreter, vars []interface{}) int64 {
+func OpWeight(i *Interpreter, vars []interface{}) interface{} {
 	return i.weight
 }
 
@@ -79,7 +79,7 @@ func OpIf(i *Interpreter, vars []interface{}) interface{} {
 	return falseVal
 }
 
-func OpAnd(i *Interpreter, vars []interface{}) bool {
+func OpAnd(i *Interpreter, vars []interface{}) interface{} {
 	var result *bool
 
 	for _, v := range vars {
@@ -101,7 +101,7 @@ func OpAnd(i *Interpreter, vars []interface{}) bool {
 	return *result
 }
 
-func OpOr(i *Interpreter, vars []interface{}) bool {
+func OpOr(i *Interpreter, vars []interface{}) interface{} {
 	var result *bool
 
 	for _, v := range vars {
@@ -154,7 +154,7 @@ func OpGet(i *Interpreter, vars []interface{}) interface{} {
 	return defaultVal
 }
 
-func OpIn(i *Interpreter, vars []interface{}) bool {
+func OpIn(i *Interpreter, vars []interface{}) interface{} {
 	if len(vars) < 2 {
 		return false
 	}

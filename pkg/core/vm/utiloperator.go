@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func OpArrayPush(i *Interpreter, vars []interface{}) []interface{} {
+func OpArrayPush(i *Interpreter, vars []interface{}) interface{} {
 	if len(vars) < 3 {
 		return []interface{}{}
 	}
@@ -24,7 +24,7 @@ func OpArrayPush(i *Interpreter, vars []interface{}) []interface{} {
 	return origin
 }
 
-func OpConcat(i *Interpreter, vars []interface{}) string {
+func OpConcat(i *Interpreter, vars []interface{}) interface{} {
 	var result strings.Builder
 
 	for _, v := range vars {
@@ -36,7 +36,7 @@ func OpConcat(i *Interpreter, vars []interface{}) string {
 	return result.String()
 }
 
-func OpCount(i *Interpreter, vars []interface{}) int {
+func OpCount(i *Interpreter, vars []interface{}) interface{} {
 	if len(vars) == 0 {
 		return 0
 	}
@@ -48,7 +48,7 @@ func OpCount(i *Interpreter, vars []interface{}) int {
 	return 0
 }
 
-func OpStrlen(i *Interpreter, vars []interface{}) int {
+func OpStrlen(i *Interpreter, vars []interface{}) interface{} {
 	if len(vars) == 0 {
 		return 0
 	}
@@ -60,7 +60,7 @@ func OpStrlen(i *Interpreter, vars []interface{}) int {
 	return 0
 }
 
-func OpRegMatch(i *Interpreter, vars []interface{}) bool {
+func OpRegMatch(i *Interpreter, vars []interface{}) interface{} {
 	if len(vars) < 2 {
 		return false
 	}
@@ -80,7 +80,7 @@ func OpRegMatch(i *Interpreter, vars []interface{}) bool {
 	return matched
 }
 
-func OpEncodeJson(i *Interpreter, vars []interface{}) string {
+func OpEncodeJson(i *Interpreter, vars []interface{}) interface{} {
 	if len(vars) == 0 {
 		return ""
 	}
@@ -93,7 +93,7 @@ func OpEncodeJson(i *Interpreter, vars []interface{}) string {
 	return string(bytes)
 }
 
-func OpDecodeJson(i *Interpreter, vars []interface{}) []interface{} {
+func OpDecodeJson(i *Interpreter, vars []interface{}) interface{} {
 	if len(vars) == 0 {
 		return []interface{}{}
 	}
@@ -112,7 +112,7 @@ func OpDecodeJson(i *Interpreter, vars []interface{}) []interface{} {
 	return result
 }
 
-func OpHashLimit(i *Interpreter, vars []interface{}) string {
+func OpHashLimit(i *Interpreter, vars []interface{}) interface{} {
 	if len(vars) == 0 {
 		return ""
 	}
@@ -127,7 +127,7 @@ func OpHashLimit(i *Interpreter, vars []interface{}) string {
 	// return crypto.HashLimit(difficulty)
 }
 
-func OpHashMany(i *Interpreter, vars []interface{}) string {
+func OpHashMany(i *Interpreter, vars []interface{}) interface{} {
 	var result strings.Builder
 	for _, v := range vars {
 		if str, ok := v.(string); ok {
@@ -138,7 +138,7 @@ func OpHashMany(i *Interpreter, vars []interface{}) string {
 	return util.Hash(result.String())
 }
 
-func OpHash(i *Interpreter, vars []interface{}) string {
+func OpHash(i *Interpreter, vars []interface{}) interface{} {
 	if len(vars) == 0 {
 		return ""
 	}
@@ -150,7 +150,7 @@ func OpHash(i *Interpreter, vars []interface{}) string {
 	return ""
 }
 
-func OpShortHash(i *Interpreter, vars []interface{}) string {
+func OpShortHash(i *Interpreter, vars []interface{}) interface{} {
 	if len(vars) == 0 {
 		return ""
 	}
@@ -162,7 +162,7 @@ func OpShortHash(i *Interpreter, vars []interface{}) string {
 	return ""
 }
 
-func OpIdHash(i *Interpreter, vars []interface{}) string {
+func OpIdHash(i *Interpreter, vars []interface{}) interface{} {
 	if len(vars) == 0 {
 		return ""
 	}
@@ -174,7 +174,7 @@ func OpIdHash(i *Interpreter, vars []interface{}) string {
 	return ""
 }
 
-func OpSignVerify(i *Interpreter, vars []interface{}) bool {
+func OpSignVerify(i *Interpreter, vars []interface{}) interface{} {
 	if len(vars) < 3 {
 		return false
 	}
