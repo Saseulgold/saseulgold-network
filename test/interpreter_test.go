@@ -15,7 +15,7 @@ func TestInterpreterMethod(t *testing.T) {
 
 	// Create test data
 	signedData := NewSignedData()
-	signedData.SetAttribute("value", 5)
+	signedData.SetAttribute("value", "5")
 	interpreter.SetSignedData(signedData)
 
 	post := &Method{Parameters: Parameters{},
@@ -27,11 +27,16 @@ func TestInterpreterMethod(t *testing.T) {
 		"value": NewParameter(map[string]interface{}{
 			"name":         "value",
 			"requirements": true,
-			"default":      3,
+			"default":      "3",
 		}),
 	},
 		Executions: []Execution{
 			abi.Add(abi.Add(abi.Param("value"), "2"), "3"),
+			abi.If(
+				abi.Lt(abi.Param("value"), "10"),
+				abi.Add(abi.Param("value"), "5"),
+				abi.Mul(abi.Param("value"), "3"),
+			),
 		},
 	}
 	t.Logf("Method1 executions: %v", method1.GetExecutions())
@@ -41,75 +46,288 @@ func TestInterpreterMethod(t *testing.T) {
 	interpreter.SetSignedData(signedData)
 	interpreter.SetCode(method1)
 	interpreter.SetPostProcess(post)
-	result1, err := interpreter.Execute()
+	_, err := interpreter.Execute()
+
 	if !err {
 		t.Errorf("Error occurred during Method1 execution: %v", err)
 	}
-	t.Logf("Method1 execution result: %v", result1)
-	t.Logf("Method1 final value: %v", interpreter.GetResult())
-	t.Logf("Method1 execution steps: value * 2 -> value + 10 -> value / 5")
-
-	if true {
-		t.Fatalf("done: %v", err)
+	if method1.GetExecutions()[0] != "10" {
+		t.Errorf("Method1 execution result error. Expected: 10, Actual: %v", method1.GetExecutions()[0])
 	}
 
-	// Create second test method - conditional statement test
-	method2 := &Method{
+	if method1.GetExecutions()[1] != "15" {
+		t.Errorf("Method1 execution result error. Expected: 15, Actual: %v", method1.GetExecutions()[1])
+	}
+}
+
+func TestArithmeticOperators(t *testing.T) {
+	interpreter := vm.NewInterpreter()
+	interpreter.Init("transaction")
+
+	post := &Method{}
+
+	// OpAdd test
+	methodAdd := &Method{
+		Parameters: Parameters{
+			"value1": NewParameter(map[string]interface{}{
+				"name":         "value1",
+				"requirements": true,
+				"default":      "10",
+			}),
+			"value2": NewParameter(map[string]interface{}{
+				"name":         "value2",
+				"requirements": true,
+				"default":      "20",
+			}),
+		},
+		Executions: []Execution{
+			abi.Add([]interface{}{abi.Param("value1"), abi.Param("value2")}),
+		},
+	}
+
+	interpreter.Reset()
+	interpreter.SetCode(methodAdd)
+	interpreter.SetPostProcess(post)
+	result, err := interpreter.Execute()
+	if !err {
+		t.Errorf("Error occurred during OpAdd execution: %v", err)
+	}
+	if result != "30" {
+		t.Errorf("OpAdd result error. Expected: 30, Actual: %v", result)
+	}
+
+	// OpSub test
+	methodSub := &Method{
+		Parameters: Parameters{
+			"value1": NewParameter(map[string]interface{}{
+				"name":         "value1",
+				"requirements": true,
+				"default":      "30",
+			}),
+			"value2": NewParameter(map[string]interface{}{
+				"name":         "value2",
+				"requirements": true,
+				"default":      "10",
+			}),
+		},
+		Executions: []Execution{
+			abi.Sub([]interface{}{abi.Param("value1"), abi.Param("value2")}),
+		},
+	}
+
+	interpreter.Reset()
+	interpreter.SetCode(methodSub)
+	interpreter.SetPostProcess(post)
+	result, err = interpreter.Execute()
+	if !err {
+		t.Errorf("Error occurred during OpSub execution: %v", err)
+	}
+	if result != "20" {
+		t.Errorf("OpSub result error. Expected: 20, Actual: %v", result)
+	}
+
+	// OpMul test
+	methodMul := &Method{
+		Parameters: Parameters{
+			"value1": NewParameter(map[string]interface{}{
+				"name":         "value1",
+				"requirements": true,
+				"default":      "5",
+			}),
+			"value2": NewParameter(map[string]interface{}{
+				"name":         "value2",
+				"requirements": true,
+				"default":      "4",
+			}),
+		},
+		Executions: []Execution{
+			abi.Mul([]interface{}{abi.Param("value1"), abi.Param("value2")}),
+		},
+	}
+
+	interpreter.Reset()
+	interpreter.SetCode(methodMul)
+	interpreter.SetPostProcess(post)
+	result, err = interpreter.Execute()
+	if !err {
+		t.Errorf("Error occurred during OpMul execution: %v", err)
+	}
+	if result != "20" {
+		t.Errorf("OpMul result error. Expected: 20, Actual: %v", result)
+	}
+
+	// OpDiv test
+	methodDiv := &Method{
+		Parameters: Parameters{
+			"value1": NewParameter(map[string]interface{}{
+				"name":         "value1",
+				"requirements": true,
+				"default":      "20",
+			}),
+			"value2": NewParameter(map[string]interface{}{
+				"name":         "value2",
+				"requirements": true,
+				"default":      "5",
+			}),
+		},
+		Executions: []Execution{
+			abi.Div([]interface{}{abi.Param("value1"), abi.Param("value2")}),
+		},
+	}
+
+	interpreter.Reset()
+	interpreter.SetCode(methodDiv)
+	interpreter.SetPostProcess(post)
+	result, err = interpreter.Execute()
+	if !err {
+		t.Errorf("Error occurred during OpDiv execution: %v", err)
+	}
+	if result != "4" {
+		t.Errorf("OpDiv result error. Expected: 4, Actual: %v", result)
+	}
+
+	// OpPreciseAdd test
+	methodPreciseAdd := &Method{
+		Parameters: Parameters{
+			"value1": NewParameter(map[string]interface{}{
+				"name":         "value1",
+				"requirements": true,
+				"default":      "10.5",
+			}),
+			"value2": NewParameter(map[string]interface{}{
+				"name":         "value2",
+				"requirements": true,
+				"default":      "20.3",
+			}),
+		},
+		Executions: []Execution{
+			abi.PreciseAdd(abi.Param("value1"), abi.Param("value2"), 2),
+		},
+	}
+
+	interpreter.Reset()
+	interpreter.SetCode(methodPreciseAdd)
+	interpreter.SetPostProcess(post)
+	result, err = interpreter.Execute()
+	if !err {
+		t.Errorf("Error occurred during OpPreciseAdd execution: %v", err)
+	}
+	if result != "30.80" {
+		t.Errorf("OpPreciseAdd result error. Expected: 30.80, Actual: %v", result)
+	}
+
+	// OpPreciseSub test
+	methodPreciseSub := &Method{
+		Parameters: Parameters{
+			"value1": NewParameter(map[string]interface{}{
+				"name":         "value1",
+				"requirements": true,
+				"default":      "30.5",
+			}),
+			"value2": NewParameter(map[string]interface{}{
+				"name":         "value2",
+				"requirements": true,
+				"default":      "10.2",
+			}),
+		},
+		Executions: []Execution{
+			abi.PreciseSub(abi.Param("value1"), abi.Param("value2"), 2),
+		},
+	}
+
+	interpreter.Reset()
+	interpreter.SetCode(methodPreciseSub)
+	interpreter.SetPostProcess(post)
+	result, err = interpreter.Execute()
+	if !err {
+		t.Errorf("Error occurred during OpPreciseSub execution: %v", err)
+	}
+	if result != "20.30" {
+		t.Errorf("OpPreciseSub result error. Expected: 20.30, Actual: %v", result)
+	}
+
+	// OpPreciseMul test
+	methodPreciseMul := &Method{
+		Parameters: Parameters{
+			"value1": NewParameter(map[string]interface{}{
+				"name":         "value1",
+				"requirements": true,
+				"default":      "5.5",
+			}),
+			"value2": NewParameter(map[string]interface{}{
+				"name":         "value2",
+				"requirements": true,
+				"default":      "2.0",
+			}),
+		},
+		Executions: []Execution{
+			abi.PreciseMul(abi.Param("value1"), abi.Param("value2"), 2),
+		},
+	}
+
+	interpreter.Reset()
+	interpreter.SetCode(methodPreciseMul)
+	interpreter.SetPostProcess(post)
+	result, err = interpreter.Execute()
+	if !err {
+		t.Errorf("Error occurred during OpPreciseMul execution: %v", err)
+	}
+	if result != "11.00" {
+		t.Errorf("OpPreciseMul result error. Expected: 11.00, Actual: %v", result)
+	}
+
+	// OpPreciseDiv test
+	methodPreciseDiv := &Method{
+		Parameters: Parameters{
+			"value1": NewParameter(map[string]interface{}{
+				"name":         "value1",
+				"requirements": true,
+				"default":      "10.5",
+			}),
+			"value2": NewParameter(map[string]interface{}{
+				"name":         "value2",
+				"requirements": true,
+				"default":      "2.0",
+			}),
+		},
+		Executions: []Execution{
+			abi.PreciseDiv(abi.Param("value1"), abi.Param("value2"), 2),
+		},
+	}
+
+	interpreter.Reset()
+	interpreter.SetCode(methodPreciseDiv)
+	interpreter.SetPostProcess(post)
+	result, err = interpreter.Execute()
+	if !err {
+		t.Errorf("Error occurred during OpPreciseDiv execution: %v", err)
+	}
+	if result != "5.25" {
+		t.Errorf("OpPreciseDiv result error. Expected: 5.25, Actual: %v", result)
+	}
+
+	// OpScale test
+	methodScale := &Method{
 		Parameters: Parameters{
 			"value": NewParameter(map[string]interface{}{
 				"name":         "value",
 				"requirements": true,
-				"default":      nil,
+				"default":      "10.505",
 			}),
 		},
 		Executions: []Execution{
-			abi.Condition(abi.Gt(abi.Param("value"), 10), "Value must be greater than 10"),
-			abi.If(abi.Lt(abi.Param("value"), 100),
-				abi.Mul([]interface{}{abi.Param("value"), 2}),
-				abi.Div([]interface{}{abi.Param("value"), 2})),
+			abi.Scale(abi.Param("value")),
 		},
 	}
 
-	t.Logf("Method2 executions: %v", method2.GetExecutions())
-
-	// Execute method2
 	interpreter.Reset()
-	interpreter.SetCode(method2)
+	interpreter.SetCode(methodScale)
 	interpreter.SetPostProcess(post)
-	result2, err := interpreter.Execute()
+	result, err = interpreter.Execute()
 	if !err {
-		t.Logf("Expected error occurred during Method2 execution: %v", err)
-	} else {
-		t.Logf("Method2 execution result: %v", result2)
+		t.Errorf("Error occurred during OpScale execution: %v", err)
 	}
-
-	// Create third test method - complex operation test
-	method3 := &Method{
-		Parameters: Parameters{
-			"value": NewParameter(map[string]interface{}{
-				"name":         "value",
-				"requirements": true,
-				"default":      nil,
-			}),
-		},
-		Executions: []Execution{
-			abi.Condition(abi.IsNumeric(abi.Param("value")), "Must be numeric type"),
-			abi.PreciseMul(abi.Param("value"), 1.5, 2),
-			abi.If(abi.Gt(abi.Param("value"), 50),
-				abi.Add([]interface{}{abi.Param("value"), 100}),
-				abi.Sub([]interface{}{abi.Param("value"), 50})),
-		},
+	if result != 3 {
+		t.Errorf("OpScale result error. Expected: 3, Actual: %v", result)
 	}
-	t.Logf("Method3 executions: %v", method3.GetExecutions())
-
-	// Execute method3
-	interpreter.Reset()
-	interpreter.SetCode(method3)
-	interpreter.SetPostProcess(post)
-	_, err = interpreter.Execute()
-	if !err {
-		t.Errorf("Error occurred during Method3 execution: %v", err)
-	}
-	t.Logf("Method3 execution result: %v", interpreter.GetResult())
-
 }

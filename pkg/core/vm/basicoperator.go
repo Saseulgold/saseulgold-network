@@ -4,7 +4,7 @@ import (
 	"reflect"
 )
 
-func OpCondition(i *Interpreter, vars []interface{}) interface{} {
+func OpCondition(i *Interpreter, vars interface{}) interface{} {
 	if i.state != StateCondition {
 		return true
 	}
@@ -12,15 +12,17 @@ func OpCondition(i *Interpreter, vars []interface{}) interface{} {
 	var abi bool
 	var errMsg string
 
-	if len(vars) > 0 {
-		if v, ok := vars[0].(bool); ok {
-			abi = v
+	if arr, ok := vars.([]interface{}); ok {
+		if len(arr) > 0 {
+			if v, ok := arr[0].(bool); ok {
+				abi = v
+			}
 		}
-	}
 
-	if len(vars) > 1 {
-		if v, ok := vars[1].(string); ok {
-			errMsg = v
+		if len(arr) > 1 {
+			if v, ok := arr[1].(string); ok {
+				errMsg = v
+			}
 		}
 	}
 
@@ -35,42 +37,49 @@ func OpCondition(i *Interpreter, vars []interface{}) interface{} {
 	return true
 }
 
-func OpResponse(i *Interpreter, vars []interface{}) interface{} {
+func OpResponse(i *Interpreter, vars interface{}) interface{} {
 	if i.state != StateExecution {
+		if arr, ok := vars.([]interface{}); ok {
+			return map[string][]interface{}{
+				"$response": arr,
+			}
+		}
 		return map[string][]interface{}{
-			"$response": vars,
+			"$response": []interface{}{},
 		}
 	}
 
 	i.breakFlag = true
-	if len(vars) > 0 {
-		i.result = vars[0]
+	if arr, ok := vars.([]interface{}); ok && len(arr) > 0 {
+		i.result = arr[0]
 	} else {
 		i.result = nil
 	}
 	return nil
 }
 
-func OpWeight(i *Interpreter, vars []interface{}) interface{} {
+func OpWeight(i *Interpreter, vars interface{}) interface{} {
 	return i.weight
 }
 
-func OpIf(i *Interpreter, vars []interface{}) interface{} {
+func OpIf(i *Interpreter, vars interface{}) interface{} {
 	var condition bool
 	var trueVal, falseVal interface{}
 
-	if len(vars) > 0 {
-		if v, ok := vars[0].(bool); ok {
-			condition = v
+	if arr, ok := vars.([]interface{}); ok {
+		if len(arr) > 0 {
+			if v, ok := arr[0].(bool); ok {
+				condition = v
+			}
 		}
-	}
 
-	if len(vars) > 1 {
-		trueVal = vars[1]
-	}
+		if len(arr) > 1 {
+			trueVal = arr[1]
+		}
 
-	if len(vars) > 2 {
-		falseVal = vars[2]
+		if len(arr) > 2 {
+			falseVal = arr[2]
+		}
 	}
 
 	if condition {
@@ -79,18 +88,20 @@ func OpIf(i *Interpreter, vars []interface{}) interface{} {
 	return falseVal
 }
 
-func OpAnd(i *Interpreter, vars []interface{}) interface{} {
+func OpAnd(i *Interpreter, vars interface{}) interface{} {
 	var result *bool
 
-	for _, v := range vars {
-		if boolVal, ok := v.(bool); !ok {
-			return false
-		} else {
-			if result == nil {
-				result = &boolVal
+	if arr, ok := vars.([]interface{}); ok {
+		for _, v := range arr {
+			if boolVal, ok := v.(bool); !ok {
+				return false
 			} else {
-				newVal := *result && boolVal
-				result = &newVal
+				if result == nil {
+					result = &boolVal
+				} else {
+					newVal := *result && boolVal
+					result = &newVal
+				}
 			}
 		}
 	}
@@ -101,18 +112,20 @@ func OpAnd(i *Interpreter, vars []interface{}) interface{} {
 	return *result
 }
 
-func OpOr(i *Interpreter, vars []interface{}) interface{} {
+func OpOr(i *Interpreter, vars interface{}) interface{} {
 	var result *bool
 
-	for _, v := range vars {
-		if boolVal, ok := v.(bool); !ok {
-			return false
-		} else {
-			if result == nil {
-				result = &boolVal
+	if arr, ok := vars.([]interface{}); ok {
+		for _, v := range arr {
+			if boolVal, ok := v.(bool); !ok {
+				return false
 			} else {
-				newVal := *result || boolVal
-				result = &newVal
+				if result == nil {
+					result = &boolVal
+				} else {
+					newVal := *result || boolVal
+					result = &newVal
+				}
 			}
 		}
 	}
@@ -123,51 +136,56 @@ func OpOr(i *Interpreter, vars []interface{}) interface{} {
 	return *result
 }
 
-func OpGet(i *Interpreter, vars []interface{}) interface{} {
-	if len(vars) < 2 {
-		return nil
-	}
+func OpGet(i *Interpreter, vars interface{}) interface{} {
+	if arr, ok := vars.([]interface{}); ok {
+		if len(arr) < 2 {
+			return nil
+		}
 
-	obj, ok := vars[0].(map[string]interface{})
-	if !ok {
-		return nil
-	}
+		obj, ok := arr[0].(map[string]interface{})
+		if !ok {
+			return nil
+		}
 
-	var key string
-	switch v := vars[1].(type) {
-	case string:
-		key = v
-	case float64:
-		key = reflect.TypeOf(v).String()
-	default:
-		return nil
-	}
+		var key string
+		switch v := arr[1].(type) {
+		case string:
+			key = v
+		case float64:
+			key = reflect.TypeOf(v).String()
+		default:
+			return nil
+		}
 
-	var defaultVal interface{}
-	if len(vars) > 2 {
-		defaultVal = vars[2]
-	}
+		var defaultVal interface{}
+		if len(arr) > 2 {
+			defaultVal = arr[2]
+		}
 
-	if val, exists := obj[key]; exists {
-		return val
+		if val, exists := obj[key]; exists {
+			return val
+		}
+		return defaultVal
 	}
-	return defaultVal
+	return nil
 }
 
-func OpIn(i *Interpreter, vars []interface{}) interface{} {
-	if len(vars) < 2 {
-		return false
-	}
+func OpIn(i *Interpreter, vars interface{}) interface{} {
+	if arr, ok := vars.([]interface{}); ok {
+		if len(arr) < 2 {
+			return false
+		}
 
-	target := vars[0]
-	cases, ok := vars[1].([]interface{})
-	if !ok {
-		return false
-	}
+		target := arr[0]
+		cases, ok := arr[1].([]interface{})
+		if !ok {
+			return false
+		}
 
-	for _, v := range cases {
-		if reflect.DeepEqual(target, v) {
-			return true
+		for _, v := range cases {
+			if reflect.DeepEqual(target, v) {
+				return true
+			}
 		}
 	}
 	return false

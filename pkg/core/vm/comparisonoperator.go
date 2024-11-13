@@ -1,12 +1,13 @@
 package vm
 
-func OpEq(i *Interpreter, vars []interface{}) interface{} {
-	if len(vars) < 2 {
+func OpEq(i *Interpreter, vars interface{}) interface{} {
+	arr, ok := vars.([]interface{})
+	if !ok || len(arr) < 2 {
 		return false
 	}
 
-	left := vars[0]
-	right := vars[1]
+	left := arr[0]
+	right := arr[1]
 
 	switch {
 	case isNumeric(left).(bool) && isNumeric(right).(bool):
@@ -16,13 +17,14 @@ func OpEq(i *Interpreter, vars []interface{}) interface{} {
 	}
 }
 
-func OpNeq(i *Interpreter, vars []interface{}) interface{} {
-	if len(vars) < 2 {
+func OpNeq(i *Interpreter, vars interface{}) interface{} {
+	arr, ok := vars.([]interface{})
+	if !ok || len(arr) < 2 {
 		return false
 	}
 
-	left := vars[0]
-	right := vars[1]
+	left := arr[0]
+	right := arr[1]
 
 	switch {
 	case isNumeric(left).(bool) && isNumeric(right).(bool):
@@ -32,13 +34,14 @@ func OpNeq(i *Interpreter, vars []interface{}) interface{} {
 	}
 }
 
-func OpGt(i *Interpreter, vars []interface{}) interface{} {
-	if len(vars) < 2 {
+func OpGt(i *Interpreter, vars interface{}) interface{} {
+	arr, ok := vars.([]interface{})
+	if !ok || len(arr) < 2 {
 		return false
 	}
 
-	left := vars[0]
-	right := vars[1]
+	left := arr[0]
+	right := arr[1]
 
 	switch {
 	case isNumeric(left).(bool) && isNumeric(right).(bool):
@@ -48,13 +51,14 @@ func OpGt(i *Interpreter, vars []interface{}) interface{} {
 	}
 }
 
-func OpGte(i *Interpreter, vars []interface{}) interface{} {
-	if len(vars) < 2 {
+func OpGte(i *Interpreter, vars interface{}) interface{} {
+	arr, ok := vars.([]interface{})
+	if !ok || len(arr) < 2 {
 		return false
 	}
 
-	left := vars[0]
-	right := vars[1]
+	left := arr[0]
+	right := arr[1]
 
 	switch {
 	case isNumeric(left).(bool) && isNumeric(right).(bool):
@@ -64,13 +68,14 @@ func OpGte(i *Interpreter, vars []interface{}) interface{} {
 	}
 }
 
-func OpLt(i *Interpreter, vars []interface{}) interface{} {
-	if len(vars) < 2 {
+func OpLt(i *Interpreter, vars interface{}) interface{} {
+	arr, ok := vars.([]interface{})
+	if !ok || len(arr) < 2 {
 		return false
 	}
 
-	left := vars[0]
-	right := vars[1]
+	left := arr[0]
+	right := arr[1]
 
 	switch {
 	case isNumeric(left).(bool) && isNumeric(right).(bool):
@@ -80,13 +85,14 @@ func OpLt(i *Interpreter, vars []interface{}) interface{} {
 	}
 }
 
-func OpLte(i *Interpreter, vars []interface{}) interface{} {
-	if len(vars) < 2 {
+func OpLte(i *Interpreter, vars interface{}) interface{} {
+	arr, ok := vars.([]interface{})
+	if !ok || len(arr) < 2 {
 		return false
 	}
 
-	left := vars[0]
-	right := vars[1]
+	left := arr[0]
+	right := arr[1]
 
 	switch {
 	case isNumeric(left).(bool) && isNumeric(right).(bool):

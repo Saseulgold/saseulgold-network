@@ -7,66 +7,72 @@ import (
 	"strings"
 )
 
-func OpArrayPush(i *Interpreter, vars []interface{}) interface{} {
-	if len(vars) < 3 {
+func OpArrayPush(i *Interpreter, vars interface{}) interface{} {
+	arr, ok := vars.([]interface{})
+	if !ok || len(arr) < 3 {
 		return []interface{}{}
 	}
 
-	origin, ok := vars[0].([]interface{})
+	origin, ok := arr[0].([]interface{})
 	if !ok {
 		return []interface{}{}
 	}
 
-	key := vars[1]
-	value := vars[2]
+	key := arr[1]
+	value := arr[2]
 	origin = append(origin, map[string]interface{}{key.(string): value})
 
 	return origin
 }
 
-func OpConcat(i *Interpreter, vars []interface{}) interface{} {
+func OpConcat(i *Interpreter, vars interface{}) interface{} {
 	var result strings.Builder
 
-	for _, v := range vars {
-		if str, ok := v.(string); ok {
-			result.WriteString(str)
+	if arr, ok := vars.([]interface{}); ok {
+		for _, v := range arr {
+			if str, ok := v.(string); ok {
+				result.WriteString(str)
+			}
 		}
 	}
 
 	return result.String()
 }
 
-func OpCount(i *Interpreter, vars []interface{}) interface{} {
-	if len(vars) == 0 {
+func OpCount(i *Interpreter, vars interface{}) interface{} {
+	arr, ok := vars.([]interface{})
+	if !ok || len(arr) == 0 {
 		return 0
 	}
 
-	if arr, ok := vars[0].([]interface{}); ok {
-		return len(arr)
+	if arr2, ok := arr[0].([]interface{}); ok {
+		return len(arr2)
 	}
 
 	return 0
 }
 
-func OpStrlen(i *Interpreter, vars []interface{}) interface{} {
-	if len(vars) == 0 {
+func OpStrlen(i *Interpreter, vars interface{}) interface{} {
+	arr, ok := vars.([]interface{})
+	if !ok || len(arr) == 0 {
 		return 0
 	}
 
-	if str, ok := vars[0].(string); ok {
+	if str, ok := arr[0].(string); ok {
 		return len(str)
 	}
 
 	return 0
 }
 
-func OpRegMatch(i *Interpreter, vars []interface{}) interface{} {
-	if len(vars) < 2 {
+func OpRegMatch(i *Interpreter, vars interface{}) interface{} {
+	arr, ok := vars.([]interface{})
+	if !ok || len(arr) < 2 {
 		return false
 	}
 
-	pattern, ok1 := vars[0].(string)
-	value, ok2 := vars[1].(string)
+	pattern, ok1 := arr[0].(string)
+	value, ok2 := arr[1].(string)
 
 	if !ok1 || !ok2 {
 		return false
@@ -80,12 +86,13 @@ func OpRegMatch(i *Interpreter, vars []interface{}) interface{} {
 	return matched
 }
 
-func OpEncodeJson(i *Interpreter, vars []interface{}) interface{} {
-	if len(vars) == 0 {
+func OpEncodeJson(i *Interpreter, vars interface{}) interface{} {
+	arr, ok := vars.([]interface{})
+	if !ok || len(arr) == 0 {
 		return ""
 	}
 
-	bytes, err := json.Marshal(vars[0])
+	bytes, err := json.Marshal(arr[0])
 	if err != nil {
 		return ""
 	}
@@ -93,12 +100,13 @@ func OpEncodeJson(i *Interpreter, vars []interface{}) interface{} {
 	return string(bytes)
 }
 
-func OpDecodeJson(i *Interpreter, vars []interface{}) interface{} {
-	if len(vars) == 0 {
+func OpDecodeJson(i *Interpreter, vars interface{}) interface{} {
+	arr, ok := vars.([]interface{})
+	if !ok || len(arr) == 0 {
 		return []interface{}{}
 	}
 
-	str, ok := vars[0].(string)
+	str, ok := arr[0].(string)
 	if !ok {
 		return []interface{}{}
 	}
@@ -112,12 +120,13 @@ func OpDecodeJson(i *Interpreter, vars []interface{}) interface{} {
 	return result
 }
 
-func OpHashLimit(i *Interpreter, vars []interface{}) interface{} {
-	if len(vars) == 0 {
+func OpHashLimit(i *Interpreter, vars interface{}) interface{} {
+	arr, ok := vars.([]interface{})
+	if !ok || len(arr) == 0 {
 		return ""
 	}
 
-	difficulty, ok := vars[0].(string)
+	difficulty, ok := arr[0].(string)
 	if !ok {
 		return ""
 	}
@@ -127,61 +136,68 @@ func OpHashLimit(i *Interpreter, vars []interface{}) interface{} {
 	// return crypto.HashLimit(difficulty)
 }
 
-func OpHashMany(i *Interpreter, vars []interface{}) interface{} {
+func OpHashMany(i *Interpreter, vars interface{}) interface{} {
 	var result strings.Builder
-	for _, v := range vars {
-		if str, ok := v.(string); ok {
-			result.WriteString(str)
+
+	if arr, ok := vars.([]interface{}); ok {
+		for _, v := range arr {
+			if str, ok := v.(string); ok {
+				result.WriteString(str)
+			}
 		}
 	}
 
 	return util.Hash(result.String())
 }
 
-func OpHash(i *Interpreter, vars []interface{}) interface{} {
-	if len(vars) == 0 {
+func OpHash(i *Interpreter, vars interface{}) interface{} {
+	arr, ok := vars.([]interface{})
+	if !ok || len(arr) == 0 {
 		return ""
 	}
 
-	if str, ok := vars[0].(string); ok {
+	if str, ok := arr[0].(string); ok {
 		return util.Hash(str)
 	}
 
 	return ""
 }
 
-func OpShortHash(i *Interpreter, vars []interface{}) interface{} {
-	if len(vars) == 0 {
+func OpShortHash(i *Interpreter, vars interface{}) interface{} {
+	arr, ok := vars.([]interface{})
+	if !ok || len(arr) == 0 {
 		return ""
 	}
 
-	if str, ok := vars[0].(string); ok {
+	if str, ok := arr[0].(string); ok {
 		return util.ShortHash(str)
 	}
 
 	return ""
 }
 
-func OpIdHash(i *Interpreter, vars []interface{}) interface{} {
-	if len(vars) == 0 {
+func OpIdHash(i *Interpreter, vars interface{}) interface{} {
+	arr, ok := vars.([]interface{})
+	if !ok || len(arr) == 0 {
 		return ""
 	}
 
-	if str, ok := vars[0].(string); ok {
+	if str, ok := arr[0].(string); ok {
 		return util.IDHash(str)
 	}
 
 	return ""
 }
 
-func OpSignVerify(i *Interpreter, vars []interface{}) interface{} {
-	if len(vars) < 3 {
+func OpSignVerify(i *Interpreter, vars interface{}) interface{} {
+	arr, ok := vars.([]interface{})
+	if !ok || len(arr) < 3 {
 		return false
 	}
 
-	// obj := vars[0]
-	// publicKey, ok1 := vars[1].(string)
-	// signature, ok2 := vars[2].(string)
+	// obj := arr[0]
+	// publicKey, ok1 := arr[1].(string)
+	// signature, ok2 := arr[2].(string)
 
 	// if !ok1 || !ok2 {
 	// 	return false

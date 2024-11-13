@@ -87,6 +87,7 @@ func (i *Interpreter) Init(mode string) {
 		i.methods = make(map[string]MethodFunc)
 
 		i.loadMethod("BasicOperator")
+		i.loadMethod("ComparisonOperator")
 		i.loadMethod("ArithmeticOperator")
 		i.loadMethod("CastOperator")
 		i.loadMethod("UtilOperator")
@@ -118,7 +119,6 @@ func (i *Interpreter) Set(data *SignedData, code *Method, postProcess *Method) {
 }
 
 func (i *Interpreter) Process(abi interface{}) interface{} {
-	DebugLog("Process:", i.mode, "abi:", abi)
 
 	switch op := abi.(type) {
 	case ABI:
@@ -138,7 +138,6 @@ func (i *Interpreter) Process(abi interface{}) interface{} {
 		}
 		return method(i, op.Value)
 	default:
-		DebugLog("Process default:", i.mode, "value:", op)
 		return op
 	}
 }
@@ -181,11 +180,9 @@ func (i *Interpreter) Execute() (interface{}, bool) {
 
 	i.state = StateCondition
 	i.process = ProcessMain
-	DebugLog("Execute main:", i.mode, "executions:", executions)
 
 	// main, condition
 	for key, execution := range executions {
-		DebugLog("processloop:", i.mode, "execution:", key, "value:", execution)
 		executions[key] = i.Process(execution)
 
 		if i.breakFlag {
