@@ -4,7 +4,10 @@ import (
 	. "hello/pkg/core/abi"
 	C "hello/pkg/core/config"
 	. "hello/pkg/core/model"
+
+	// S "hello/pkg/core/storage"
 	. "hello/pkg/crypto"
+	F "hello/pkg/util"
 )
 
 type State int
@@ -251,4 +254,91 @@ func (i *Interpreter) SetPostProcess(postProcess *Method) {
 
 func (i *Interpreter) GetResult() interface{} {
 	return i.result
+}
+
+func (i *Interpreter) AddUniversalLoads(statusHash string) {
+	statusHash = F.FillHash(statusHash)
+
+	if _, ok := i.universals[statusHash]; !ok {
+		i.universals[statusHash] = make([]interface{}, 0)
+	}
+}
+
+func (i *Interpreter) AddLocalLoads(statusHash string) {
+	statusHash = F.FillHash(statusHash)
+
+	if _, ok := i.locals[statusHash]; !ok {
+		i.locals[statusHash] = make([]interface{}, 0)
+	}
+}
+
+func (i *Interpreter) SetLocalLoads(statusHash string, value interface{}) {
+	statusHash = F.FillHash(statusHash)
+	i.locals[statusHash] = value
+}
+
+func (i *Interpreter) SetUniversalLoads(statusHash string, value interface{}) {
+	statusHash = F.FillHash(statusHash)
+	i.universals[statusHash] = value
+}
+
+func (i *Interpreter) GetLocalStatus(statusHash string, defaultVal interface{}) interface{} {
+	statusHash = F.FillHash(statusHash)
+	if val, ok := i.locals[statusHash]; ok {
+		return val
+	}
+	return defaultVal
+}
+
+func (i *Interpreter) SetLocalStatus(statusHash string, value interface{}) bool {
+	if updates, ok := i.localUpdates[statusHash]; ok {
+		updates["new"] = value
+	} else {
+		i.localUpdates[statusHash] = map[string]interface{}{
+			"old": i.GetLocalStatus(statusHash, nil),
+			"new": value,
+		}
+	}
+
+	statusHash = F.FillHash(statusHash)
+	i.locals[statusHash] = value
+
+	return true
+}
+
+func (i *Interpreter) SetUniversalStatus(statusHash string, value interface{}) bool {
+	if updates, ok := i.universalUpdates[statusHash]; ok {
+		updates["new"] = value
+	} else {
+		i.universalUpdates[statusHash] = map[string]interface{}{
+			"old": i.GetUniversalStatus(statusHash, nil),
+			"new": value,
+		}
+	}
+
+	statusHash = F.FillHash(statusHash)
+	i.universals[statusHash] = value
+
+	return true
+}
+
+func (i *Interpreter) GetUniversalStatus(statusHash string, defaultVal interface{}) interface{} {
+	statusHash = F.FillHash(statusHash)
+	if val, ok := i.universals[statusHash]; ok {
+		return val
+	}
+	return defaultVal
+}
+
+func (i *Interpreter) LoadUniversalStatus() {
+
+	if len(i.universals) > 0 {
+		// statusFile := S.GetStatusFileInstance()
+		keys := make([]string, 0, len(i.universals))
+
+		for k := range i.universals {
+			// value := statusFile.GetUniversalStatus(k)
+			keys = append(keys, k)
+		}
+	}
 }

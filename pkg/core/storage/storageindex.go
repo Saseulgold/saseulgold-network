@@ -4,6 +4,7 @@ import (
 	C "hello/pkg/core/config"
 	F "hello/pkg/util"
 	"sort"
+	"sync"
 )
 
 type StatusIndex struct {
@@ -11,11 +12,17 @@ type StatusIndex struct {
 	universalIndexes map[string]map[string]StorageIndexCursor
 }
 
-func NewStatusIndex() *StatusIndex {
-	return &StatusIndex{
-		localIndexes:     make(map[string]map[string]StorageIndexCursor),
-		universalIndexes: make(map[string]map[string]StorageIndexCursor),
-	}
+var statusIndexinstance *StatusIndex
+var statusIndexonce sync.Once
+
+func GetStatusIndexInstance() *StatusIndex {
+	statusIndexonce.Do(func() {
+		statusIndexinstance = &StatusIndex{
+			localIndexes:     make(map[string]map[string]StorageIndexCursor),
+			universalIndexes: make(map[string]map[string]StorageIndexCursor),
+		}
+	})
+	return statusIndexinstance
 }
 
 func (s *StatusIndex) LocalIndexes(keys []string) map[string]StorageIndexCursor {

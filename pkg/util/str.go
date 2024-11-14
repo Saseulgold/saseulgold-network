@@ -2,6 +2,7 @@ package util
 
 import (
 	"bytes"
+	"strconv"
 	"strings"
 )
 
@@ -26,4 +27,19 @@ func Concat(s ...string) string {
 		buffer.WriteString(s[i])
 	}
 	return buffer.String()
+}
+
+func String(value interface{}) string {
+	switch v := value.(type) {
+	case int64:
+		return strconv.FormatInt(v, 10)
+	case float64:
+		return strconv.FormatFloat(v, 'f', -1, 64)
+	case string:
+		return v
+	case []byte:
+		return string(v)
+	}
+
+	return ""
 }

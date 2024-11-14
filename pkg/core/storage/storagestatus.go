@@ -11,22 +11,27 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
-// StatusFile 구조체는 상태 파일 관리를 담당합니다
 type StatusFile struct {
 	CachedUniversalIndexes map[string]StorageIndexCursor
 	CachedLocalIndexes     map[string]StorageIndexCursor
 	Tasks                  [][]interface{}
 }
 
-// NewStatusFile creates a new StatusFile instance
-func NewStatusFile() *StatusFile {
-	return &StatusFile{
-		CachedUniversalIndexes: make(map[string]StorageIndexCursor),
-		CachedLocalIndexes:     make(map[string]StorageIndexCursor),
-		Tasks:                  make([][]interface{}, 0),
-	}
+var statusFileInstance *StatusFile
+var statusFileonce sync.Once
+
+func GetStatusFileInstance() *StatusFile {
+	statusFileonce.Do(func() {
+		statusFileInstance = &StatusFile{
+			CachedUniversalIndexes: make(map[string]StorageIndexCursor),
+			CachedLocalIndexes:     make(map[string]StorageIndexCursor),
+			Tasks:                  make([][]interface{}, 0),
+		}
+	})
+	return statusFileInstance
 }
 
 // Touch creates necessary directories and files
@@ -351,4 +356,21 @@ func (sf *StatusFile) Commit() error {
 
 	// Clear temp file
 	return ioutil.WriteFile(sf.TempFile(), []byte{}, 0644)
+}
+
+func (sf *StatusFile) GetUniversalIndexes(keys []string) map[string]StorageIndexCursor {
+
+	return nil
+}
+
+func (sf *StatusFile) GetLocalIndexes(keys []string) map[string]StorageIndexCursor {
+	return nil
+}
+
+func (sf *StatusFile) GetLocalStatus(key string) interface{} {
+	return 1
+}
+
+func (sf *StatusFile) GetUniversalStatus(key string) interface{} {
+	return 1
 }

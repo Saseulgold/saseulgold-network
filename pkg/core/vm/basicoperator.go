@@ -1,6 +1,7 @@
 package vm
 
 import (
+	. "hello/pkg/core/abi"
 	"reflect"
 )
 
@@ -70,6 +71,8 @@ func OpIf(i *Interpreter, vars interface{}) interface{} {
 		if len(arr) > 0 {
 			if v, ok := arr[0].(bool); ok {
 				condition = v
+			} else {
+				DebugLog("OpIf: condition is not boolean")
 			}
 		}
 
@@ -81,7 +84,9 @@ func OpIf(i *Interpreter, vars interface{}) interface{} {
 			falseVal = arr[2]
 		}
 	}
-
+	DebugLog("OpIf: condition =", condition)
+	DebugLog("OpIf: trueVal =", trueVal)
+	DebugLog("OpIf: falseVal =", falseVal)
 	if condition {
 		return trueVal
 	}

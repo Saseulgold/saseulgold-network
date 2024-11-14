@@ -6,6 +6,10 @@ var OperatorFunctions = map[string]map[string]MethodFunc{
 		"$response":  OpResponse,
 		"$weight":    OpWeight,
 		"$if":        OpIf,
+		"$and":       OpAnd,
+		"$or":        OpOr,
+		"$get":       OpGet,
+		"$in":        OpIn,
 	},
 	"ArithmeticOperator": {
 		"$add":         OpAdd,

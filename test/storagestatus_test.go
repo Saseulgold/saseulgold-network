@@ -10,7 +10,7 @@ import (
 
 func TestNewStatusFile(t *testing.T) {
 	t.Log("Starting NewStatusFile test")
-	sf := S.NewStatusFile()
+	sf := S.GetStatusFileInstance()
 
 	if sf.CachedUniversalIndexes == nil {
 		t.Error("CachedUniversalIndexes was not initialized")
@@ -32,7 +32,7 @@ func TestStatusFile_Touch(t *testing.T) {
 	t.Log("Starting Touch test")
 	C.CORE_TEST_MODE = true
 
-	sf := S.NewStatusFile()
+	sf := S.GetStatusFileInstance()
 	t.Log("Created new status file")
 
 	err := sf.Touch()
@@ -64,7 +64,7 @@ func TestStatusFile_Reset(t *testing.T) {
 	t.Log("Starting Reset test")
 	C.CORE_TEST_MODE = true
 
-	sf := S.NewStatusFile()
+	sf := S.GetStatusFileInstance()
 	t.Log("Created new status file")
 
 	t.Log("Initializing with Touch operation")
@@ -90,7 +90,7 @@ func TestStatusFile_Cache(t *testing.T) {
 	t.Log("Starting Cache test")
 	C.CORE_TEST_MODE = true
 
-	sf := S.NewStatusFile()
+	sf := S.GetStatusFileInstance()
 	t.Log("Created new status file")
 
 	err := sf.Cache()
@@ -104,7 +104,7 @@ func TestStatusFile_AddUniversalIndexes(t *testing.T) {
 	t.Log("Starting AddUniversalIndexes test")
 	C.CORE_TEST_MODE = true
 
-	sf := S.NewStatusFile()
+	sf := S.GetStatusFileInstance()
 	t.Log("Created new status file")
 
 	// 테스트 데이터 준비
