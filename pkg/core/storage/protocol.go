@@ -285,3 +285,20 @@ func ReadPart(filename string, offset int64, length int) ([]byte, error) {
 
 	return buf[:n], nil
 }
+
+func CopyFile(from string, to string) error {
+	source, err := os.Open(from)
+	if err != nil {
+		return err
+	}
+	defer source.Close()
+
+	destination, err := os.Create(to)
+	if err != nil {
+		return err
+	}
+	defer destination.Close()
+
+	_, err = io.Copy(destination, source)
+	return err
+}

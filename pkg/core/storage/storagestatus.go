@@ -536,3 +536,88 @@ func (sf *StatusFile) UpdateUniversal(indexes map[string]StorageIndexCursor, uni
 
 	return indexes
 }
+
+func (sf *StatusFile) UpdateLocal(indexes map[string]StorageIndexCursor, localUpdates UpdateMap) map[string]StorageIndexCursor {
+	null := []byte{0}
+	latestFile := sf.LocalBundle()
+
+	fileInfo, _ := os.Stat(latestFile)
+	seek := fileInfo.Size()
+
+	for key, update := range localUpdates {
+		key = F.FillHash(key)
+		index, exists := indexes[key]
+		data, _ := json.Marshal(update.New)
+		length := int64(len(data))
+		var storedLength int64
+		if exists {
+			storedLength = int64(index.Length)
+		}
+
+		var fileID string
+		if storedLength < length {
+			// append new line
+			fileID = "00"
+			if C.LEDGER_FILESIZE_LIMIT < seek+length {
+				fileID = sf.NextFileID(fileID)
+				seek = 0
+			}
+			seek += length
+		} else {
+			// overwrite
+			fileID = index.FileID
+			seek = int64(index.Seek)
+			length = storedLength
+			padding := make([]byte, length-int64(len(data)))
+			for i := range padding {
+				padding[i] = null[0]
+			}
+			data = append(data, padding...)
+		}
+
+		indexes[key] = NewStorageCursor(key, fileID, seek, length)
+		AppendFile(sf.LocalBundle(), string(data))
+	}
+
+	return indexes
+}
+
+func (sf *StatusFile) CopyBundles() error {
+	// Copy local bundle
+	localBundle := sf.LocalBundle()
+	localFile := sf.LocalFile()
+
+	if err := CopyFile(localBundle, localFile); err != nil {
+		return err
+	}
+
+	// Copy universal bundles
+	universalBundles, err := filepath.Glob(filepath.Join(sf.StatusBundle(), "ubundle-*"))
+	if err != nil {
+		return err
+	}
+
+	universalFiles, err := filepath.Glob(filepath.Join(sf.StatusBundle(), "universals-*"))
+	if err != nil {
+		return err
+	}
+
+	// Delete existing universal files
+	for _, file := range universalFiles {
+		if err := os.Remove(file); err != nil {
+			return err
+		}
+	}
+
+	// Copy universal bundles to new files
+	for _, bundle := range universalBundles {
+		from := bundle
+		to := strings.Replace(bundle, "ubundle-", "universals-", 1)
+
+		if err := CopyFile(from, to); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}

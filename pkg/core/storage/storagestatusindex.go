@@ -38,7 +38,7 @@ func (s *StatusIndex) Load() {
 	bundleHeight := statusFile.BundleHeight()
 
 	for i := bundleHeight + 1; i <= fixedHeight; i++ {
-		block, err := GetBlock(i)
+		block, err := chainStorage.GetBlock(i)
 		if err != nil {
 			panic(err)
 		}
