@@ -2,12 +2,16 @@ package main
 
 import (
 	_ "fmt"
+	C "hello/pkg/core/config"
 	. "hello/pkg/core/model"
+	. "hello/pkg/core/storage"
 	S "hello/pkg/core/structure"
 	"testing"
 )
 
 func TestUpdate_GetHash0(t *testing.T) {
+	C.CORE_TEST_MODE = true
+
 	oldValue := "99999999999999996783125000"
 	newValue := "99999999999999993566250000"
 	update := Update{
@@ -210,4 +214,8 @@ func TestBlock_WithMultipleUpdates(t *testing.T) {
 		t.Logf("Old Value: %v", update.Old)
 		t.Logf("New Value: %v\n", update.New)
 	}
+
+	sfi := GetStatusFileInstance()
+	sfi.Write(&block)
+
 }

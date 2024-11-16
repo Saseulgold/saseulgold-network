@@ -83,6 +83,9 @@ func TestChainStorage_Block(t *testing.T) {
 		t.Logf("Test case '%s' index: %v", tests[i].name, index)
 
 		if tests[i].wantErr {
+			if tests[i].height != int(block.Height) {
+				t.Errorf("Expected height: %d, got: %d", tests[i].height, block.Height)
+			}
 			if err == nil {
 				t.Errorf("Expected error but got none")
 			}

@@ -23,9 +23,9 @@ func StatusKey(raw string) string {
 type StorageIndexCursor struct {
 	Key    string
 	FileID string
-	Seek   uint64
-	Length uint64
-	Iseek  uint64
+	Seek   int64
+	Length int64
+	Iseek  int64
 	Value  F.Ia
 	Old    F.Ia
 	New    F.Ia
@@ -35,7 +35,16 @@ func StorageKey(raw string) string {
 	return raw[:C.STATUS_KEY_BYTES]
 }
 
-func NewStorageCursor(raw string) StorageIndexCursor {
+func NewStorageCursor(key string, fileID string, seek int64, length int64) StorageIndexCursor {
+	return StorageIndexCursor{
+		Key:    key,
+		FileID: fileID,
+		Seek:   seek,
+		Length: length,
+	}
+}
+
+func NewStorageCursorRaw(raw string) StorageIndexCursor {
 	key := StorageKey(raw)
 	offset := C.STATUS_KEY_BYTES
 
@@ -43,10 +52,10 @@ func NewStorageCursor(raw string) StorageIndexCursor {
 	offset += C.DATA_ID_BYTES
 
 	seekBytes := raw[offset : offset+C.SEEK_BYTES]
-	seek := uint64(seekBytes[0]) | uint64(seekBytes[1])<<8 | uint64(seekBytes[2])<<16 | uint64(seekBytes[3])<<24
+	seek := int64(seekBytes[0]) | int64(seekBytes[1])<<8 | int64(seekBytes[2])<<16 | int64(seekBytes[3])<<24
 	offset += C.SEEK_BYTES
 
-	length := F.Hex2UInt64(raw[offset : offset+C.LENGTH_BYTES])
+	length := F.Hex2Int64(raw[offset : offset+C.LENGTH_BYTES])
 
 	return StorageIndexCursor{
 		Key:    key,
@@ -77,11 +86,11 @@ func ReadStatusStorageIndex(indexFile string, bundling bool) map[string]StorageI
 
 		if len(raw) == C.STATUS_HEAP_BYTES {
 			key := StatusKey(string(raw))
-			index := NewStorageCursor(string(raw))
+			index := NewStorageCursorRaw(string(raw))
 
 			if bundling {
 				iseek := idx * C.STATUS_HEAP_BYTES
-				index.Iseek = uint64(iseek)
+				index.Iseek = int64(iseek)
 			}
 
 			indexes[key] = index

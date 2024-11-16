@@ -5,7 +5,7 @@ import (
 	C "hello/pkg/core/config"
 	. "hello/pkg/core/model"
 
-	// S "hello/pkg/core/storage"
+	S "hello/pkg/core/storage"
 	. "hello/pkg/crypto"
 	F "hello/pkg/util"
 )
@@ -333,12 +333,24 @@ func (i *Interpreter) GetUniversalStatus(statusHash string, defaultVal interface
 func (i *Interpreter) LoadUniversalStatus() {
 
 	if len(i.universals) > 0 {
-		// statusFile := S.GetStatusFileInstance()
-		keys := make([]string, 0, len(i.universals))
+		statusFile := S.GetStatusFileInstance()
+		// keys := make([]string, 0, len(i.universals))
 
 		for k := range i.universals {
-			// value := statusFile.GetUniversalStatus(k)
-			keys = append(keys, k)
+			value := statusFile.GetUniversalStatus(k)
+			i.universals[k] = value
+			// keys = append(keys, k)
+		}
+	}
+}
+
+func (i *Interpreter) LoadLocalStatus() {
+	if len(i.locals) > 0 {
+		statusFile := S.GetStatusFileInstance()
+
+		for k := range i.locals {
+			value := statusFile.GetLocalStatus(k)
+			i.locals[k] = value
 		}
 	}
 }

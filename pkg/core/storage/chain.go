@@ -14,18 +14,108 @@ import (
 
 type ChainStorage struct{}
 
+var chainStorageInstance *ChainStorage
+
+func GetChainStorageInstance() *ChainStorage {
+	if chainStorageInstance == nil {
+		chainStorageInstance = &ChainStorage{}
+	}
+	return chainStorageInstance
+}
+
+func ChainInfo() string {
+	return filepath.Join(C.DATA_ROOT_DIR, "chain_info")
+}
+
+func MainChain() string {
+	if C.CORE_TEST_MODE {
+		return filepath.Join(C.DATA_ROOT_TEST_DIR, "main_chain")
+	}
+	return filepath.Join(C.DATA_ROOT_DIR, "main_chain")
+}
+
+func LastHeight() int {
+	data, _ := os.ReadFile(ChainInfo())
+	height := 0
+	if len(data) > 0 {
+		height = int(F.BinDec(data))
+	}
+	return height
+}
+
+func ConfirmedHeight() int {
+	return LastHeight() - 5
+}
+
+func ParseBlock(data []byte) (*Block, error) {
+	var block Block
+	var rawData map[string]interface{}
+
+	// JSON 데이터를 먼저 raw map으로 파싱
+	if err := json.Unmarshal(data, &rawData); err != nil {
+		return nil, err
+	}
+
+	// 기본 블록 데이터 파싱
+	if err := json.Unmarshal(data, &block); err != nil {
+		return nil, err
+	}
+
+	// Updates 데이터 변환
+	if universalUpdatesRaw, exists := rawData["universal_updates"].(map[string]interface{}); exists {
+		block.UniversalUpdates = make(UpdateMap)
+		for key, value := range universalUpdatesRaw {
+			updateBytes, err := json.Marshal(value)
+			if err != nil {
+				return nil, err
+			}
+			var update Update
+			if err := json.Unmarshal(updateBytes, &update); err != nil {
+				return nil, err
+			}
+			block.UniversalUpdates[key] = update
+		}
+	}
+
+	if localUpdatesRaw, exists := rawData["local_updates"].(map[string]interface{}); exists {
+		block.LocalUpdates = make(UpdateMap)
+		for key, value := range localUpdatesRaw {
+			updateBytes, err := json.Marshal(value)
+			if err != nil {
+				return nil, err
+			}
+			var update Update
+			if err := json.Unmarshal(updateBytes, &update); err != nil {
+				return nil, err
+			}
+			block.LocalUpdates[key] = update
+		}
+	}
+
+	// 필요한 맵 초기화
+	block.Init()
+
+	return &block, nil
+}
+
 func (c *ChainStorage) Block(directory string, needle interface{}) (*Block, error) {
 	data, err := c.ReadData(directory, needle.([]interface{}))
 	if err != nil {
 		return nil, err
 	}
 
-	var block Block
-	if err := json.Unmarshal(data, &block); err != nil {
+	block, err := ParseBlock(data)
+
+	if err != nil {
 		return nil, err
 	}
 
-	return &block, nil
+	return block, nil
+}
+
+func (c *ChainStorage) GetBlock(height int) (*Block, error) {
+	chainDir := MainChain()
+	return c.Block(chainDir, height)
 }
 
 func (c *ChainStorage) IndexFile(directory string) string {

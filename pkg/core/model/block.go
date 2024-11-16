@@ -24,14 +24,14 @@ func (bh BlockHeader) Ser() string {
 type Block struct {
 	Height            int64          `json:"height"`
 	Transactions      TransactionMap `json:"transactions"`
-	UniversalUpdates  UpdateMap      `json:"universal_updates"`
-	LocalUpdates      UpdateMap      `json:"local_updates"`
-	PreviousBlockhash string         `json:"previous_blockhash"`
-	Timestamp_s       int64          `json:"s_timestamp"`
-	Vout              string         `json:"vout"`
-	Nonce             string         `json:"nonce"`
-	RewardAddress     string         `json:"reward_address"`
-	Difficulty        int64          `json:"difficulty"`
+	UniversalUpdates  UpdateMap
+	LocalUpdates      UpdateMap
+	PreviousBlockhash string `json:"previous_blockhash"`
+	Timestamp_s       int64  `json:"s_timestamp"`
+	Vout              string `json:"vout"`
+	Nonce             string `json:"nonce"`
+	RewardAddress     string `json:"reward_address"`
+	Difficulty        int64  `json:"difficulty"`
 }
 
 func NewBlock(height int64, previous_blockhash string) Block {

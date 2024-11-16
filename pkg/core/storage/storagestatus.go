@@ -6,10 +6,13 @@ import (
 	"fmt"
 	. "hello/pkg/core/config"
 	C "hello/pkg/core/config"
+	. "hello/pkg/core/debug"
+	. "hello/pkg/core/model"
 	F "hello/pkg/util"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -84,11 +87,9 @@ func (sf *StatusFile) Cache() error {
 			return err
 		}
 
-		/** TODO
 		if err := sf.Commit(); err != nil {
 			return err
 		}
-		*/
 
 		var err error
 
@@ -183,7 +184,7 @@ func (sf *StatusFile) maxFileId(prefix string) string {
 	return fmt.Sprintf("%02x", 0)
 }
 
-func (sf *StatusFile) indexRaw(key string, fileID string, seek uint64, length uint64) string {
+func (sf *StatusFile) indexRaw(key string, fileID string, seek int64, length int64) string {
 	keyStr := key
 	fileIdStr := fileID
 	seekStr := fmt.Sprintf("%d", seek)
@@ -193,7 +194,94 @@ func (sf *StatusFile) indexRaw(key string, fileID string, seek uint64, length ui
 	return result
 }
 
-func (sf *StatusFile) WriteUniversal(universalUpdates map[string]StorageIndexCursor) error {
+func (sf *StatusFile) WriteLocal(blockUpdates UpdateMap) error {
+	null := byte(0)
+	latestFile := sf.LocalBundle()
+	indexFile := sf.LocalBundleIndex()
+
+	if err := AppendFile(latestFile, ""); err != nil {
+		return err
+	}
+
+	latestFileInfo, err := os.Stat(latestFile)
+	if err != nil {
+		return err
+	}
+	seek := int64(latestFileInfo.Size())
+
+	indexFileInfo, err := os.Stat(indexFile)
+	if err != nil {
+		return err
+	}
+
+	iseek := int64(indexFileInfo.Size())
+
+	for key, update := range blockUpdates {
+		key = F.FillHash(key)
+		index, exists := sf.CachedLocalIndexes[key]
+
+		data, err := json.Marshal(update.New)
+		if err != nil {
+			return err
+		}
+
+		length := int64(len(data))
+		var oldLength int64
+		if exists {
+			oldLength = index.Length
+		}
+
+		var (
+			fileID    string
+			currSeek  int64
+			currIseek int64
+		)
+
+		if oldLength < length {
+			currSeek = seek
+			seek += length
+
+			if C.LEDGER_FILESIZE_LIMIT < currSeek+length {
+				fileID = sf.NextFileID(fileID)
+				currSeek = 0
+				seek = length
+			}
+
+			if oldLength == 0 {
+				currIseek = iseek
+				iseek += C.STATUS_HEAP_BYTES
+			} else {
+				currIseek = index.Iseek
+			}
+		} else {
+			fileID = index.FileID
+			currSeek = index.Seek
+			currIseek = index.Iseek
+			length = oldLength
+			if int64(len(data)) < length {
+				data = append(data, bytes.Repeat([]byte{null}, int(length-int64(len(data))))...)
+			}
+		}
+
+		newIndex := StorageIndexCursor{
+			FileID: fileID,
+			Seek:   currSeek,
+			Length: length,
+			Iseek:  currIseek,
+		}
+
+		indexData := sf.indexRaw(key, fileID, currSeek, length)
+
+		sf.CachedUniversalIndexes[key] = newIndex
+		sf.Tasks = append(sf.Tasks,
+			[]interface{}{sf.LocalBundle(), currSeek, data},
+			[]interface{}{sf.LocalBundleIndex(), currIseek, indexData})
+		fmt.Println("sf.a", currIseek)
+	}
+	return nil
+}
+
+func (sf *StatusFile) WriteUniversal(blockUpdates UpdateMap) error {
 	null := byte(0)
 	latestFileID := sf.maxFileId("ubundle-")
 	latestFile := sf.UniversalBundle(latestFileID)
@@ -207,16 +295,16 @@ func (sf *StatusFile) WriteUniversal(universalUpdates map[string]StorageIndexCur
 	if err != nil {
 		return err
 	}
-	seek := uint64(latestFileInfo.Size())
+	seek := int64(latestFileInfo.Size())
 
 	indexFileInfo, err := os.Stat(indexFile)
 	if err != nil {
 		return err
 	}
 
-	iseek := uint64(indexFileInfo.Size())
+	iseek := int64(indexFileInfo.Size())
 
-	for key, update := range universalUpdates {
+	for key, update := range blockUpdates {
 		key = F.FillHash(key)
 		index, exists := sf.CachedUniversalIndexes[key]
 
@@ -225,16 +313,16 @@ func (sf *StatusFile) WriteUniversal(universalUpdates map[string]StorageIndexCur
 			return err
 		}
 
-		length := uint64(len(data))
-		var oldLength uint64
+		length := int64(len(data))
+		var oldLength int64
 		if exists {
 			oldLength = index.Length
 		}
 
 		var (
 			fileID    string
-			currSeek  uint64
-			currIseek uint64
+			currSeek  int64
+			currIseek int64
 		)
 
 		if oldLength < length {
@@ -264,8 +352,8 @@ func (sf *StatusFile) WriteUniversal(universalUpdates map[string]StorageIndexCur
 			currIseek = index.Iseek
 			length = oldLength
 			// Pad data
-			if uint64(len(data)) < length {
-				data = append(data, bytes.Repeat([]byte{null}, int(length-uint64(len(data))))...)
+			if int64(len(data)) < length {
+				data = append(data, bytes.Repeat([]byte{null}, int(length-int64(len(data))))...)
 			}
 		}
 
@@ -343,6 +431,7 @@ func (sf *StatusFile) Commit() error {
 				return fmt.Errorf("Failed to open file: %v", err)
 			}
 			defer f.Close()
+			DebugLog(fmt.Sprintf("Write data at %s, seek: %d", file, seek))
 
 			if _, err := f.WriteAt(data, seek); err != nil {
 				return fmt.Errorf("Failed to write data: %v", err)
@@ -368,9 +457,82 @@ func (sf *StatusFile) GetLocalIndexes(keys []string) map[string]StorageIndexCurs
 }
 
 func (sf *StatusFile) GetLocalStatus(key string) interface{} {
+
 	return 1
 }
 
 func (sf *StatusFile) GetUniversalStatus(key string) interface{} {
 	return 1
+}
+
+func (sf *StatusFile) BundleHeight() int {
+	data, err := ioutil.ReadFile(sf.InfoFile())
+	if err != nil {
+		return 0
+	}
+	height := 0
+	if len(data) > 0 {
+		height, _ = strconv.Atoi(string(data))
+	}
+	return height
+}
+
+func (sf *StatusFile) Write(block *Block) bool {
+	sf.Cache()
+
+	sf.WriteUniversal(block.UniversalUpdates)
+	sf.WriteLocal(block.LocalUpdates)
+
+	sf.Tasks = append(sf.Tasks, []interface{}{sf.InfoFile(), 0, block.Height})
+
+	sf.WriteTasks()
+
+	sf.Commit()
+	return true
+}
+
+func (sf *StatusFile) UpdateUniversal(indexes map[string]StorageIndexCursor, universalUpdates UpdateMap) map[string]StorageIndexCursor {
+	null := []byte{0}
+	latestFileID := sf.maxFileId("ubundle-")
+	latestFile := sf.UniversalBundle(latestFileID)
+
+	fileInfo, _ := os.Stat(latestFile)
+	seek := fileInfo.Size()
+
+	for key, update := range universalUpdates {
+		key = F.FillHash(key)
+		index, exists := indexes[key]
+		data, _ := json.Marshal(update.New)
+		length := int64(len(data))
+		var storedLength int64
+		if exists {
+			storedLength = int64(index.Length)
+		}
+
+		var fileID string
+		if storedLength < length {
+			// append new line
+			fileID = latestFileID
+			if C.LEDGER_FILESIZE_LIMIT < seek+length {
+				fileID = sf.NextFileID(fileID)
+				seek = 0
+			}
+			seek += length
+		} else {
+			// overwrite
+			fileID = index.FileID
+			seek = int64(index.Seek)
+			length = storedLength
+			padding := make([]byte, length-int64(len(data)))
+			for i := range padding {
+				padding[i] = null[0]
+			}
+			data = append(data, padding...)
+		}
+
+		indexes[key] = NewStorageCursor(key, fileID, seek, length)
+		AppendFile(sf.UniversalBundle(fileID), string(data))
+	}
+
+	return indexes
 }
