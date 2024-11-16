@@ -24,12 +24,15 @@ func GetChainStorageInstance() *ChainStorage {
 }
 
 func ChainInfo() string {
+	if C.CORE_TEST_MODE {
+		return filepath.Join(C.DATA_TEST_ROOT_DIR, "chain_info")
+	}
 	return filepath.Join(C.DATA_ROOT_DIR, "chain_info")
 }
 
 func MainChain() string {
 	if C.CORE_TEST_MODE {
-		return filepath.Join(C.DATA_ROOT_TEST_DIR, "main_chain")
+		return filepath.Join(C.DATA_TEST_ROOT_DIR, "main_chain")
 	}
 	return filepath.Join(C.DATA_ROOT_DIR, "main_chain")
 }
@@ -51,17 +54,17 @@ func ParseBlock(data []byte) (*Block, error) {
 	var block Block
 	var rawData map[string]interface{}
 
-	// JSON 데이터를 먼저 raw map으로 파싱
+	// Parse JSON data into raw map first
 	if err := json.Unmarshal(data, &rawData); err != nil {
 		return nil, err
 	}
 
-	// 기본 블록 데이터 파싱
+	// Parse basic block data
 	if err := json.Unmarshal(data, &block); err != nil {
 		return nil, err
 	}
 
-	// Updates 데이터 변환
+	// Convert Updates data
 	if universalUpdatesRaw, exists := rawData["universal_updates"].(map[string]interface{}); exists {
 		block.UniversalUpdates = make(UpdateMap)
 		for key, value := range universalUpdatesRaw {
@@ -92,7 +95,7 @@ func ParseBlock(data []byte) (*Block, error) {
 		}
 	}
 
-	// 필요한 맵 초기화
+	// Initialize required maps
 	block.Init()
 
 	return &block, nil
@@ -120,16 +123,16 @@ func (c *ChainStorage) GetBlock(height int) (*Block, error) {
 
 func (c *ChainStorage) IndexFile(directory string) string {
 	path := C.DATA_ROOT_DIR
-	if C.IS_TEST {
-		path = C.DATA_ROOT_TEST_DIR
+	if C.CORE_TEST_MODE {
+		path = C.DATA_TEST_ROOT_DIR
 	}
 	println("Chain index file path:", filepath.Join(path, directory, "index"))
 	return filepath.Join(path, directory, "index")
 }
 
 func (c *ChainStorage) DataFile(directory, fileID string) string {
-	if C.IS_TEST {
-		return filepath.Join(C.DATA_ROOT_TEST_DIR, directory, fileID)
+	if C.CORE_TEST_MODE {
+		return filepath.Join(C.DATA_TEST_ROOT_DIR, directory, fileID)
 	}
 	return filepath.Join(C.DATA_ROOT_DIR, directory, fileID)
 }
@@ -164,7 +167,7 @@ func (c *ChainStorage) Index(directory string, needle interface{}) ([]interface{
 func (c *ChainStorage) ReadIdx(directory string, height int) int {
 	idx := 0
 	lastIdx := c.LastIdx(directory)
-	println("마지막 인덱스:", lastIdx)
+	println("Last index:", lastIdx)
 	lastIndex, _ := c.ReadIndex(directory, lastIdx)
 	lastHeight := 0
 	if len(lastIndex) > 0 {

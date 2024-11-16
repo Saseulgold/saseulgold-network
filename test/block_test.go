@@ -4,7 +4,8 @@ import (
 	_ "fmt"
 	C "hello/pkg/core/config"
 	. "hello/pkg/core/model"
-	. "hello/pkg/core/storage"
+
+	// . "hello/pkg/core/storage"
 	S "hello/pkg/core/structure"
 	"testing"
 )
@@ -214,8 +215,4 @@ func TestBlock_WithMultipleUpdates(t *testing.T) {
 		t.Logf("Old Value: %v", update.Old)
 		t.Logf("New Value: %v\n", update.New)
 	}
-
-	sfi := GetStatusFileInstance()
-	sfi.Write(&block)
-
 }

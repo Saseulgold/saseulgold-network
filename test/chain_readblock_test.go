@@ -8,7 +8,7 @@ import (
 
 func TestChainStorage_Block(t *testing.T) {
 	// 테스트 설정
-	C.IS_TEST = true
+	C.CORE_TEST_MODE = true
 
 	cs := &storage.ChainStorage{}
 	testDir := "main_chain"

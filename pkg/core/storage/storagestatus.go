@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	. "hello/pkg/core/config"
 	C "hello/pkg/core/config"
 	. "hello/pkg/core/debug"
 	. "hello/pkg/core/model"
@@ -87,22 +86,20 @@ func (sf *StatusFile) Cache() error {
 			return err
 		}
 
-		if err := sf.Commit(); err != nil {
-			return err
+		// 임시 파일이 비어있는 경우 Commit() 호출을 건너뜁니다
+		tmpData, err := ioutil.ReadFile(sf.TempFile())
+		if err != nil || len(tmpData) == 0 {
+			sf.CachedUniversalIndexes = ReadStatusStorageIndex(sf.UniversalBundleIndex(), true)
+			sf.CachedLocalIndexes = ReadStatusStorageIndex(sf.LocalBundleIndex(), true)
+			return nil
 		}
 
-		var err error
+		if err := sf.Commit(); err != nil {
+			return fmt.Errorf("Failed to commit: %v", err)
+		}
 
 		sf.CachedUniversalIndexes = ReadStatusStorageIndex(sf.UniversalBundleIndex(), true)
-
-		if err != nil {
-			return err
-		}
-
 		sf.CachedLocalIndexes = ReadStatusStorageIndex(sf.LocalBundleIndex(), true)
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -114,9 +111,9 @@ func (sf *StatusFile) Flush() {
 
 func (sf *StatusFile) DataRootDir() string {
 	if C.CORE_TEST_MODE {
-		return DATA_ROOT_TEST_DIR
+		return filepath.Join(C.QUANTUM_ROOT_DIR, C.DATA_TEST_ROOT_DIR)
 	}
-	return DATA_ROOT_DIR
+	return filepath.Join(C.QUANTUM_ROOT_DIR, C.DATA_ROOT_DIR)
 }
 
 func (sf *StatusFile) StatusBundle() string {
@@ -339,6 +336,7 @@ func (sf *StatusFile) WriteUniversal(blockUpdates UpdateMap) error {
 
 			if oldLength == 0 {
 				// New data
+				DebugLog(fmt.Sprintf("New data: Key=%s, FileID=%s, Seek=%d, Length=%d, exists=%t\n", key, fileID, currSeek, length, exists))
 				currIseek = iseek
 				iseek += C.STATUS_HEAP_BYTES
 			} else {
@@ -363,6 +361,8 @@ func (sf *StatusFile) WriteUniversal(blockUpdates UpdateMap) error {
 			Length: length,
 			Iseek:  currIseek,
 		}
+
+		DebugLog(fmt.Sprintf("New Index: Key=%s, FileID=%s, Seek=%d, Length=%d, Iseek=%d\n", key, newIndex.FileID, newIndex.Seek, newIndex.Length, newIndex.Iseek))
 
 		indexData := sf.indexRaw(key, fileID, currSeek, length)
 
@@ -415,6 +415,8 @@ func (sf *StatusFile) Commit() error {
 			data = []byte(v)
 		case []byte:
 			data = v
+		case float64:
+			data = []byte(fmt.Sprintf("%v", v))
 		default:
 			return fmt.Errorf("unexpected data type: %T", item[2])
 		}
@@ -448,21 +450,11 @@ func (sf *StatusFile) Commit() error {
 }
 
 func (sf *StatusFile) GetUniversalIndexes(keys []string) map[string]StorageIndexCursor {
-
-	return nil
+	return GetStatusIndexInstance().UniversalIndexes(keys)
 }
 
 func (sf *StatusFile) GetLocalIndexes(keys []string) map[string]StorageIndexCursor {
-	return nil
-}
-
-func (sf *StatusFile) GetLocalStatus(key string) interface{} {
-
-	return 1
-}
-
-func (sf *StatusFile) GetUniversalStatus(key string) interface{} {
-	return 1
+	return GetStatusIndexInstance().LocalIndexes(keys)
 }
 
 func (sf *StatusFile) BundleHeight() int {
@@ -620,4 +612,27 @@ func (sf *StatusFile) CopyBundles() error {
 	}
 
 	return nil
+}
+
+func (sf *StatusFile) Update(block *Block) bool {
+	localUpdates := block.LocalUpdates
+	universalUpdates := block.UniversalUpdates
+
+	// Handle local updates
+	localKeys := make([]string, 0, len(localUpdates))
+	for k := range localUpdates {
+		localKeys = append(localKeys, k)
+	}
+	localIndexes := sf.GetLocalIndexes(localKeys)
+	sf.UpdateLocal(localIndexes, localUpdates)
+
+	// Handle universal updates
+	universalKeys := make([]string, 0, len(universalUpdates))
+	for k := range universalUpdates {
+		universalKeys = append(universalKeys, k)
+	}
+	universalIndexes := sf.GetUniversalIndexes(universalKeys)
+	sf.UpdateUniversal(universalIndexes, universalUpdates)
+
+	return true
 }
