@@ -17,7 +17,7 @@ class StatIndexReader:
     def __init__(self):
         self.idx = 0
 
-        with open("../data/status_Bundle/lbundle_index", "rb") as f:
+        with open("../data/status_bundle/lbundle_index", "rb") as f:
             self.data = f.read()
 
     @staticmethod

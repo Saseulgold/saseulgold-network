@@ -29,18 +29,30 @@ func TestGenesisBlock(t *testing.T) {
 	//tx := NewSignedTransaction(txData)
 	block.Init()
 
-	// Universal Updates 추가
-	block.AppendUniversalUpdate(Update{
-		Key: F.StatusHash(C.ZERO_ADDRESS, F.RootSpace(), "balance", C.ZERO_ADDRESS),
+	// Universal Updates 정의
+	balanceUpdate := Update{
+		Key: F.StatusHash(C.ZERO_ADDRESS, F.RootSpace(), "balance", C.ZERO_ADDRESS), // 길이를 108로 맞추기 위해 해시 추가
 		Old: nil,
 		New: "10000000000000000000000000",
-	})
+	}
 
-	block.AppendUniversalUpdate(Update{
-		Key: F.StatusHash(C.ZERO_ADDRESS, F.RootSpace(), "thisisgenesis", C.ZERO_ADDRESS),
+	genesisUpdate := Update{
+		Key: F.StatusHash(C.ZERO_ADDRESS, F.RootSpace(), "thisisgenesis", C.ZERO_ADDRESS), // 길이를 108로 맞추기 위해 해시 추가
 		Old: nil,
 		New: "1",
-	})
+	}
+
+	// Universal Updates 추가
+	// block.AppendUniversalUpdate(balanceUpdate)
+	block.AppendUniversalUpdate(genesisUpdate)
+
+	if len(balanceUpdate.Key) != 108 {
+		t.Errorf("balanceUpdate.Key length = %d; want %d", len(balanceUpdate.Key), 108)
+	}
+
+	if len(genesisUpdate.Key) != 108 {
+		t.Errorf("genesisUpdate.Key length = %d; want %d", len(genesisUpdate.Key), 108)
+	}
 
 	// block.AppendTransaction(tx)
 
@@ -52,24 +64,8 @@ func TestGenesisBlock(t *testing.T) {
 
 	// height := S.LastHeight()
 	// t.Logf("Last Height: %d", height)
-	/**
 	universalIndexes := S.ReadStatusStorageIndex(sf.UniversalBundleIndex(), true)
 	for key := range universalIndexes {
 		t.Logf("Universal Index Key: %s, Value: %s, FileID: %s", key, universalIndexes[key].Value, universalIndexes[key].FileID)
 	}
-	/**
-	localIndexes := S.ReadStatusStorageIndex(sf.LocalBundleIndex(), true)
-
-	if len(localIndexes) != 0 {
-		t.Errorf("Local Indexes 개수 = %d; want %d", len(localIndexes), 0)
-	}
-
-	if len(universalIndexes) != 2 {
-		t.Errorf("Universal Indexes 개수 = %d; want %d", len(universalIndexes), 2)
-	}
-	**/
-
-	// if height != 0 {
-	// 	t.Errorf("Last Height = %d; want %d", height, 0)
-	// }
 }

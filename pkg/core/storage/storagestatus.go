@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	C "hello/pkg/core/config"
@@ -50,7 +51,7 @@ func (sf *StatusFile) Touch() error {
 		sf.InfoFile(),
 		sf.LocalFile(),
 		sf.LocalBundle(),
-		sf.UniversalBundle("00"),
+		sf.UniversalBundle("0000"),
 		sf.LocalBundleIndex(),
 		sf.UniversalBundleIndex(),
 	}
@@ -154,13 +155,17 @@ func (sf *StatusFile) UniversalFile(fileID string) string {
 }
 
 func (sf *StatusFile) NextFileID(fileID string) string {
-	return string(F.Hex2Int64(fileID) + 1)
+	res := F.Bin2Hex(F.DecBin(int(F.Hex2UInt64(fileID)+1), C.DATA_ID_BYTES))
+	if len(res) != C.DATA_ID_BYTES*2 {
+		DebugPanic(fmt.Sprintf("NextFileID length error: %d", len(res)))
+	}
+	return res
 }
 
 func (sf *StatusFile) maxFileId(prefix string) string {
 	files, err := filepath.Glob(filepath.Join(sf.StatusBundle(), prefix+"*"))
 	if err != nil {
-		return "00"
+		return "0000"
 	}
 
 	if len(files) > 0 {
@@ -181,13 +186,19 @@ func (sf *StatusFile) maxFileId(prefix string) string {
 	return fmt.Sprintf("%02x", 0)
 }
 
-func (sf *StatusFile) indexRaw(key string, fileID string, seek int64, length int64) string {
-	keyStr := key
-	fileIdStr := fileID
-	seekStr := fmt.Sprintf("%d", seek)
-	lengthStr := fmt.Sprintf("%d", length)
+func indexRaw(key string, fileID string, seek int64, length int64) []byte {
+	var result []byte
+	result = append(result, KeyBin(key, C.STATUS_KEY_BYTES)...)
+	result = append(result, FileIdBin(fileID)...)
 
-	result := keyStr + fileIdStr + seekStr + lengthStr
+	seekBytes := make([]byte, C.SEEK_BYTES)
+	binary.LittleEndian.PutUint32(seekBytes, uint32(seek))
+	result = append(result, seekBytes...)
+
+	lengthBytes := make([]byte, C.LENGTH_BYTES)
+	binary.LittleEndian.PutUint32(lengthBytes, uint32(length))
+	result = append(result, lengthBytes...)
+
 	return result
 }
 
@@ -267,7 +278,7 @@ func (sf *StatusFile) WriteLocal(blockUpdates UpdateMap) error {
 			Iseek:  currIseek,
 		}
 
-		indexData := sf.indexRaw(key, fileID, currSeek, length)
+		indexData := indexRaw(key, fileID, currSeek, length)
 
 		sf.CachedUniversalIndexes[key] = newIndex
 		sf.Tasks = append(sf.Tasks,
@@ -362,9 +373,9 @@ func (sf *StatusFile) WriteUniversal(blockUpdates UpdateMap) error {
 			Iseek:  currIseek,
 		}
 
-		DebugLog(fmt.Sprintf("New Index: Key=%s, FileID=%s, Seek=%d, Length=%d, Iseek=%d\n", key, newIndex.FileID, newIndex.Seek, newIndex.Length, newIndex.Iseek))
-
-		indexData := sf.indexRaw(key, fileID, currSeek, length)
+		indexData := indexRaw(key, fileID, currSeek, length)
+		DebugLog(fmt.Sprintf("New Index: Key=%s, New=%v, FileID=%s, Seek=%d, Length=%d, Iseek=%d\n", key, update.New, newIndex.FileID, newIndex.Seek, newIndex.Length, newIndex.Iseek))
+		DebugLog(fmt.Sprintf("Index Data: %s\n", indexData))
 
 		sf.CachedUniversalIndexes[key] = newIndex
 		sf.Tasks = append(sf.Tasks,
@@ -523,7 +534,7 @@ func (sf *StatusFile) UpdateUniversal(indexes map[string]StorageIndexCursor, uni
 		}
 
 		indexes[key] = NewStorageCursor(key, fileID, seek, length)
-		AppendFile(sf.UniversalBundle(fileID), string(data))
+		AppendFileBytes(sf.UniversalBundle(fileID), data)
 	}
 
 	return indexes
@@ -549,7 +560,7 @@ func (sf *StatusFile) UpdateLocal(indexes map[string]StorageIndexCursor, localUp
 		var fileID string
 		if storedLength < length {
 			// append new line
-			fileID = "00"
+			fileID = "0000"
 			if C.LEDGER_FILESIZE_LIMIT < seek+length {
 				fileID = sf.NextFileID(fileID)
 				seek = 0

@@ -83,8 +83,8 @@ func Hex2Int64(hexStr string) int64 {
 	return decoded
 }
 
-func Bin2Hex(byte []byte) string {
-	return hex.EncodeToString(byte)
+func Bin2Hex(bytes []byte) string {
+	return hex.EncodeToString(bytes)
 }
 
 // DecBin converts a decimal number to a binary string representation with specified length

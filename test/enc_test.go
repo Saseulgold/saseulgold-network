@@ -1,9 +1,22 @@
 package main
 
 import (
+	C "hello/pkg/core/config"
 	. "hello/pkg/util"
 	"testing"
 )
+
+func TestStatusHash(t *testing.T) {
+
+	space := RootSpace()
+	// spaceId := SpaceID(C.ZERO_ADDRESS, space)
+
+	result := StatusHash(C.ZERO_ADDRESS, space, "rewardTime", C.ZERO_ADDRESS)
+	if len(result) != 108 {
+		t.Errorf("StatusHash produced incorrect length: got %d, expected 108", len(result))
+	}
+	t.Logf("StatusHash: %s", result)
+}
 
 func TestHash0(t *testing.T) {
 	tests := []struct {
@@ -63,7 +76,7 @@ func TestHex2Bin(t *testing.T) {
 		expected []byte
 	}{
 		{"ff", []byte{255}},
-		{"00", []byte{0}},
+		{"0000", []byte{0}},
 	}
 
 	for _, test := range tests {

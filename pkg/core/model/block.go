@@ -79,8 +79,7 @@ func (block *Block) AppendLocalUpdate(update Update) bool {
 }
 
 func (block *Block) AppendUniversalUpdate(update Update) bool {
-	updateHash := update.GetHash()
-	block.UniversalUpdates[updateHash] = update
+	block.UniversalUpdates[update.Key] = update
 	return true
 }
 

@@ -4,20 +4,19 @@ import (
 	"encoding/hex"
 	"fmt"
 	C "hello/pkg/core/config"
+	. "hello/pkg/core/debug"
 	F "hello/pkg/util"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 )
 
-func StatusKey(raw string) string {
-	if len(raw) < C.STATUS_KEY_BYTES {
-		return ""
-	}
-	return hex.EncodeToString([]byte(raw)[:C.STATUS_KEY_BYTES])
+func StatusKey(raw []byte) string {
+	res := F.Bin2Hex(raw[:C.STATUS_KEY_BYTES])
+	DebugLog(fmt.Sprintf("StatusKey: %v, %s", raw, res))
+	return res
 }
 
 type StorageIndexCursor struct {
@@ -75,7 +74,7 @@ func JoinDataRootPath(path string) string {
 
 func ReadStatusStorageIndex(indexFile string, bundling bool) map[string]StorageIndexCursor {
 	indexes := make(map[string]StorageIndexCursor)
-	data, _ := ioutil.ReadFile(indexFile)
+	data, _ := os.ReadFile(indexFile)
 
 	for idx := 0; idx < len(data); idx += C.STATUS_HEAP_BYTES {
 		end := idx + C.STATUS_HEAP_BYTES
@@ -85,7 +84,9 @@ func ReadStatusStorageIndex(indexFile string, bundling bool) map[string]StorageI
 		raw := data[idx:end]
 
 		if len(raw) == C.STATUS_HEAP_BYTES {
-			key := StatusKey(string(raw))
+			key := StatusKey(raw)
+			DebugLog(fmt.Sprintf("raw : %s", raw))
+			DebugLog(fmt.Sprintf("key : %s", key))
 			index := NewStorageCursorRaw(string(raw))
 
 			if bundling {
@@ -101,9 +102,16 @@ func ReadStatusStorageIndex(indexFile string, bundling bool) map[string]StorageI
 }
 
 func KeyBin(key string, keyBytes int) []byte {
+	if key == "" {
+		result := make([]byte, keyBytes)
+		return result
+	}
+
 	bin, err := hex.DecodeString(key)
 	if err != nil {
-		return nil
+		DebugLog(fmt.Sprintf("KeyBin Error: %v", err))
+		result := make([]byte, keyBytes)
+		return result
 	}
 
 	if len(bin) > keyBytes {
@@ -116,13 +124,14 @@ func KeyBin(key string, keyBytes int) []byte {
 }
 
 func FileIdBin(fileId string) []byte {
-	bin, err := hex.DecodeString(fileId)
-	if err != nil {
-		return nil
-	}
+	bin := F.Hex2Bin(fileId)
 
 	if len(bin) > C.DATA_ID_BYTES {
 		return bin[:C.DATA_ID_BYTES]
+	}
+
+	if len(bin) != C.DATA_ID_BYTES {
+		DebugPanic(fmt.Sprintf("FileIdBin length error: %d", len(bin)))
 	}
 
 	return bin
@@ -137,6 +146,19 @@ func SplitKey(key string) (string, string) {
 	suffix := key[C.STATUS_PREFIX_SIZE:]
 
 	return prefix, suffix
+}
+
+func AppendFileBytes(filename string, data []byte) error {
+	f, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	if _, err := f.Write(data); err != nil {
+		return err
+	}
+	return nil
 }
 
 func AppendFile(filename string, str string) error {

@@ -146,7 +146,6 @@ func (s *StatusIndex) AddUniversalIndexes(indexes map[string]StorageIndexCursor)
 
 		cursor := StorageIndexCursor{
 			Key: key,
-			// 다른 필드들도 필요에 따라 설정
 		}
 		s.universalIndexes[prefix][suffix] = cursor
 	}
