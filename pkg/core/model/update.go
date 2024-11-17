@@ -5,17 +5,15 @@ import (
 	F "hello/pkg/util"
 )
 
-type Ia interface{}
-
 type Update struct {
 	Key string
-	Old Ia `json:"old"`
-	New Ia `json:"new"`
+	Old interface{}
+	New interface{}
 }
 
 type UpdateLog struct {
-	Old Ia `json:"old"`
-	New Ia `json:"new"`
+	Old interface{}
+	New interface{}
 }
 
 func NewUpdateLog(old string, new string) UpdateLog {

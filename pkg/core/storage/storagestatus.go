@@ -445,8 +445,7 @@ func (sf *StatusFile) Write(block *Block) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("캐시된 유니버설 인덱스: %+v\n", sf.CachedUniversalIndexes)
-	fmt.Printf("캐시된 로컬 인덱스: %+v\n", sf.CachedLocalIndexes)
+
 	err = sf.WriteUniversal(block.UniversalUpdates)
 	if err != nil {
 		return err

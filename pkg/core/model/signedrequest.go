@@ -19,7 +19,6 @@ type SignedRequest struct {
 func NewSignedRequest(data *S.OrderedMap) SignedRequest {
 	req := SignedRequest{Data: data}
 
-	// PHP의 null coalescing 연산자(??)를 Go에서 구현
 	if v, ok := data.Get("cid"); ok {
 		req.Cid = v.(string)
 	}
