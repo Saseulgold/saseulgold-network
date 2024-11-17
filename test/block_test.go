@@ -5,13 +5,14 @@ import (
 	C "hello/pkg/core/config"
 	. "hello/pkg/core/model"
 
-	// . "hello/pkg/core/storage"
+	. "hello/pkg/core/storage"
 	S "hello/pkg/core/structure"
 	"testing"
 )
 
 func TestUpdate_GetHash0(t *testing.T) {
 	C.CORE_TEST_MODE = true
+	C.DATA_TEST_ROOT_DIR = "block_test"
 
 	oldValue := "99999999999999996783125000"
 	newValue := "99999999999999993566250000"
@@ -30,6 +31,8 @@ func TestUpdate_GetHash0(t *testing.T) {
 }
 
 func TestBlock_WithMultipleUpdates(t *testing.T) {
+	C.CORE_TEST_MODE = true
+	C.DATA_TEST_ROOT_DIR = "genesis_test_2"
 	// 첫 번째 Send 트랜잭션 생성
 	tx1Data := S.NewOrderedMap()
 	tx1Data.Set("type", "Send")
@@ -215,4 +218,8 @@ func TestBlock_WithMultipleUpdates(t *testing.T) {
 		t.Logf("Old Value: %v", update.Old)
 		t.Logf("New Value: %v\n", update.New)
 	}
+
+	sf := GetStatusFileInstance()
+	sf.Write(&block)
+	// sf.Update(&block)
 }

@@ -34,3 +34,8 @@ func (tx *SignedTransaction) Sign(privateKey string) string {
 	tx.Signature = crypto.Sign(txHash, privateKey)
 	return tx.Signature
 }
+
+func (tx *SignedTransaction) GetTimestamp() int64 {
+	ts, _ := tx.Data.Get("timestamp")
+	return ts.(int64)
+}

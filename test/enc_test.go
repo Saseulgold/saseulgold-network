@@ -76,13 +76,13 @@ func TestHex2Bin(t *testing.T) {
 		expected []byte
 	}{
 		{"ff", []byte{255}},
-		{"0000", []byte{0}},
+		{"0000", []byte{0, 0}},
 	}
 
 	for _, test := range tests {
 		result := Hex2Bin(test.input)
 		if len(result) != len(test.expected) {
-			t.Errorf("Hex2Bin(%s) length mismatch", test.input)
+			t.Errorf("Hex2Bin(%s) length mismatch; expected %d, got %d", test.input, len(test.expected), len(result))
 			continue
 		}
 		for i := range result {

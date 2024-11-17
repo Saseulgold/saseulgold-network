@@ -73,13 +73,14 @@ func (block *Block) AppendTransaction(tx SignedTransaction) bool {
 }
 
 func (block *Block) AppendLocalUpdate(update Update) bool {
-	updateHash := update.GetHash()
-	block.LocalUpdates[updateHash] = update
+	key := F.FillHash(update.Key)
+	block.LocalUpdates[key] = update
 	return true
 }
 
 func (block *Block) AppendUniversalUpdate(update Update) bool {
-	block.UniversalUpdates[update.Key] = update
+	key := F.FillHash(update.Key)
+	block.UniversalUpdates[key] = update
 	return true
 }
 
@@ -170,4 +171,8 @@ func (block *Block) Init() {
 		m := make(UpdateMap, 4)
 		block.LocalUpdates = m
 	}
+}
+
+func (block *Block) GetTimestamp() int64 {
+	return block.Timestamp_s
 }

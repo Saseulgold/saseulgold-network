@@ -2,7 +2,6 @@ package storage
 
 import (
 	"bytes"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	C "hello/pkg/core/config"
@@ -17,10 +16,17 @@ import (
 	"sync"
 )
 
+// StorageTask represents a single storage operation
+type StorageTask struct {
+	FilePath string `json:"file_path"`
+	Seek     int64  `json:"seek"`
+	Data     []byte `json:"data"`
+}
+
 type StatusFile struct {
 	CachedUniversalIndexes map[string]StorageIndexCursor
 	CachedLocalIndexes     map[string]StorageIndexCursor
-	Tasks                  [][]interface{}
+	Tasks                  []StorageTask
 }
 
 var statusFileInstance *StatusFile
@@ -31,7 +37,7 @@ func GetStatusFileInstance() *StatusFile {
 		statusFileInstance = &StatusFile{
 			CachedUniversalIndexes: make(map[string]StorageIndexCursor),
 			CachedLocalIndexes:     make(map[string]StorageIndexCursor),
-			Tasks:                  make([][]interface{}, 0),
+			Tasks:                  make([]StorageTask, 0),
 		}
 	})
 	return statusFileInstance
@@ -88,7 +94,7 @@ func (sf *StatusFile) Cache() error {
 		}
 
 		// 임시 파일이 비어있는 경우 Commit() 호출을 건너뜁니다
-		tmpData, err := ioutil.ReadFile(sf.TempFile())
+		tmpData, err := os.ReadFile(sf.TempFile())
 		if err != nil || len(tmpData) == 0 {
 			sf.CachedUniversalIndexes = ReadStatusStorageIndex(sf.UniversalBundleIndex(), true)
 			sf.CachedLocalIndexes = ReadStatusStorageIndex(sf.LocalBundleIndex(), true)
@@ -118,7 +124,7 @@ func (sf *StatusFile) DataRootDir() string {
 }
 
 func (sf *StatusFile) StatusBundle() string {
-	return filepath.Join(sf.DataRootDir(), "statusbundle")
+	return filepath.Join(sf.DataRootDir(), "status_bundle")
 }
 
 func (sf *StatusFile) LocalBundle() string {
@@ -186,106 +192,78 @@ func (sf *StatusFile) maxFileId(prefix string) string {
 	return fmt.Sprintf("%02x", 0)
 }
 
-func indexRaw(key string, fileID string, seek int64, length int64) []byte {
-	var result []byte
-	result = append(result, KeyBin(key, C.STATUS_KEY_BYTES)...)
-	result = append(result, FileIdBin(fileID)...)
-
-	seekBytes := make([]byte, C.SEEK_BYTES)
-	binary.LittleEndian.PutUint32(seekBytes, uint32(seek))
-	result = append(result, seekBytes...)
-
-	lengthBytes := make([]byte, C.LENGTH_BYTES)
-	binary.LittleEndian.PutUint32(lengthBytes, uint32(length))
-	result = append(result, lengthBytes...)
-
-	return result
-}
-
-func (sf *StatusFile) WriteLocal(blockUpdates UpdateMap) error {
+func (sf *StatusFile) WriteLocal(localUpdates UpdateMap) error {
 	null := byte(0)
-	latestFile := sf.LocalBundle()
+	fileID := "0000" // Default file ID for local bundle
+	file := sf.LocalBundle()
 	indexFile := sf.LocalBundleIndex()
 
-	if err := AppendFile(latestFile, ""); err != nil {
+	if err := AppendFile(file, ""); err != nil {
 		return err
 	}
 
-	latestFileInfo, err := os.Stat(latestFile)
+	fileInfo, err := os.Stat(file)
 	if err != nil {
 		return err
 	}
-	seek := int64(latestFileInfo.Size())
+	seek := fileInfo.Size()
 
-	indexFileInfo, err := os.Stat(indexFile)
+	indexInfo, err := os.Stat(indexFile)
 	if err != nil {
 		return err
 	}
+	iseek := indexInfo.Size()
 
-	iseek := int64(indexFileInfo.Size())
-
-	for key, update := range blockUpdates {
+	for key, update := range localUpdates {
 		key = F.FillHash(key)
 		index, exists := sf.CachedLocalIndexes[key]
-
 		data, err := json.Marshal(update.New)
 		if err != nil {
 			return err
 		}
-
 		length := int64(len(data))
-		var oldLength int64
+		var storedLength int64
 		if exists {
-			oldLength = index.Length
+			storedLength = index.Length
 		}
 
-		var (
-			fileID    string
-			currSeek  int64
-			currIseek int64
-		)
+		var currSeek, currIseek int64
 
-		if oldLength < length {
+		if storedLength < length {
+			// append new line
 			currSeek = seek
 			seek += length
 
-			if C.LEDGER_FILESIZE_LIMIT < currSeek+length {
-				fileID = sf.NextFileID(fileID)
-				currSeek = 0
-				seek = length
-			}
-
-			if oldLength == 0 {
+			if storedLength == 0 {
+				// new data
 				currIseek = iseek
 				iseek += C.STATUS_HEAP_BYTES
 			} else {
+				// existing data
 				currIseek = index.Iseek
 			}
 		} else {
-			fileID = index.FileID
+			// overwrite
 			currSeek = index.Seek
 			currIseek = index.Iseek
-			length = oldLength
-			if int64(len(data)) < length {
-				data = append(data, bytes.Repeat([]byte{null}, int(length-int64(len(data))))...)
+			length = storedLength
+			padding := make([]byte, length-int64(len(data)))
+			for i := range padding {
+				padding[i] = null
 			}
+			data = append(data, padding...)
 		}
 
-		newIndex := StorageIndexCursor{
-			FileID: fileID,
-			Seek:   currSeek,
-			Length: length,
-			Iseek:  currIseek,
-		}
+		newIndex := NewStorageCursor(key, fileID, currSeek, length)
+		newIndex.Iseek = currIseek
+		indexData := IndexRaw(key, fileID, currSeek, length)
 
-		indexData := indexRaw(key, fileID, currSeek, length)
-
-		sf.CachedUniversalIndexes[key] = newIndex
+		sf.CachedLocalIndexes[key] = newIndex
 		sf.Tasks = append(sf.Tasks,
-			[]interface{}{sf.LocalBundle(), currSeek, data},
-			[]interface{}{sf.LocalBundleIndex(), currIseek, indexData})
-		fmt.Println("sf.a", currIseek)
+			StorageTask{FilePath: sf.LocalBundle(), Seek: currSeek, Data: data},
+			StorageTask{FilePath: sf.LocalBundleIndex(), Seek: currIseek, Data: indexData})
 	}
+
 	return nil
 }
 
@@ -317,6 +295,8 @@ func (sf *StatusFile) WriteUniversal(blockUpdates UpdateMap) error {
 		index, exists := sf.CachedUniversalIndexes[key]
 
 		data, err := json.Marshal(update.New)
+		DebugLog(fmt.Sprintf("WriteUniversal - Data: %s", data))
+
 		if err != nil {
 			return err
 		}
@@ -373,91 +353,71 @@ func (sf *StatusFile) WriteUniversal(blockUpdates UpdateMap) error {
 			Iseek:  currIseek,
 		}
 
-		indexData := indexRaw(key, fileID, currSeek, length)
-		DebugLog(fmt.Sprintf("New Index: Key=%s, New=%v, FileID=%s, Seek=%d, Length=%d, Iseek=%d\n", key, update.New, newIndex.FileID, newIndex.Seek, newIndex.Length, newIndex.Iseek))
-		DebugLog(fmt.Sprintf("Index Data: %s\n", indexData))
+		indexData := IndexRaw(key, fileID, currSeek, length)
+		DebugAssert(len(indexData) == C.STATUS_HEAP_BYTES, "invalid index data length: %d, expected: %d", len(indexData), C.STATUS_HEAP_BYTES)
 
 		sf.CachedUniversalIndexes[key] = newIndex
 		sf.Tasks = append(sf.Tasks,
-			[]interface{}{sf.UniversalBundle(fileID), currSeek, data},
-			[]interface{}{sf.UniversalBundleIndex(), currIseek, indexData})
+			StorageTask{FilePath: sf.UniversalBundle(fileID), Seek: currSeek, Data: data},
+			StorageTask{FilePath: sf.UniversalBundleIndex(), Seek: currIseek, Data: indexData})
 		fmt.Println("sf.a", currIseek)
 	}
 	return nil
 }
 
 func (sf *StatusFile) WriteTasks() error {
-	// Serialize tasks to JSON
 	tasksData, err := json.Marshal(sf.Tasks)
 	if err != nil {
 		return fmt.Errorf("Failed to serialize tasks: %v", err)
 	}
 
-	// Write to temporary file
 	if err := ioutil.WriteFile(sf.TempFile(), tasksData, 0644); err != nil {
 		return fmt.Errorf("Failed to write temporary file: %v", err)
 	}
 
-	// Reset tasks
-	sf.Tasks = [][]interface{}{}
+	sf.Tasks = []StorageTask{}
 	return nil
 }
 
 func (sf *StatusFile) Commit() error {
 	// Read tasks from temp file
-	raw, err := ioutil.ReadFile(sf.TempFile())
+	raw, err := os.ReadFile(sf.TempFile())
 	if err != nil {
-		return fmt.Errorf("Failed to read temp file: %v", err)
+		return fmt.Errorf("failed to read temp file: %v", err)
 	}
 
-	var tasks [][]interface{}
+	var tasks []StorageTask
 	if err := json.Unmarshal(raw, &tasks); err != nil {
-		return fmt.Errorf("Failed to unmarshal tasks: %v", err)
+		return fmt.Errorf("failed to unmarshal tasks: %v", err)
 	}
 
 	// Process each task
-	for _, item := range tasks {
-		file := item[0].(string)
-		seek := int64(item[1].(float64))
-
-		var data []byte
-		switch v := item[2].(type) {
-		case string:
-			data = []byte(v)
-		case []byte:
-			data = v
-		case float64:
-			data = []byte(fmt.Sprintf("%v", v))
-		default:
-			return fmt.Errorf("unexpected data type: %T", item[2])
-		}
-
-		if file == sf.InfoFile() {
+	for _, task := range tasks {
+		if task.FilePath == sf.InfoFile() {
 			// Overwrite info file
-			if err := ioutil.WriteFile(file, data, 0644); err != nil {
-				return fmt.Errorf("Failed to write info file: %v", err)
+			if err := os.WriteFile(task.FilePath, task.Data, 0644); err != nil {
+				return fmt.Errorf("failed to write info file: %v", err)
 			}
 		} else {
 			// Write data at specific position
-			f, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE, 0644)
+			f, err := os.OpenFile(task.FilePath, os.O_WRONLY|os.O_CREATE, 0644)
 			if err != nil {
-				return fmt.Errorf("Failed to open file: %v", err)
+				return fmt.Errorf("failed to open file: %v", err)
 			}
 			defer f.Close()
-			DebugLog(fmt.Sprintf("Write data at %s, seek: %d", file, seek))
+			DebugLog(fmt.Sprintf("write data at %s, seek: %d, data length: %d", task.FilePath, task.Seek, len(task.Data)))
 
-			if _, err := f.WriteAt(data, seek); err != nil {
-				return fmt.Errorf("Failed to write data: %v", err)
+			if _, err := f.WriteAt(task.Data, task.Seek); err != nil {
+				return fmt.Errorf("failed to write data: %v", err)
 			}
 
 			if err := f.Sync(); err != nil {
-				return fmt.Errorf("Failed to sync file: %v", err)
+				return fmt.Errorf("failed to sync file: %v", err)
 			}
 		}
 	}
 
-	// Clear temp file
-	return ioutil.WriteFile(sf.TempFile(), []byte{}, 0644)
+	return os.WriteFile(sf.TempFile(), []byte{}, 0644)
 }
 
 func (sf *StatusFile) GetUniversalIndexes(keys []string) map[string]StorageIndexCursor {
@@ -480,18 +440,40 @@ func (sf *StatusFile) BundleHeight() int {
 	return height
 }
 
-func (sf *StatusFile) Write(block *Block) bool {
-	sf.Cache()
+func (sf *StatusFile) Write(block *Block) error {
+	err := sf.Cache()
+	if err != nil {
+		return err
+	}
+	fmt.Printf("캐시된 유니버설 인덱스: %+v\n", sf.CachedUniversalIndexes)
+	fmt.Printf("캐시된 로컬 인덱스: %+v\n", sf.CachedLocalIndexes)
+	err = sf.WriteUniversal(block.UniversalUpdates)
+	if err != nil {
+		return err
+	}
+	err = sf.WriteLocal(block.LocalUpdates)
+	if err != nil {
+		return err
+	}
 
-	sf.WriteUniversal(block.UniversalUpdates)
-	sf.WriteLocal(block.LocalUpdates)
+	// make function for making height to byte
+	heightData := []byte(strconv.FormatInt(block.Height, 10))
+	sf.addTask(sf.InfoFile(), 0, heightData)
 
-	sf.Tasks = append(sf.Tasks, []interface{}{sf.InfoFile(), 0, block.Height})
+	err = sf.WriteTasks()
+	if err != nil {
+		return err
+	}
 
-	sf.WriteTasks()
+	return sf.Commit()
+}
 
-	sf.Commit()
-	return true
+func (sf *StatusFile) addTask(filePath string, seek int64, data []byte) {
+	sf.Tasks = append(sf.Tasks, StorageTask{
+		FilePath: filePath,
+		Seek:     seek,
+		Data:     data,
+	})
 }
 
 func (sf *StatusFile) UpdateUniversal(indexes map[string]StorageIndexCursor, universalUpdates UpdateMap) map[string]StorageIndexCursor {

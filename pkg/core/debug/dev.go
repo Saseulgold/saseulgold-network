@@ -2,12 +2,23 @@ package debug
 
 import (
 	"fmt"
+	C "hello/pkg/core/config"
 )
 
 func DebugLog(format string, args ...interface{}) {
-	fmt.Printf(format+"\n", args...)
+	if C.CORE_TEST_MODE {
+		fmt.Printf(format+"\n", args...)
+	}
 }
 
 func DebugPanic(format string, args ...interface{}) {
-	panic(fmt.Sprintf(format, args...))
+	if C.CORE_TEST_MODE {
+		panic(fmt.Sprintf(format, args...))
+	}
+}
+
+func DebugAssert(condition bool, format string, args ...interface{}) {
+	if C.CORE_TEST_MODE && !condition {
+		panic(fmt.Sprintf(format, args...))
+	}
 }

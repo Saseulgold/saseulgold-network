@@ -5,7 +5,6 @@ import (
 	C "hello/pkg/core/config"
 	. "hello/pkg/core/model"
 
-	S "hello/pkg/core/storage"
 	. "hello/pkg/crypto"
 	F "hello/pkg/util"
 )
@@ -330,6 +329,15 @@ func (i *Interpreter) GetUniversalStatus(statusHash string, defaultVal interface
 	return defaultVal
 }
 
+func (i *Interpreter) GetUniversalUpdates() map[string]map[string]interface{} {
+	return i.universalUpdates
+}
+
+func (i *Interpreter) GetLocalUpdates() map[string]map[string]interface{} {
+	return i.localUpdates
+}
+
+/**
 func (i *Interpreter) LoadUniversalStatus() {
 
 	if len(i.universals) > 0 {
@@ -354,3 +362,4 @@ func (i *Interpreter) LoadLocalStatus() {
 		}
 	}
 }
+*/

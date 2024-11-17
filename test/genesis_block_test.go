@@ -31,17 +31,19 @@ func TestGenesisBlock(t *testing.T) {
 
 	// Universal Updates 정의
 	balanceUpdate := Update{
-		Key: F.StatusHash(C.ZERO_ADDRESS, F.RootSpace(), "balance", C.ZERO_ADDRESS), // 길이를 108로 맞추기 위해 해시 추가
+		Key: F.StatusHash(C.ZERO_ADDRESS, F.RootSpace(), "balance", C.ZERO_ADDRESS),
 		Old: nil,
 		New: "10000000000000000000000000",
 	}
 
 	genesisUpdate := Update{
-		Key: F.StatusHash(C.ZERO_ADDRESS, F.RootSpace(), "thisisgenesis", C.ZERO_ADDRESS), // 길이를 108로 맞추기 위해 해시 추가
+		Key: F.StatusHash(C.ZERO_ADDRESS, F.RootSpace(), "thisisgenesis", C.ZERO_ADDRESS),
 		Old: nil,
 		New: "1",
 	}
 
+	t.Logf("balanceUpdate Key: %s", balanceUpdate.Key)
+	t.Logf("genesisUpdate Key: %s", genesisUpdate.Key)
 	// Universal Updates 추가
 	// block.AppendUniversalUpdate(balanceUpdate)
 	block.AppendUniversalUpdate(genesisUpdate)
@@ -56,11 +58,14 @@ func TestGenesisBlock(t *testing.T) {
 
 	// block.AppendTransaction(tx)
 
-	sf.Cache()
-	t.Logf("CachedUniversalIndexes: %+v", sf.CachedUniversalIndexes)
+	err := sf.Cache()
+	if err != nil {
+		t.Errorf("Cache Error: %v", err)
+	}
+	// 1t.Logf("CachedUniversalIndexes: %+v", sf.CachedUniversalIndexes)
 
 	sf.Write(&block)
-	// sf.Update(&block)
+	sf.Update(&block)
 
 	// height := S.LastHeight()
 	// t.Logf("Last Height: %d", height)

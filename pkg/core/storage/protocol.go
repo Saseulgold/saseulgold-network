@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	C "hello/pkg/core/config"
@@ -15,7 +16,7 @@ import (
 
 func StatusKey(raw []byte) string {
 	res := F.Bin2Hex(raw[:C.STATUS_KEY_BYTES])
-	DebugLog(fmt.Sprintf("StatusKey: %v, %s", raw, res))
+	DebugLog(fmt.Sprintf("StatusKey: %s", res))
 	return res
 }
 
@@ -31,7 +32,7 @@ type StorageIndexCursor struct {
 }
 
 func StorageKey(raw string) string {
-	return raw[:C.STATUS_KEY_BYTES]
+	return hex.EncodeToString([]byte(raw[:C.STATUS_KEY_BYTES]))
 }
 
 func NewStorageCursor(key string, fileID string, seek int64, length int64) StorageIndexCursor {
@@ -43,18 +44,37 @@ func NewStorageCursor(key string, fileID string, seek int64, length int64) Stora
 	}
 }
 
+/*
+*
+
+	func NewStorageCursorRaw(raw string) StorageIndexCursor {
+		key := StorageKey(raw)
+		offset := C.STATUS_KEY_BYTES
+
+		fileID := raw[offset : offset+C.DATA_ID_BYTES]
+		offset += C.DATA_ID_BYTES
+
+		seekBytes := raw[offset : offset+C.SEEK_BYTES]
+		seek := int64(seekBytes[0]) | int64(seekBytes[1])<<8 | int64(seekBytes[2])<<16 | int64(seekBytes[3])<<24
+		offset += C.SEEK_BYTES
+
+		length := F.Hex2Int64(raw[offset : offset+C.LENGTH_BYTES])
+
+		return StorageIndexCursor{
+			Key:    key,
+			FileID: fileID,
+			Seek:   seek,
+			Length: length,
+		}
+	}
+
+	*
+*/
 func NewStorageCursorRaw(raw string) StorageIndexCursor {
-	key := StorageKey(raw)
-	offset := C.STATUS_KEY_BYTES
-
-	fileID := raw[offset : offset+C.DATA_ID_BYTES]
-	offset += C.DATA_ID_BYTES
-
-	seekBytes := raw[offset : offset+C.SEEK_BYTES]
-	seek := int64(seekBytes[0]) | int64(seekBytes[1])<<8 | int64(seekBytes[2])<<16 | int64(seekBytes[3])<<24
-	offset += C.SEEK_BYTES
-
-	length := F.Hex2Int64(raw[offset : offset+C.LENGTH_BYTES])
+	key, fileID, seek, length, err := ParseIndexRaw([]byte(raw))
+	if err != nil {
+		DebugPanic(fmt.Sprintf("NewStorageCursorRaw error: %v", err))
+	}
 
 	return StorageIndexCursor{
 		Key:    key,
@@ -135,6 +155,16 @@ func FileIdBin(fileId string) []byte {
 	}
 
 	return bin
+}
+
+// BinToFileId는 바이트 배열을 파일 ID 문자열로 변환합니다
+func BinToFileId(bin []byte) string {
+	if len(bin) > C.DATA_ID_BYTES {
+		bin = bin[:C.DATA_ID_BYTES]
+	}
+
+	// 16진수 문자열로 변환하고 왼쪽에 0을 채워 4자리로 맞춤
+	return fmt.Sprintf("%04s", F.Bin2Hex(bin))
 }
 
 func SplitKey(key string) (string, string) {
@@ -323,4 +353,48 @@ func CopyFile(from string, to string) error {
 
 	_, err = io.Copy(destination, source)
 	return err
+}
+
+func IndexRaw(key string, fileID string, seek int64, length int64) []byte {
+	DebugLog(fmt.Sprintf("indexRaw - Key: %s, FileID: %s, Seek: %d, Length: %d", key, fileID, seek, length))
+	var result []byte
+	result = append(result, KeyBin(key, C.STATUS_KEY_BYTES)...)
+	result = append(result, FileIdBin(fileID)...)
+
+	seekBytes := make([]byte, C.SEEK_BYTES)
+	binary.LittleEndian.PutUint32(seekBytes, uint32(seek))
+	result = append(result, seekBytes...)
+
+	lengthBytes := make([]byte, C.LENGTH_BYTES)
+	binary.LittleEndian.PutUint32(lengthBytes, uint32(length))
+	result = append(result, lengthBytes...)
+
+	if len(result) != C.STATUS_HEAP_BYTES {
+		DebugPanic(fmt.Sprintf("IndexRaw length error: %d", len(result)))
+	}
+
+	return result
+}
+
+func ParseIndexRaw(data []byte) (key string, fileID string, seek int64, length int64, err error) {
+	if len(data) != C.STATUS_HEAP_BYTES {
+		return "", "", 0, 0, fmt.Errorf("invalid index data length: %d, expected: %d", len(data), C.STATUS_HEAP_BYTES)
+	}
+
+	keyBytes := data[:C.STATUS_KEY_BYTES]
+	key = F.Bin2Hex(keyBytes)
+
+	offset := C.STATUS_KEY_BYTES
+	fileIDBytes := data[offset : offset+C.DATA_ID_BYTES]
+	fileID = BinToFileId(fileIDBytes)
+
+	offset += C.DATA_ID_BYTES
+	seekBytes := data[offset : offset+C.SEEK_BYTES]
+	seek = int64(binary.LittleEndian.Uint32(seekBytes))
+
+	offset += C.SEEK_BYTES
+	lengthBytes := data[offset : offset+C.LENGTH_BYTES]
+	length = int64(binary.LittleEndian.Uint32(lengthBytes))
+
+	return key, fileID, seek, length, nil
 }
