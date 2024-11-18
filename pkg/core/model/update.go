@@ -12,8 +12,8 @@ type Update struct {
 }
 
 type UpdateLog struct {
-	Old interface{}
-	New interface{}
+	Old interface{} `json:"old"`
+	New interface{} `json:"new"`
 }
 
 func NewUpdateLog(old string, new string) UpdateLog {

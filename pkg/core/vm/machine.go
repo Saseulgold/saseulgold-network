@@ -2,18 +2,19 @@ package vm
 
 import (
 	. "hello/pkg/core/model"
+	"hello/pkg/core/storage"
 )
 
 type Machine struct {
 	interpreter *Interpreter
 
-	contracts           map[string]map[string]interface{}
+	contracts           map[string]map[string]*Method
 	requests            map[string]map[string]interface{}
 	postProcessContract map[string]interface{}
 
 	previousBlock  *Block
 	roundTimestamp int64
-	transactions   *map[string]SignedTransaction
+	transactions   *map[string]*SignedTransaction
 
 	miningNodeCount int
 
@@ -46,9 +47,18 @@ func (m *Machine) Init(previousBlock *Block, roundTimestamp int64) {
 	m.currentBlockNonce = ""
 }
 
-func (m *Machine) CurrentBlockDifficulty(diff string) string {
-	if diff != "" {
-		m.currentBlockDifficulty = diff
+func (m *Machine) Write(block *Block) {
+	chain := storage.GetChainStorageInstance()
+	sf := storage.GetStatusFileInstance()
+
+	if _, err := chain.Write(block); err != nil {
+		return err
 	}
-	return m.currentBlockDifficulty
+	if err := sf.Write(block); err != nil {
+		return err
+	}
+	if err := sf.Update(block); err != nil {
+		return err
+	}
+
 }

@@ -219,7 +219,10 @@ func TestBlock_WithMultipleUpdates(t *testing.T) {
 		t.Logf("New Value: %v\n", update.New)
 	}
 
-	sf := GetStatusFileInstance()
-	sf.Write(&block)
+	chain := GetChainStorageInstance()
+	chain.Write(&block)
+
+	// sf := GetStatusFileInstance()
+	// sf.Write(&block)
 	// sf.Update(&block)
 }

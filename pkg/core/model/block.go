@@ -2,7 +2,6 @@ package model
 
 import (
 	"encoding/json"
-	"fmt"
 	F "hello/pkg/util"
 )
 
@@ -17,7 +16,6 @@ type BlockHeader struct {
 
 func (bh BlockHeader) Ser() string {
 	j, _ := json.Marshal(bh)
-	fmt.Println("bh Ser:", string(j))
 	return string(j)
 }
 
@@ -103,11 +101,11 @@ func (block Block) THashs() []string {
 
 func (block Block) UHashs() []string {
 	hashs := make(map[string]Update)
-	for k, v := range block.UniversalUpdates {
-		hashs[k] = v
+	for _, update := range block.UniversalUpdates {
+		hashs[update.GetHash()] = update
 	}
-	for k, v := range block.LocalUpdates {
-		hashs[k] = v
+	for _, update := range block.LocalUpdates {
+		hashs[update.GetHash()] = update
 	}
 
 	res := make([]string, 0)
@@ -147,16 +145,20 @@ func (block Block) BaseObj() map[string]interface{} {
 
 func (block Block) FullObj() map[string]interface{} {
 	obj := block.BaseObj()
-	// obj["seal"] = block.Seal
 	obj["transactions"] = block.Transactions
 	obj["universal_updates"] = block.UniversalUpdates
 	obj["local_updates"] = block.LocalUpdates
 	return obj
 }
 
-func (block Block) Ser() string {
-	j, _ := json.Marshal(block.BaseObj())
-	return string(j)
+func (block Block) Ser(t string) string {
+	if t == "full" {
+		j, _ := json.Marshal(block.FullObj())
+		return string(j)
+	} else {
+		j, _ := json.Marshal(block.BaseObj())
+		return string(j)
+	}
 }
 func (block *Block) Init() {
 	if block.Transactions == nil {

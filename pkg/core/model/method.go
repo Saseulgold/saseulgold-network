@@ -206,3 +206,8 @@ func (m *Method) SetExecutions(executions []Execution) {
 func (m *Method) AddExecution(execution ABI) {
 	m.Executions = append(m.Executions, execution)
 }
+
+func (m *Method) GetCodeRaw() string {
+	executionsBytes, _ := json.Marshal(m.Executions)
+	return string(executionsBytes)
+}

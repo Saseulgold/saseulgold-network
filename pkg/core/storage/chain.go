@@ -46,6 +46,10 @@ func LastHeight() int {
 	return height
 }
 
+func (c *ChainStorage) LastBlock() (*Block, error) {
+	return c.GetBlock(LastHeight())
+}
+
 func ConfirmedHeight() int {
 	return LastHeight() - 5
 }
@@ -54,17 +58,14 @@ func ParseBlock(data []byte) (*Block, error) {
 	var block Block
 	var rawData map[string]interface{}
 
-	// Parse JSON data into raw map first
 	if err := json.Unmarshal(data, &rawData); err != nil {
 		return nil, err
 	}
 
-	// Parse basic block data
 	if err := json.Unmarshal(data, &block); err != nil {
 		return nil, err
 	}
 
-	// Convert Updates data
 	if universalUpdatesRaw, exists := rawData["universal_updates"].(map[string]interface{}); exists {
 		block.UniversalUpdates = make(UpdateMap)
 		for key, value := range universalUpdatesRaw {
@@ -95,7 +96,6 @@ func ParseBlock(data []byte) (*Block, error) {
 		}
 	}
 
-	// Initialize required maps
 	block.Init()
 
 	return &block, nil
@@ -214,6 +214,17 @@ func (c *ChainStorage) LastIdx(directory string) int {
 func (c *ChainStorage) LastIndex(directory string) ([]interface{}, error) {
 	lastIdx := c.LastIdx(directory)
 	return c.ReadIndex(directory, lastIdx)
+}
+
+func (c *ChainStorage) Write(block *Block) error {
+	lastHeight := LastHeight()
+	height := lastHeight + 1
+
+	if err := c.WriteData(MainChain(), height, block.BlockHash(), []byte(block.Ser("full"))); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (c *ChainStorage) WriteData(directory string, height int, key string, data []byte) error {
