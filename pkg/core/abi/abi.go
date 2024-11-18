@@ -17,7 +17,7 @@ type ABI struct {
 }
 
 // Basic
-func Condition(abi interface{}, errMsg string) ABI {
+func Condition(abi interface{}, errMsg interface{}) ABI {
 	if errMsg == "" {
 		errMsg = "Conditional error"
 	}
@@ -261,13 +261,6 @@ func Param(vars interface{}) ABI {
 	}
 }
 
-func ReadUniversalBypass(writer, space, attr, key, defaultVal interface{}) ABI {
-	return ABI{
-		Key:   "$read_universal_bypass",
-		Value: []interface{}{writer, space, attr, key, defaultVal},
-	}
-}
-
 func ReadUniversal(attr, key, defaultVal interface{}) ABI {
 	return ABI{
 		Key:   "$read_universal",
@@ -385,5 +378,12 @@ func SignVerify(obj interface{}, publicKey string, signature string) ABI {
 	return ABI{
 		Key:   "$sign_verify",
 		Value: []interface{}{obj, publicKey, signature},
+	}
+}
+
+func DecodeJson(target interface{}) ABI {
+	return ABI{
+		Key:   "$decode_json",
+		Value: []interface{}{target},
 	}
 }

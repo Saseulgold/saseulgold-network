@@ -1,12 +1,11 @@
 package model
 
 type Parameter struct {
-	name         string
-	paramType    string
-	maxLength    int
-	requirements bool
-	defaultVal   interface{}
-	cases        []interface{}
+	name         string      `json:"name"`
+	paramType    string      `json:"type"`
+	maxLength    int         `json:"maxlength"`
+	requirements bool        `json:"requirements"`
+	defaultVal   interface{} `json:"default"`
 }
 
 func NewParameter(initialInfo map[string]interface{}) Parameter {
@@ -32,10 +31,6 @@ func NewParameter(initialInfo map[string]interface{}) Parameter {
 
 	if def, ok := initialInfo["default"]; ok {
 		p.defaultVal = def
-	}
-
-	if cases, ok := initialInfo["cases"].([]interface{}); ok {
-		p.cases = cases
 	}
 
 	return p
@@ -89,16 +84,6 @@ func (p *Parameter) SetDefault(def interface{}) {
 	}
 }
 
-func (p *Parameter) GetCases() []interface{} {
-	return p.cases
-}
-
-func (p *Parameter) SetCases(cases []interface{}) {
-	if cases != nil {
-		p.cases = cases
-	}
-}
-
 func (p *Parameter) SetDefaultNull() {
 	p.defaultVal = nil
 }
@@ -106,8 +91,7 @@ func (p *Parameter) SetDefaultNull() {
 func (p *Parameter) ObjValidity() bool {
 	return p.name != "" &&
 		p.paramType != "" &&
-		p.maxLength >= 0 &&
-		(p.cases == nil || len(p.cases) > 0)
+		p.maxLength >= 0
 }
 
 func (p *Parameter) StructureValidity(value interface{}) (bool, string) {
@@ -119,20 +103,6 @@ func (p *Parameter) StructureValidity(value interface{}) (bool, string) {
 	// Set default if nil
 	if value == nil {
 		value = p.defaultVal
-	}
-
-	// Cases check
-	if p.cases != nil {
-		found := false
-		for _, c := range p.cases {
-			if c == value {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return false, "Parameter '" + p.name + "' must be one of the valid cases"
-		}
 	}
 
 	// MaxLength check
@@ -183,6 +153,5 @@ func (p *Parameter) Obj() map[string]interface{} {
 		"maxlength":    p.maxLength,
 		"requirements": p.requirements,
 		"default":      p.defaultVal,
-		"cases":        p.cases,
 	}
 }

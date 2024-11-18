@@ -56,6 +56,8 @@ var OperatorFunctions = map[string]map[string]MethodFunc{
 		"$lte": OpLte,
 	},
 	"ReadOperator": {
-		"$load_param": OpLoadParam,
+		"$load_param":     OpLoadParam,
+		"$read_local":     OpReadLocal,
+		"$read_universal": OpReadUniversal,
 	},
 }

@@ -72,7 +72,7 @@ func Register() *Method {
 	decodedCode := abi.DecodeJSON(code)
 
 	codeType := abi.Get(decodedCode, "type")
-	name := abi.LoadParam("name")
+	name := abi.Param("name")
 	nonce := abi.Get(decodedCode, "nonce")
 	version := abi.Get(decodedCode, "version")
 	writer := abi.Get(decodedCode, "writer")
@@ -200,6 +200,106 @@ func Send() *Method {
 
 	method.AddExecution(abi.WriteUniversal("balance", from, abi.PreciseSub(fromBalance, amount, 0)))
 	method.AddExecution(abi.WriteUniversal("balance", to, abi.PreciseAdd(toBalance, amount, 0)))
+
+	return method
+}
+
+func Publish() *Method {
+	method := NewMethod(map[string]interface{}{
+		"type":    "contract",
+		"name":    "Publish",
+		"version": "1",
+		"space":   RootSpace(),
+		"writer":  ZERO_ADDRESS,
+	})
+
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "code",
+		"type":         "string",
+		"maxlength":    65536,
+		"requirements": true,
+	}))
+
+	from := abi.Param("from")
+	code := abi.Param("code")
+
+	decodedCode := abi.DecodeJson(code)
+
+	codeType := abi.Get(decodedCode, "t")
+	name := abi.Get(decodedCode, "n")
+	space := abi.Get(decodedCode, "s")
+	version := abi.Get(decodedCode, "v")
+	writer := abi.Get(decodedCode, "w")
+
+	codeID := abi.Hash([]interface{}{writer, space, name})
+
+	contractInfo := abi.ReadLocal("contract", codeID, nil)
+	contractInfo = abi.DecodeJson(contractInfo)
+
+	requestInfo := abi.ReadLocal("request", codeID, nil)
+	requestInfo = abi.DecodeJson(requestInfo)
+
+	contractVersion := abi.Get(contractInfo, "v")
+	requestVersion := abi.Get(requestInfo, "v")
+
+	method.AddExecution(abi.Condition(
+		abi.Eq(writer, from),
+		"Writer must be the same as the from address",
+	))
+
+	method.AddExecution(abi.Condition(
+		abi.IsString([]interface{}{codeType}),
+		abi.Concat([]interface{}{"Invalid type: ", codeType}),
+	))
+
+	method.AddExecution(abi.Condition(
+		abi.In(codeType, []interface{}{"contract", "request"}),
+		"Type must be one of the following: contract, request",
+	))
+
+	method.AddExecution(abi.Condition(
+		abi.IsString([]interface{}{name}),
+		abi.Concat([]interface{}{"Invalid name: ", name}),
+	))
+
+	method.AddExecution(abi.Condition(
+		abi.RegMatch("/^[A-Za-z_0-9]+$/", name),
+		"The name must consist of A-Za-z_0-9",
+	))
+
+	method.AddExecution(abi.Condition(
+		abi.IsNumeric([]interface{}{version}),
+		abi.Concat([]interface{}{"Invalid version: ", version}),
+	))
+
+	method.AddExecution(abi.Condition(
+		abi.IsString([]interface{}{space}),
+		"invalid nonce",
+		// abi.Concat([]interface{}{"Invalid nonce: ", space}),
+	))
+
+	method.AddExecution(abi.Condition(
+		abi.If(
+			abi.Eq(codeType, "contract"),
+			abi.Gt(version, contractVersion),
+			abi.If(
+				abi.Eq(codeType, "request"),
+				abi.Gt(version, requestVersion),
+				false,
+			),
+		),
+		"Only new versions of code can be registered",
+	))
+
+	method.AddExecution(abi.If(
+		abi.Eq(codeType, "contract"),
+		abi.WriteLocal("contract", codeID, code),
+		abi.If(
+			abi.Eq(codeType, "request"),
+			abi.WriteLocal("request", codeID, code),
+			false,
+		),
+	))
 
 	return method
 }

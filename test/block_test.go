@@ -220,7 +220,11 @@ func TestBlock_WithMultipleUpdates(t *testing.T) {
 	}
 
 	chain := GetChainStorageInstance()
-	chain.Write(&block)
+	chain.Touch(MainChain())
+	err := chain.Write(&block)
+	if err != nil {
+		t.Errorf("Error occurred during writing block: %v", err)
+	}
 
 	// sf := GetStatusFileInstance()
 	// sf.Write(&block)

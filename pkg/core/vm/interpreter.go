@@ -188,7 +188,7 @@ func (i *Interpreter) Execute() (interface{}, bool) {
 		executions[key] = i.Process(execution)
 
 		if i.breakFlag {
-			return i.result, false
+			return executions[key], false
 		}
 	}
 
@@ -213,7 +213,7 @@ func (i *Interpreter) Execute() (interface{}, bool) {
 		postExecutions[key] = i.Process(execution)
 
 		if i.breakFlag {
-			return i.result, false
+			return postExecutions[key], false
 		}
 	}
 
@@ -225,7 +225,7 @@ func (i *Interpreter) Execute() (interface{}, bool) {
 		executions[key] = i.Process(execution)
 
 		if i.breakFlag {
-			return i.result, true
+			return executions[key], true
 		}
 	}
 
@@ -236,11 +236,11 @@ func (i *Interpreter) Execute() (interface{}, bool) {
 		postExecutions[key] = i.Process(execution)
 
 		if i.breakFlag {
-			return i.result, true
+			return postExecutions[key], true
 		}
 	}
 
-	return "", true
+	return executions[len(executions)-1], true
 }
 
 func (i *Interpreter) SetCode(code *Method) {

@@ -10,13 +10,13 @@ func OpCondition(i *Interpreter, vars interface{}) interface{} {
 		return true
 	}
 
-	var abi bool
+	var tf bool
 	var errMsg string
 
 	if arr, ok := vars.([]interface{}); ok {
 		if len(arr) > 0 {
 			if v, ok := arr[0].(bool); ok {
-				abi = v
+				tf = v
 			}
 		}
 
@@ -27,12 +27,12 @@ func OpCondition(i *Interpreter, vars interface{}) interface{} {
 		}
 	}
 
-	if !abi {
+	if !tf {
 		i.breakFlag = true
 		if errMsg != "" {
 			i.result = errMsg
 		}
-		return false
+		return errMsg
 	}
 
 	return true

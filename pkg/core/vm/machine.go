@@ -1,5 +1,6 @@
 package vm
 
+/**
 import (
 	. "hello/pkg/core/model"
 	"hello/pkg/core/storage"
@@ -62,3 +63,5 @@ func (m *Machine) Write(block *Block) {
 	}
 
 }
+
+**/

@@ -93,6 +93,11 @@ func NewMethod(initialInfo map[string]interface{}) *Method {
 }
 
 func (m *Method) Compile() map[string]interface{} {
+	parameterMap := make(map[string]interface{})
+	for name, param := range m.Parameters {
+		parameterMap[name] = param.Obj()
+	}
+
 	return map[string]interface{}{
 		"t": m.Type,
 		"m": m.Machine,
@@ -100,7 +105,7 @@ func (m *Method) Compile() map[string]interface{} {
 		"v": m.Version,
 		"s": m.Space,
 		"w": m.Writer,
-		"p": m.Parameters,
+		"p": parameterMap,
 		"e": m.Executions,
 	}
 }
@@ -207,7 +212,8 @@ func (m *Method) AddExecution(execution ABI) {
 	m.Executions = append(m.Executions, execution)
 }
 
-func (m *Method) GetCodeRaw() string {
-	executionsBytes, _ := json.Marshal(m.Executions)
-	return string(executionsBytes)
+func (m *Method) GetCode() string {
+	compiled := m.Compile()
+	codeBytes, _ := json.Marshal(compiled)
+	return string(codeBytes)
 }

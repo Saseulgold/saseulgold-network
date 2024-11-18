@@ -232,3 +232,70 @@ func TestLogicalOperators(t *testing.T) {
 		t.Errorf("Third execution result error. Expected: false, Actual: %v", methodLogical.GetExecutions()[2])
 	}
 }
+
+func TestConditionOperators(t *testing.T) {
+	interpreter := vm.NewInterpreter()
+	interpreter.Init("transaction")
+
+	post := &Method{}
+
+	methodCondition := &Method{
+		Parameters: Parameters{
+			"amount": NewParameter(map[string]interface{}{
+				"name":         "amount",
+				"requirements": true,
+				"default":      "10",
+			}),
+			"rate": NewParameter(map[string]interface{}{
+				"name":         "rate",
+				"requirements": true,
+				"default":      "0.1",
+			}),
+		},
+		Executions: []Execution{
+			abi.Condition(
+				abi.Gt(abi.Param("amount"), "50"),
+				"Condition:amount not gt 50",
+			),
+			abi.If(
+				abi.Gt(abi.Param("amount"), "50"),
+				abi.PreciseMul(abi.Param("amount"), "2", 2),
+				abi.PreciseMul(abi.Param("amount"), "0.5", 2),
+			),
+
+			abi.If(
+				abi.Gt(abi.Param("amount"), "200"),
+				abi.PreciseMul(
+					abi.PreciseMul(abi.Param("amount"), abi.Param("rate"), 3),
+					"2",
+					2,
+				),
+				abi.If(
+					abi.Gt(abi.Param("amount"), "100"),
+					abi.PreciseMul(abi.Param("amount"), abi.Param("rate"), 2),
+					abi.PreciseMul(
+						abi.Param("amount"),
+						abi.PreciseMul(abi.Param("rate"), "0.5", 3),
+						2,
+					),
+				),
+			),
+		},
+	}
+
+	signedData := NewSignedData()
+	signedData.SetAttribute("amount", "10")
+	signedData.SetAttribute("rate", "0.1")
+
+	interpreter.Reset()
+	interpreter.SetSignedData(signedData)
+	interpreter.SetCode(methodCondition)
+	interpreter.SetPostProcess(post)
+	errMsg, _ := interpreter.Execute()
+
+	if errMsg == "" {
+		t.Errorf("Execution should be broken")
+	}
+
+	t.Logf("Error message: %v", errMsg)
+}
