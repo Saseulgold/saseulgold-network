@@ -116,15 +116,8 @@ func (sf *StatusFile) Flush() {
 	sf.CachedLocalIndexes = make(map[string]StorageIndexCursor)
 }
 
-func (sf *StatusFile) DataRootDir() string {
-	if C.CORE_TEST_MODE {
-		return filepath.Join(C.QUANTUM_ROOT_DIR, C.DATA_TEST_ROOT_DIR)
-	}
-	return filepath.Join(C.QUANTUM_ROOT_DIR, C.DATA_ROOT_DIR)
-}
-
 func (sf *StatusFile) StatusBundle() string {
-	return filepath.Join(sf.DataRootDir(), "status_bundle")
+	return filepath.Join(DataRootDir(), "status_bundle")
 }
 
 func (sf *StatusFile) LocalBundle() string {

@@ -11,10 +11,7 @@ func TestChainStorage_Block(t *testing.T) {
 	C.CORE_TEST_MODE = true
 
 	cs := &storage.ChainStorage{}
-	testDir := "main_chain"
-	testIndexDir := "main_chain"
-
-	last := cs.LastIdx("main_chain")
+	last := cs.LastIdx()
 	t.Logf("last idx: %v", last)
 
 	// 테스트 케이스들
@@ -47,13 +44,13 @@ func TestChainStorage_Block(t *testing.T) {
 
 	// 각 테스트 케이스에 대해 실제 인덱스 데이터 준비
 	for i := range tests {
-		needles, err := cs.Index(testDir, tests[i].height)
+		needles, err := cs.Index(tests[i].height)
 		if err != nil {
 			t.Fatalf("Failed to read index: %v", err)
 		}
 		t.Logf("needles: %v", needles)
 
-		block, err := cs.Block(testDir, needles)
+		block, err := cs.Block(needles[0].(string), needles[1])
 		if err != nil {
 			t.Fatalf("Failed to read block: %v", err)
 		}
@@ -73,10 +70,10 @@ func TestChainStorage_Block(t *testing.T) {
 		t.Logf("reward address: %v", block.RewardAddress)
 		t.Logf("vout: %v", block.Vout)
 		t.Logf("nonce: %v", block.Nonce)
-		idx := cs.ReadIdx(testDir, tests[i].height)
+		idx := cs.ReadIdx(tests[i].height)
 		t.Logf("Test case '%s' idx: %v", tests[i].name, idx)
 
-		index, err := cs.ReadIndex(testIndexDir, idx)
+		index, err := cs.ReadIndex(idx)
 		if err != nil {
 			t.Fatalf("Failed to read index: %v", err)
 		}

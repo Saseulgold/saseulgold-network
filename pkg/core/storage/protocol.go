@@ -14,6 +14,13 @@ import (
 	"strings"
 )
 
+func DataRootDir() string {
+	if C.CORE_TEST_MODE {
+		return filepath.Join(C.QUANTUM_ROOT_DIR, C.DATA_TEST_ROOT_DIR)
+	}
+	return filepath.Join(C.QUANTUM_ROOT_DIR, C.DATA_ROOT_DIR)
+}
+
 func StatusKey(raw []byte) string {
 	res := F.Bin2Hex(raw[:C.STATUS_KEY_BYTES])
 	DebugLog(fmt.Sprintf("StatusKey: %s", res))

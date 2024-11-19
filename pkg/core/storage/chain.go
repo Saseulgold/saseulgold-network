@@ -3,7 +3,9 @@ package storage
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	C "hello/pkg/core/config"
+	. "hello/pkg/core/debug"
 	. "hello/pkg/core/model"
 	F "hello/pkg/util"
 	"io"
@@ -24,17 +26,11 @@ func GetChainStorageInstance() *ChainStorage {
 }
 
 func ChainInfo() string {
-	if C.CORE_TEST_MODE {
-		return filepath.Join(C.DATA_TEST_ROOT_DIR, "chain_info")
-	}
-	return filepath.Join(C.DATA_ROOT_DIR, "chain_info")
+	return filepath.Join(DataRootDir(), "chain_info")
 }
 
 func MainChain() string {
-	if C.CORE_TEST_MODE {
-		return filepath.Join(C.DATA_TEST_ROOT_DIR, "main_chain")
-	}
-	return filepath.Join(C.DATA_ROOT_DIR, "main_chain")
+	return filepath.Join(DataRootDir(), "main_chain")
 }
 
 func LastHeight() int {
@@ -101,8 +97,8 @@ func ParseBlock(data []byte) (*Block, error) {
 	return &block, nil
 }
 
-func (c *ChainStorage) Block(directory string, needle interface{}) (*Block, error) {
-	data, err := c.ReadData(directory, needle.([]interface{}))
+func (c *ChainStorage) Block(needle interface{}) (*Block, error) {
+	data, err := c.ReadData(needle.([]interface{}))
 	if err != nil {
 		return nil, err
 	}
@@ -117,31 +113,31 @@ func (c *ChainStorage) Block(directory string, needle interface{}) (*Block, erro
 }
 
 func (c *ChainStorage) GetBlock(height int) (*Block, error) {
-	chainDir := MainChain()
-	return c.Block(chainDir, height)
+	return c.Block(height)
 }
 
-func (c *ChainStorage) IndexFile(directory string) string {
-	path := C.DATA_ROOT_DIR
-	if C.CORE_TEST_MODE {
-		path = C.DATA_TEST_ROOT_DIR
-	}
-	println("Chain index file path:", filepath.Join(path, directory, "index"))
-	return filepath.Join(path, directory, "index")
+func (c *ChainStorage) IndexFile() string {
+	return filepath.Join(MainChain(), "index")
 }
 
-func (c *ChainStorage) DataFile(directory, fileID string) string {
-	if C.CORE_TEST_MODE {
-		return filepath.Join(C.DATA_TEST_ROOT_DIR, directory, fileID)
-	}
-	return filepath.Join(C.DATA_ROOT_DIR, directory, fileID)
+func (c *ChainStorage) DataFile(fileID string) string {
+	return filepath.Join(MainChain(), fileID)
 }
 
-func (c *ChainStorage) Touch(directory string) error {
-	if err := os.MkdirAll(directory, 0755); err != nil {
+func (c *ChainStorage) Touch() error {
+	if err := os.MkdirAll(MainChain(), 0755); err != nil {
 		return err
 	}
-	_, err := os.OpenFile(c.IndexFile(directory), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+
+	indexPath := c.IndexFile()
+
+	if info, err := os.Stat(indexPath); err == nil && info.IsDir() {
+		if err := os.RemoveAll(indexPath); err != nil {
+			return err
+		}
+	}
+
+	_, err := os.OpenFile(indexPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	return err
 }
 
@@ -152,23 +148,23 @@ func (c *ChainStorage) ResetData(directory string) error {
 	if err := os.MkdirAll(directory, 0755); err != nil {
 		return err
 	}
-	_, err := os.OpenFile(c.IndexFile(directory), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	_, err := os.OpenFile(c.IndexFile(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	return err
 }
 
-func (c *ChainStorage) Index(directory string, needle interface{}) ([]interface{}, error) {
+func (c *ChainStorage) Index(needle interface{}) ([]interface{}, error) {
 	if height, ok := needle.(int); ok {
-		idx := c.ReadIdx(directory, height)
-		return c.ReadIndex(directory, idx)
+		idx := c.ReadIdx(height)
+		return c.ReadIndex(idx)
 	}
-	return c.SearchIndex(directory, needle.(string))
+	return c.SearchIndex(needle.(string), "")
 }
 
-func (c *ChainStorage) ReadIdx(directory string, height int) int {
+func (c *ChainStorage) ReadIdx(height int) int {
 	idx := 0
-	lastIdx := c.LastIdx(directory)
+	lastIdx := c.LastIdx()
 	println("Last index:", lastIdx)
-	lastIndex, _ := c.ReadIndex(directory, lastIdx)
+	lastIndex, _ := c.ReadIndex(lastIdx)
 	lastHeight := 0
 	if len(lastIndex) > 0 {
 		lastHeight = lastIndex[0].(int)
@@ -182,10 +178,11 @@ func (c *ChainStorage) ReadIdx(directory string, height int) int {
 	return idx
 }
 
-func (c *ChainStorage) ReadIndex(directory string, idx int) ([]interface{}, error) {
+func (c *ChainStorage) ReadIndex(idx int) ([]interface{}, error) {
 	if idx > 0 {
 		iseek := C.CHAIN_HEADER_BYTES + (idx-1)*C.CHAIN_HEAP_BYTES
-		raw, err := ReadPart(c.IndexFile(directory), int64(iseek), C.CHAIN_HEAP_BYTES)
+		DebugLog(fmt.Sprintf("index seek: %d", iseek))
+		raw, err := ReadPart(c.IndexFile(), int64(iseek), C.CHAIN_HEAP_BYTES)
 
 		if err != nil {
 			return nil, err
@@ -198,38 +195,38 @@ func (c *ChainStorage) ReadIndex(directory string, idx int) ([]interface{}, erro
 	return []interface{}{}, nil
 }
 
-func (c *ChainStorage) ReadData(directory string, index []interface{}) ([]byte, error) {
+func (c *ChainStorage) ReadData(index []interface{}) ([]byte, error) {
 	fileID := index[1].(string)
 	seek := index[2].(int)
 	length := index[3].(int)
 
-	return ReadPart(c.DataFile(directory, fileID), int64(seek), length)
+	return ReadPart(c.DataFile(fileID), int64(seek), length)
 }
 
-func (c *ChainStorage) LastIdx(directory string) int {
-	header, _ := ReadPart(c.IndexFile(directory), 0, C.CHAIN_HEADER_BYTES)
+func (c *ChainStorage) LastIdx() int {
+	header, _ := ReadPart(c.IndexFile(), 0, C.CHAIN_HEADER_BYTES)
 	return F.BinDec(header)
 }
 
-func (c *ChainStorage) LastIndex(directory string) ([]interface{}, error) {
-	lastIdx := c.LastIdx(directory)
-	return c.ReadIndex(directory, lastIdx)
+func (c *ChainStorage) LastIndex() ([]interface{}, error) {
+	lastIdx := c.LastIdx()
+	return c.ReadIndex(lastIdx)
 }
 
 func (c *ChainStorage) Write(block *Block) error {
 	lastHeight := LastHeight()
 	height := lastHeight + 1
 
-	if err := c.WriteData(MainChain(), height, block.BlockHash(), []byte(block.Ser("full"))); err != nil {
+	if err := c.WriteData(height, block.BlockHash(), []byte(block.Ser("full"))); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (c *ChainStorage) WriteData(directory string, height int, key string, data []byte) error {
-	lastIdx := c.LastIdx(directory)
-	lastIndex, _ := c.ReadIndex(directory, lastIdx)
+func (c *ChainStorage) WriteData(height int, key string, data []byte) error {
+	lastIdx := c.LastIdx()
+	lastIndex, _ := c.ReadIndex(lastIdx)
 
 	var lastHeight int
 	if len(lastIndex) > 0 {
@@ -256,8 +253,8 @@ func (c *ChainStorage) WriteData(directory string, height int, key string, data 
 
 	idx := lastIdx + 1
 	iseek := C.CHAIN_HEADER_BYTES + lastIdx*C.CHAIN_HEAP_BYTES
-
-	if err := AppendFile(c.DataFile(directory, fileID), ""); err != nil {
+	DebugLog(fmt.Sprintf("데이터 파일: %s, 파일ID: %s, 시크: %d, 길이: %d", c.DataFile(fileID), fileID, seek, length))
+	if err := AppendFile(c.DataFile(fileID), ""); err != nil {
 		return err
 	}
 
@@ -268,14 +265,17 @@ func (c *ChainStorage) WriteData(directory string, height int, key string, data 
 
 	headerData := c.headerRaw(idx)
 	indexData := c.indexRaw(key, fileID, height, seek, length)
+	DebugLog(fmt.Sprintf("파일ID: %s", fileID))
 
-	if err := WriteFile(c.DataFile(directory, fileID), int64(seek), data); err != nil {
+	if err := WriteFile(c.DataFile(fileID), int64(seek), data); err != nil {
 		return err
 	}
-	if err := WriteFile(c.IndexFile(directory), int64(iseek), indexData); err != nil {
+
+	if err := WriteFile(c.IndexFile(), int64(iseek), indexData); err != nil {
 		return err
 	}
-	return WriteFile(c.IndexFile(directory), 0, headerData)
+
+	return WriteFile(c.IndexFile(), 0, headerData)
 }
 
 func (c *ChainStorage) RemoveData(directory string, idx int) error {
@@ -283,7 +283,7 @@ func (c *ChainStorage) RemoveData(directory string, idx int) error {
 		idx = 1
 	}
 	headerData := c.headerRaw(idx - 1)
-	return WriteFile(c.IndexFile(directory), 0, headerData)
+	return WriteFile(c.IndexFile(), 0, headerData)
 }
 
 func (c *ChainStorage) headerRaw(idx int) []byte {
@@ -305,7 +305,7 @@ func (c *ChainStorage) SearchIndex(directory string, hash string) ([]interface{}
 	}
 
 	target := F.Hex2Bin(hash[:C.HEX_TIME_SIZE])
-	header, err := ReadPart(c.IndexFile(directory), 0, C.CHAIN_HEADER_BYTES)
+	header, err := ReadPart(c.IndexFile(), 0, C.CHAIN_HEADER_BYTES)
 	if err != nil {
 		return nil, err
 	}
@@ -320,7 +320,7 @@ func (c *ChainStorage) SearchIndex(directory string, hash string) ([]interface{}
 	mid := 0
 
 	bytes := len(target)
-	f, err := os.Open(c.IndexFile(directory))
+	f, err := os.Open(c.IndexFile())
 	if err != nil {
 		return nil, err
 	}

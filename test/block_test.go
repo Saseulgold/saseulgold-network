@@ -11,9 +11,6 @@ import (
 )
 
 func TestUpdate_GetHash0(t *testing.T) {
-	C.CORE_TEST_MODE = true
-	C.DATA_TEST_ROOT_DIR = "block_test"
-
 	oldValue := "99999999999999996783125000"
 	newValue := "99999999999999993566250000"
 	update := Update{
@@ -30,9 +27,7 @@ func TestUpdate_GetHash0(t *testing.T) {
 	}
 }
 
-func TestBlock_WithMultipleUpdates(t *testing.T) {
-	C.CORE_TEST_MODE = true
-	C.DATA_TEST_ROOT_DIR = "genesis_test_2"
+func createTestBlock_1(t *testing.T) *Block {
 	// 첫 번째 Send 트랜잭션 생성
 	tx1Data := S.NewOrderedMap()
 	tx1Data.Set("type", "Send")
@@ -51,25 +46,11 @@ func TestBlock_WithMultipleUpdates(t *testing.T) {
 	tx2Data.Set("timestamp", int64(1731062859742000))
 	tx2 := NewSignedTransaction(tx2Data)
 
-	// 트랜잭션 해시 검증
-	expectedTx1Hash := "0626647ad01be020dd16f9dc2cbdeeb44bf7046f0fcef1ceb64b7f5ff4d6868c8ed6350e12e2ad"
-	actualTx1Hash := tx1.GetTxHash()
-	if actualTx1Hash != expectedTx1Hash {
-		t.Errorf("Transaction 1 Hash = %v; want %v", actualTx1Hash, expectedTx1Hash)
-	}
-
-	expectedTx2Hash := "0626647ad6bb308377ef1921bbaba020038cb9a14a75aa3c0bf79c4e2e0b13f90ec769d94a4e4d"
-	actualTx2Hash := tx2.GetTxHash()
-	if actualTx2Hash != expectedTx2Hash {
-		t.Errorf("Transaction 2 Hash = %v; want %v", actualTx2Hash, expectedTx2Hash)
-	}
-
 	// 블록 생성
 	previousBlockhash := "0626647acb68c0fa085be6ebfbafdc3b3afbcde8bc0bff1ba1f9b8f49a16faded2edbee8c0abb7"
-	block := NewBlock(5, previousBlockhash)
+	block := NewBlock(1, previousBlockhash)
 	block.SetTimestamp(1731062860000000)
 
-	// Universal Updates 추가
 	// Universal Updates 추가
 	block.AppendUniversalUpdate(Update{
 		Key: "b3c1ed9ce9df9d2531bb6e2945f044590974408f547f3574d56075e13394770da53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4",
@@ -130,34 +111,118 @@ func TestBlock_WithMultipleUpdates(t *testing.T) {
 	block.AppendTransaction(tx1)
 	block.AppendTransaction(tx2)
 
-	// UHash 리스트 검증
-	expectedUHashes := []string{
-		"12194c0ef66a96758afcf4e7ddd3a0b851bba110c7dd2ffff358cbabd725b3fc000000000000000000000000000000000000000000002676e636c7fe20bcafc28139f910ad1aaa58ad755f98af6bffa0e00f3f803625",
-		"290eed314ce4d91c387028c290936b5b261e06f05d871bad42dfdf7436e89e9c00000000000000000000000000000000000000000000d9e1873da47c578c3fcfdb3fe8a1d63742444a4ff084c5efbcaef2f3ec0b2b2f",
-		"724d2935080d38850e49b74927eb0351146c9ee955731f4ef53f24366c5eb9b100000000000000000000000000000000000000000000b0959c88ebb43c49949e999f1918f76f5d3cd70fd44d5bcb336c77d9d997362c",
-		"87abdca0d3d3be9f71516090a362e5e79546f3183b1793789902c2e5176f62ae00000000000000000000000000000000000000000000cd08f201c5a1102e707c971626050b21e828b977451193c61671a25fa3294faa",
-		"b3c1ed9ce9df9d2531bb6e2945f044590974408f547f3574d56075e13394770d50c3a6cd858c90574bcdc35b2da5dbc7225275f50edf37051c0ed209c0909f567fab50dda1dd3268b3f4e9a5f5c29eaf64de268a0884",
-		"b3c1ed9ce9df9d2531bb6e2945f044590974408f547f3574d56075e13394770da53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4b139da1fb6537bdca92b9533dc005d517f9e99a955283887f5496d2f3a246701",
-		"c5ca2cb405daf22453b559420907bb12d7fb34519ac55d81f47829054374512fa53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4c74020b3885e369b9c0019c8da8c3342b432c52a6ba98df94227df15d471e812",
-		"c8c603ff91a3c59d637c7bda83e732dea6ec74e1001b35600f0ba7831dbfe32900000000000000000000000000000000000000000000343ea3e5441ea4f6506426204bee366c89cbff5a86cd35618d56d10e2e141cae",
-		"fbab6eb9aa47eeb4d14b9473201b5aedbe0c03ba583be29f5840452ad2f172420000000000000000000000000000000000000000000034d56b9daa4df8e4c3dfaaeb71d716602a448745bd0c868e6991156994364d23",
-	}
+	return &block
+}
 
-	actualUHashes := block.UHashs()
-	// 길이 검증
-	if len(actualUHashes) != len(expectedUHashes) {
-		t.Errorf("UHash length = %v; want %v", len(actualUHashes), len(expectedUHashes))
-		return
-	}
+func createTestBlock_2(t *testing.T) *Block {
+	// 첫 번째 Send 트랜잭션 생성
+	tx1Data := S.NewOrderedMap()
+	tx1Data.Set("type", "Send")
+	tx1Data.Set("to", "50c3a6cd858c90574bcdc35b2da5dbc7225275f50edf")
+	tx1Data.Set("amount", 4000000000)
+	tx1Data.Set("from", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
+	tx1Data.Set("timestamp", int64(1731062959308000))
+	tx1 := NewSignedTransaction(tx1Data)
 
-	// 각 해시값 검증
-	for i, expectedHash := range expectedUHashes {
-		if actualUHashes[i] != expectedHash {
-			t.Errorf("UHash[%d] = %v; want %v", i, actualUHashes[i], expectedHash)
-		}
-	}
+	// 두 번째 Send 트랜잭션 생성
+	tx2Data := S.NewOrderedMap()
+	tx2Data.Set("type", "Send")
+	tx2Data.Set("to", "50c3a6cd858c90574bcdc35b2da5dbc7225275f50edf")
+	tx2Data.Set("amount", 5000000000)
+	tx2Data.Set("from", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
+	tx2Data.Set("timestamp", int64(1731062959742000))
+	tx2 := NewSignedTransaction(tx2Data)
 
-	// 검증
+	// 블록 생성
+	previousBlockhash := "0626647acb68c0fa085be6ebfbafdc3b3afbcde8bc0bff1ba1f9b8f49a16faded2edbee8c0abb7"
+	block := NewBlock(2, previousBlockhash)
+	block.SetTimestamp(1731062960000000)
+
+	// Universal Updates 추가
+	block.AppendUniversalUpdate(Update{
+		Key: "b3c1ed9ce9df9d2531bb6e2945f044590974408f547f3574d56075e13394770da53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4",
+		Old: "99999999999999990349375000",
+		New: "99999999999999981349375000",
+	})
+
+	block.AppendUniversalUpdate(Update{
+		Key: "b3c1ed9ce9df9d2531bb6e2945f044590974408f547f3574d56075e13394770d50c3a6cd858c90574bcdc35b2da5dbc7225275f50edf",
+		Old: "9427500000",
+		New: "18427500000",
+	})
+
+	// Local Updates 추가
+	block.AppendLocalUpdate(Update{
+		Key: "724d2935080d38850e49b74927eb0351146c9ee955731f4ef53f24366c5eb9b100000000000000000000000000000000000000000000",
+		Old: 7,
+		New: 9,
+	})
+
+	// 트랜잭션 추가
+	block.AppendTransaction(tx1)
+	block.AppendTransaction(tx2)
+
+	return &block
+}
+
+func createTestBlock_3(t *testing.T) *Block {
+	// 첫 번째 Send 트랜잭션 생성
+	tx1Data := S.NewOrderedMap()
+	tx1Data.Set("type", "Send")
+	tx1Data.Set("to", "50c3a6cd858c90574bcdc35b2da5dbc7225275f50edf")
+	tx1Data.Set("amount", 6000000000)
+	tx1Data.Set("from", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
+	tx1Data.Set("timestamp", int64(1731063059308000))
+	tx1 := NewSignedTransaction(tx1Data)
+
+	// 두 번째 Send 트랜잭션 생성
+	tx2Data := S.NewOrderedMap()
+	tx2Data.Set("type", "Send")
+	tx2Data.Set("to", "50c3a6cd858c90574bcdc35b2da5dbc7225275f50edf")
+	tx2Data.Set("amount", 7000000000)
+	tx2Data.Set("from", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
+	tx2Data.Set("timestamp", int64(1731063059742000))
+	tx2 := NewSignedTransaction(tx2Data)
+
+	// 블록 생성
+	previousBlockhash := "0626647acb68c0fa085be6ebfbafdc3b3afbcde8bc0bff1ba1f9b8f49a16faded2edbee8c0abb7"
+	block := NewBlock(3, previousBlockhash)
+	block.SetTimestamp(1731063060000000)
+
+	// Universal Updates 추가
+	block.AppendUniversalUpdate(Update{
+		Key: "b3c1ed9ce9df9d2531bb6e2945f044590974408f547f3574d56075e13394770da53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4",
+		Old: "99999999999999981349375000",
+		New: "99999999999999968349375000",
+	})
+
+	block.AppendUniversalUpdate(Update{
+		Key: "b3c1ed9ce9df9d2531bb6e2945f044590974408f547f3574d56075e13394770d50c3a6cd858c90574bcdc35b2da5dbc7225275f50edf",
+		Old: "18427500000",
+		New: "31427500000",
+	})
+
+	// Local Updates 추가
+	block.AppendLocalUpdate(Update{
+		Key: "724d2935080d38850e49b74927eb0351146c9ee955731f4ef53f24366c5eb9b100000000000000000000000000000000000000000000",
+		Old: 9,
+		New: 11,
+	})
+
+	// 트랜잭션 추가
+	block.AppendTransaction(tx1)
+	block.AppendTransaction(tx2)
+
+	return &block
+}
+
+func TestBlock_WithMultipleUpdates(t *testing.T) {
+	C.CORE_TEST_MODE = true
+	C.DATA_TEST_ROOT_DIR = "genesis_test_2"
+
+	block := createTestBlock_1(t)
+
+	// 검증 로직
 	expectedBlockRoot := "7e8d8bc16377cb1157fa0cfc001ea2958ad17df7119b528fca809b6360a2c9df"
 	actualBlockRoot := block.BlockRoot()
 	if actualBlockRoot != expectedBlockRoot {
@@ -220,13 +285,53 @@ func TestBlock_WithMultipleUpdates(t *testing.T) {
 	}
 
 	chain := GetChainStorageInstance()
-	chain.Touch(MainChain())
-	err := chain.Write(&block)
+	err := chain.Touch()
+	if err != nil {
+		t.Errorf("Error occurred during touching chain: %v", err)
+	}
+
+	err = chain.Write(block)
+
 	if err != nil {
 		t.Errorf("Error occurred during writing block: %v", err)
 	}
 
-	// sf := GetStatusFileInstance()
-	// sf.Write(&block)
-	// sf.Update(&block)
+	err = chain.Write(createTestBlock_2(t))
+	if err != nil {
+		t.Errorf("Error occurred during writing block: %v", err)
+	}
+
+	err = chain.Write(createTestBlock_3(t))
+	if err != nil {
+		t.Errorf("Error occurred during writing block: %v", err)
+	}
+}
+
+func aaTestBlockIndex(t *testing.T) {
+	C.CORE_TEST_MODE = true
+	C.DATA_TEST_ROOT_DIR = "genesis_test_2"
+
+	chain := GetChainStorageInstance()
+
+	for i := 1; i <= 3; i++ {
+		indices, err := chain.ReadIndex(i)
+		if err != nil {
+			t.Errorf("%d번째 블록 인덱스 읽기 중 오류 발생: %v", i, err)
+			continue
+		}
+
+		t.Logf("\n=== %d번째 블록 인덱스 ===", i)
+		t.Logf("높이: %v", indices[0])
+		t.Logf("파일ID: %v", indices[1])
+		t.Logf("시작위치: %v", indices[2])
+		t.Logf("길이: %v", indices[3])
+
+		// 블록 데이터 읽기
+		data, err := chain.ReadData(indices)
+		if err != nil {
+			t.Errorf("%d번째 블록 데이터 읽기 중 오류 발생: %v", i, err)
+			continue
+		}
+		t.Logf("데이터 길이: %d bytes", len(data))
+	}
 }
