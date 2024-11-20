@@ -321,10 +321,10 @@ func aaTestBlockIndex(t *testing.T) {
 		}
 
 		t.Logf("\n=== %d번째 블록 인덱스 ===", i)
-		t.Logf("높이: %v", indices[0])
-		t.Logf("파일ID: %v", indices[1])
-		t.Logf("시작위치: %v", indices[2])
-		t.Logf("길이: %v", indices[3])
+		t.Logf("높이: %v", indices.Height)
+		t.Logf("파일ID: %v", indices.FileID)
+		t.Logf("시작위치: %v", indices.Seek)
+		t.Logf("길이: %v", indices.Length)
 
 		// 블록 데이터 읽기
 		data, err := chain.ReadData(indices)

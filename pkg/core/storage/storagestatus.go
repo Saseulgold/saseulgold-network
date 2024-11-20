@@ -261,6 +261,11 @@ func (sf *StatusFile) WriteLocal(localUpdates UpdateMap) error {
 }
 
 func (sf *StatusFile) WriteUniversal(blockUpdates UpdateMap) error {
+	for key, index := range sf.CachedUniversalIndexes {
+		DebugLog(fmt.Sprintf("Cached Universal Index - Key: %s, FileID: %s, Seek: %d, Length: %d, Iseek: %d",
+			key, index.FileID, index.Seek, index.Length, index.Iseek))
+	}
+
 	null := byte(0)
 	latestFileID := sf.maxFileId("ubundle-")
 	latestFile := sf.UniversalBundle(latestFileID)
@@ -289,6 +294,7 @@ func (sf *StatusFile) WriteUniversal(blockUpdates UpdateMap) error {
 
 		data, err := json.Marshal(update.New)
 		DebugLog(fmt.Sprintf("WriteUniversal - Data: %s", data))
+		DebugLog(fmt.Sprintf("Index: %v", index))
 
 		if err != nil {
 			return err
@@ -449,7 +455,7 @@ func (sf *StatusFile) Write(block *Block) error {
 	}
 
 	// make function for making height to byte
-	heightData := []byte(strconv.FormatInt(block.Height, 10))
+	heightData := []byte(strconv.FormatInt(int64(block.Height), 10))
 	sf.addTask(sf.InfoFile(), 0, heightData)
 
 	err = sf.WriteTasks()
@@ -599,7 +605,7 @@ func (sf *StatusFile) CopyBundles() error {
 	return nil
 }
 
-func (sf *StatusFile) Update(block *Block) bool {
+func (sf *StatusFile) Update(block *Block) error {
 	localUpdates := block.LocalUpdates
 	universalUpdates := block.UniversalUpdates
 
@@ -619,5 +625,5 @@ func (sf *StatusFile) Update(block *Block) bool {
 	universalIndexes := sf.GetUniversalIndexes(universalKeys)
 	sf.UpdateUniversal(universalIndexes, universalUpdates)
 
-	return true
+	return nil
 }

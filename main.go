@@ -1,16 +1,29 @@
 package main
 
 import (
-    "fmt"
-		u "hello/pkg/util"
-		_ "hello/pkg/core"
-		// "reflect"
+	"fmt"
+	"hello/pkg/swift"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
-	fmt.Println(u.Hash("hello"))
-	fmt.Println(u.Time())
-	fmt.Println(u.HexTime(u.Time()))
-	fmt.Println(u.TimeHash("asdfasdf", u.Time()))
-}
+	security := swift.SecurityConfig{
+		UseTLS: false,
+	}
 
+	server := swift.NewServer(":8080", security)
+
+	if err := server.Start(); err != nil {
+		log.Fatalf("Failed to start server: %v", err)
+	}
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	<-sigChan
+
+	fmt.Println("Shutting down server...")
+}

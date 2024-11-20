@@ -1,9 +1,12 @@
 package vm
 
-/**
 import (
+	"errors"
+	C "hello/pkg/core/config"
+	. "hello/pkg/core/debug"
 	. "hello/pkg/core/model"
 	"hello/pkg/core/storage"
+	"hello/pkg/util"
 )
 
 type Machine struct {
@@ -17,8 +20,6 @@ type Machine struct {
 	roundTimestamp int64
 	transactions   *map[string]*SignedTransaction
 
-	miningNodeCount int
-
 	currentBlockDifficulty string
 	currentBlockVout       string
 	currentBlockNonce      string
@@ -26,7 +27,7 @@ type Machine struct {
 
 var instance *Machine
 
-func GetInstance() *Machine {
+func GetMachineInstance() *Machine {
 	if instance == nil {
 		instance = &Machine{
 			interpreter:    NewInterpreter(),
@@ -48,20 +49,37 @@ func (m *Machine) Init(previousBlock *Block, roundTimestamp int64) {
 	m.currentBlockNonce = ""
 }
 
-func (m *Machine) Write(block *Block) {
+func (m *Machine) ValidateBlockTimestamp(block *Block) error {
+	DebugLog("ValidateBlockTimestamp", "block.Timestamp_s", block.Timestamp_s, "roundTimestamp", int(util.Utime())+C.TIME_STAMP_ERROR_LIMIT)
+
+	if block.Timestamp_s > int(util.Utime())+C.TIME_STAMP_ERROR_LIMIT {
+		return errors.New("block timestamp is greater than current round timestamp")
+	}
+
+	return nil
+}
+
+func (m *Machine) Commit(block *Block) error {
+	/**
+	if err := m.ValidateBlockTimestamp(block); err != nil {
+		return err
+	}
+	**/
+
 	chain := storage.GetChainStorageInstance()
 	sf := storage.GetStatusFileInstance()
 
-	if _, err := chain.Write(block); err != nil {
+	if err := chain.Write(block); err != nil {
 		return err
 	}
 	if err := sf.Write(block); err != nil {
 		return err
 	}
+	/**
 	if err := sf.Update(block); err != nil {
 		return err
 	}
+	**/
 
+	return nil
 }
-
-**/

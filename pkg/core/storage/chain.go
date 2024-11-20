@@ -12,6 +12,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strconv"
 )
 
 type ChainStorage struct{}
@@ -37,13 +38,19 @@ func LastHeight() int {
 	data, _ := os.ReadFile(ChainInfo())
 	height := 0
 	if len(data) > 0 {
-		height = int(F.BinDec(data))
+		height, _ = strconv.Atoi(string(data))
 	}
 	return height
 }
 
 func (c *ChainStorage) LastBlock() (*Block, error) {
 	return c.GetBlock(LastHeight())
+}
+
+func (c *ChainStorage) SetLastHeight(height int) error {
+	DebugLog(fmt.Sprintf("Set last height: %d", height))
+	heightStr := fmt.Sprintf("%d", height)
+	return os.WriteFile(ChainInfo(), []byte(heightStr), 0644)
 }
 
 func ConfirmedHeight() int {
@@ -98,7 +105,7 @@ func ParseBlock(data []byte) (*Block, error) {
 }
 
 func (c *ChainStorage) Block(needle interface{}) (*Block, error) {
-	data, err := c.ReadData(needle.([]interface{}))
+	data, err := c.ReadData(needle.(ChainIndexCursor))
 	if err != nil {
 		return nil, err
 	}
@@ -152,10 +159,15 @@ func (c *ChainStorage) ResetData(directory string) error {
 	return err
 }
 
-func (c *ChainStorage) Index(needle interface{}) ([]interface{}, error) {
+func (c *ChainStorage) Index(needle interface{}) (ChainIndexCursor, error) {
 	if height, ok := needle.(int); ok {
 		idx := c.ReadIdx(height)
-		return c.ReadIndex(idx)
+		index, err := c.ReadIndex(idx)
+		DebugLog(fmt.Sprintf("index: %v", index))
+		if err != nil {
+			return ChainIndexCursor{}, err
+		}
+		return index, nil
 	}
 	return c.SearchIndex(needle.(string), "")
 }
@@ -166,8 +178,8 @@ func (c *ChainStorage) ReadIdx(height int) int {
 	println("Last index:", lastIdx)
 	lastIndex, _ := c.ReadIndex(lastIdx)
 	lastHeight := 0
-	if len(lastIndex) > 0 {
-		lastHeight = lastIndex[0].(int)
+	if lastIndex.Height > 0 {
+		lastHeight = lastIndex.Height
 	}
 	gap := lastHeight - height
 
@@ -178,29 +190,30 @@ func (c *ChainStorage) ReadIdx(height int) int {
 	return idx
 }
 
-func (c *ChainStorage) ReadIndex(idx int) ([]interface{}, error) {
+func (c *ChainStorage) ReadIndex(idx int) (ChainIndexCursor, error) {
 	if idx > 0 {
 		iseek := C.CHAIN_HEADER_BYTES + (idx-1)*C.CHAIN_HEAP_BYTES
 		DebugLog(fmt.Sprintf("index seek: %d", iseek))
 		raw, err := ReadPart(c.IndexFile(), int64(iseek), C.CHAIN_HEAP_BYTES)
 
 		if err != nil {
-			return nil, err
+			return ChainIndexCursor{}, err
 		}
 
 		if len(raw) == C.CHAIN_HEAP_BYTES {
-			return ChainIndex(raw), nil
+			index := ChainIndex(raw)
+			return index, nil
 		}
 	}
-	return []interface{}{}, nil
+	return ChainIndexCursor{}, nil
 }
 
-func (c *ChainStorage) ReadData(index []interface{}) ([]byte, error) {
-	fileID := index[1].(string)
-	seek := index[2].(int)
-	length := index[3].(int)
+func (c *ChainStorage) ReadData(index ChainIndexCursor) ([]byte, error) {
+	fileID := index.FileID
+	seek := index.Seek
+	length := index.Length
 
-	return ReadPart(c.DataFile(fileID), int64(seek), length)
+	return ReadPart(c.DataFile(fileID), seek, int(length))
 }
 
 func (c *ChainStorage) LastIdx() int {
@@ -208,7 +221,7 @@ func (c *ChainStorage) LastIdx() int {
 	return F.BinDec(header)
 }
 
-func (c *ChainStorage) LastIndex() ([]interface{}, error) {
+func (c *ChainStorage) LastIndex() (ChainIndexCursor, error) {
 	lastIdx := c.LastIdx()
 	return c.ReadIndex(lastIdx)
 }
@@ -220,8 +233,7 @@ func (c *ChainStorage) Write(block *Block) error {
 	if err := c.WriteData(height, block.BlockHash(), []byte(block.Ser("full"))); err != nil {
 		return err
 	}
-
-	return nil
+	return c.SetLastHeight(height)
 }
 
 func (c *ChainStorage) WriteData(height int, key string, data []byte) error {
@@ -229,8 +241,8 @@ func (c *ChainStorage) WriteData(height int, key string, data []byte) error {
 	lastIndex, _ := c.ReadIndex(lastIdx)
 
 	var lastHeight int
-	if len(lastIndex) > 0 {
-		lastHeight = lastIndex[0].(int)
+	if lastIndex.Height > 0 {
+		lastHeight = lastIndex.Height
 	}
 
 	if height != lastHeight+1 {
@@ -238,12 +250,12 @@ func (c *ChainStorage) WriteData(height int, key string, data []byte) error {
 	}
 
 	var fileID string
-	var lastSeek, lastLength int
+	var lastSeek, lastLength int64
 
-	if len(lastIndex) > 0 {
-		fileID = lastIndex[1].(string)
-		lastSeek = lastIndex[2].(int)
-		lastLength = lastIndex[3].(int)
+	if lastIndex.FileID != "" {
+		fileID = lastIndex.FileID
+		lastSeek = lastIndex.Seek
+		lastLength = lastIndex.Length
 	} else {
 		fileID = DataID("")
 	}
@@ -253,19 +265,17 @@ func (c *ChainStorage) WriteData(height int, key string, data []byte) error {
 
 	idx := lastIdx + 1
 	iseek := C.CHAIN_HEADER_BYTES + lastIdx*C.CHAIN_HEAP_BYTES
-	DebugLog(fmt.Sprintf("데이터 파일: %s, 파일ID: %s, 시크: %d, 길이: %d", c.DataFile(fileID), fileID, seek, length))
 	if err := AppendFile(c.DataFile(fileID), ""); err != nil {
 		return err
 	}
 
-	if C.LEDGER_FILESIZE_LIMIT < seek+length {
+	if C.LEDGER_FILESIZE_LIMIT < seek+int64(length) {
 		fileID = DataID(fileID)
 		seek = 0
 	}
 
 	headerData := c.headerRaw(idx)
-	indexData := c.indexRaw(key, fileID, height, seek, length)
-	DebugLog(fmt.Sprintf("파일ID: %s", fileID))
+	indexData := c.indexRaw(key, fileID, height, int(seek), length)
 
 	if err := WriteFile(c.DataFile(fileID), int64(seek), data); err != nil {
 		return err
@@ -275,6 +285,8 @@ func (c *ChainStorage) WriteData(height int, key string, data []byte) error {
 		return err
 	}
 
+	DebugLog(fmt.Sprintf("write block index - key: %s, fileId: %s, height: %d, seek: %d, length: %d, iseek: %d, indexData length: %d", key, fileID, height, seek, length, iseek, len(indexData)))
+	DebugLog(fmt.Sprintf("headerData: %v", headerData))
 	return WriteFile(c.IndexFile(), 0, headerData)
 }
 
@@ -299,15 +311,15 @@ func (c *ChainStorage) indexRaw(key, fileID string, height, seek, length int) []
 		F.DecBin(length, C.LENGTH_BYTES)...)
 }
 
-func (c *ChainStorage) SearchIndex(directory string, hash string) ([]interface{}, error) {
+func (c *ChainStorage) SearchIndex(directory string, hash string) (ChainIndexCursor, error) {
 	if len(hash) < C.HEX_TIME_SIZE {
-		return []interface{}{}, nil
+		return ChainIndexCursor{}, nil
 	}
 
 	target := F.Hex2Bin(hash[:C.HEX_TIME_SIZE])
 	header, err := ReadPart(c.IndexFile(), 0, C.CHAIN_HEADER_BYTES)
 	if err != nil {
-		return nil, err
+		return ChainIndexCursor{}, err
 	}
 	count := F.BinDec(header)
 	cycle := int(math.Log2(float64(count))) + 1
@@ -322,7 +334,7 @@ func (c *ChainStorage) SearchIndex(directory string, hash string) ([]interface{}
 	bytes := len(target)
 	f, err := os.Open(c.IndexFile())
 	if err != nil {
-		return nil, err
+		return ChainIndexCursor{}, err
 	}
 	defer f.Close()
 
@@ -334,11 +346,11 @@ func (c *ChainStorage) SearchIndex(directory string, hash string) ([]interface{}
 			l = make([]byte, bytes)
 		} else {
 			if _, err := f.Seek(int64(C.CHAIN_HEADER_BYTES+(mid-1)*C.CHAIN_HEAP_BYTES), 0); err != nil {
-				return nil, err
+				return ChainIndexCursor{}, err
 			}
 			l = make([]byte, bytes)
 			if _, err := f.Read(l); err != nil {
-				return nil, err
+				return ChainIndexCursor{}, err
 			}
 		}
 
@@ -347,11 +359,11 @@ func (c *ChainStorage) SearchIndex(directory string, hash string) ([]interface{}
 			r = bytes_repeat(0xff, bytes)
 		} else {
 			if _, err := f.Seek(int64(C.CHAIN_HEADER_BYTES+mid*C.CHAIN_HEAP_BYTES), 0); err != nil {
-				return nil, err
+				return ChainIndexCursor{}, err
 			}
 			r = make([]byte, bytes)
 			if _, err := f.Read(r); err != nil {
-				return nil, err
+				return ChainIndexCursor{}, err
 			}
 		}
 
@@ -365,19 +377,19 @@ func (c *ChainStorage) SearchIndex(directory string, hash string) ([]interface{}
 	}
 
 	if _, err := f.Seek(int64(C.CHAIN_HEADER_BYTES+mid*C.CHAIN_HEAP_BYTES), 0); err != nil {
-		return nil, err
+		return ChainIndexCursor{}, err
 	}
 	read := make([]byte, C.CHAIN_HEAP_BYTES)
 	n, err := f.Read(read)
 	if err != nil && err != io.EOF {
-		return nil, err
+		return ChainIndexCursor{}, err
 	}
 
 	if n == C.CHAIN_HEAP_BYTES {
 		return ChainIndex(read), nil
 	}
 
-	return []interface{}{}, nil
+	return ChainIndexCursor{}, nil
 }
 
 func bytes_repeat(b byte, count int) []byte {

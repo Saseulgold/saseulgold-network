@@ -9,8 +9,8 @@ type TransactionMap = map[string]SignedTransaction
 type UpdateMap = map[string]Update
 
 type BlockHeader struct {
-	Height      int64  `json:"height"`
-	Timestamp_s int64  `json:"s_timestamp"`
+	Height      int    `json:"height"`
+	Timestamp_s int    `json:"s_timestamp"`
 	BlockRoot   string `json:"block_root"`
 }
 
@@ -20,19 +20,19 @@ func (bh BlockHeader) Ser() string {
 }
 
 type Block struct {
-	Height            int64          `json:"height"`
+	Height            int            `json:"height"`
 	Transactions      TransactionMap `json:"transactions"`
 	UniversalUpdates  UpdateMap
 	LocalUpdates      UpdateMap
 	PreviousBlockhash string `json:"previous_blockhash"`
-	Timestamp_s       int64  `json:"s_timestamp"`
+	Timestamp_s       int    `json:"s_timestamp"`
 	Vout              string `json:"vout"`
 	Nonce             string `json:"nonce"`
 	RewardAddress     string `json:"reward_address"`
-	Difficulty        int64  `json:"difficulty"`
+	Difficulty        int    `json:"difficulty"`
 }
 
-func NewBlock(height int64, previous_blockhash string) Block {
+func NewBlock(height int, previous_blockhash string) Block {
 	return Block{
 		Height:            height,
 		PreviousBlockhash: previous_blockhash,
@@ -43,24 +43,30 @@ func NewBlock(height int64, previous_blockhash string) Block {
 }
 
 func CreateBlock(
-	height int64,
+	height int,
 	transactions TransactionMap,
 	universalUpdates UpdateMap,
 	localUpdates UpdateMap,
 	previousBlockhash string,
-	timestamp_s int64,
+	timestamp_s int,
 	vout string,
 	nonce string,
 	rewardAddress string,
 ) Block {
 	return Block{
-		Height: height, Transactions: transactions, UniversalUpdates: universalUpdates,
-		LocalUpdates: localUpdates, PreviousBlockhash: previousBlockhash,
-		Timestamp_s: timestamp_s, Vout: vout, Nonce: nonce, RewardAddress: rewardAddress,
+		Height:            height,
+		Transactions:      transactions,
+		UniversalUpdates:  universalUpdates,
+		LocalUpdates:      localUpdates,
+		PreviousBlockhash: previousBlockhash,
+		Timestamp_s:       timestamp_s,
+		Vout:              vout,
+		Nonce:             nonce,
+		RewardAddress:     rewardAddress,
 	}
 }
 
-func (block *Block) SetTimestamp(timestamp int64) {
+func (block *Block) SetTimestamp(timestamp int) {
 	block.Timestamp_s = timestamp
 }
 
@@ -127,7 +133,7 @@ func (block Block) UpdateRoot() string {
 
 func (block Block) BlockHash() string {
 	s := F.Concat(block.PreviousBlockhash, block.BlockHeader())
-	return F.TimeHash(s, block.Timestamp_s)
+	return F.TimeHash(s, int64(block.Timestamp_s))
 }
 
 func (block Block) BaseObj() map[string]interface{} {
@@ -175,6 +181,6 @@ func (block *Block) Init() {
 	}
 }
 
-func (block *Block) GetTimestamp() int64 {
+func (block *Block) GetTimestamp() int {
 	return block.Timestamp_s
 }

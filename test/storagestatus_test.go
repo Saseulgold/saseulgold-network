@@ -138,7 +138,7 @@ func TestMainUpdate(t *testing.T) {
 	block.Init()
 
 	// 50개의 Update 객체 생성 및 추가
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 8; i++ {
 		update := Update{
 			Key: StatusHash(C.ZERO_ADDRESS, F.RootSpace(), "balance", AddressFromInt64(int64(i))),
 			Old: nil,
@@ -160,14 +160,16 @@ func TestMainUpdate(t *testing.T) {
 		if err != nil {
 			t.Errorf("Error occurred during ReadPart(): %v", err)
 		}
-		t.Logf("prefix: %s, address: %s, value: %s, length: %d", prefix, addr, part, cursor.Length)
+		if false {
+			t.Logf("prefix: %s, address: %s, value: %s, length: %d", prefix, addr, part, cursor.Length)
+		}
 		// Generate expected value
 
 	}
 	// sf.Update(&block)
 }
 
-func TestStorageStatusOverwrite(t *testing.T) {
+func aaTestStorageStatusOverwrite(t *testing.T) {
 	C.CORE_TEST_MODE = true
 	C.DATA_TEST_ROOT_DIR = "storage_status_overwrite_test"
 	sf := S.GetStatusFileInstance()

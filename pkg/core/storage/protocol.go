@@ -27,6 +27,13 @@ func StatusKey(raw []byte) string {
 	return res
 }
 
+type ChainIndexCursor struct {
+	Height int
+	FileID string
+	Seek   int64
+	Length int64
+}
+
 type StorageIndexCursor struct {
 	Key    string
 	FileID string
@@ -51,32 +58,6 @@ func NewStorageCursor(key string, fileID string, seek int64, length int64) Stora
 	}
 }
 
-/*
-*
-
-	func NewStorageCursorRaw(raw string) StorageIndexCursor {
-		key := StorageKey(raw)
-		offset := C.STATUS_KEY_BYTES
-
-		fileID := raw[offset : offset+C.DATA_ID_BYTES]
-		offset += C.DATA_ID_BYTES
-
-		seekBytes := raw[offset : offset+C.SEEK_BYTES]
-		seek := int64(seekBytes[0]) | int64(seekBytes[1])<<8 | int64(seekBytes[2])<<16 | int64(seekBytes[3])<<24
-		offset += C.SEEK_BYTES
-
-		length := F.Hex2Int64(raw[offset : offset+C.LENGTH_BYTES])
-
-		return StorageIndexCursor{
-			Key:    key,
-			FileID: fileID,
-			Seek:   seek,
-			Length: length,
-		}
-	}
-
-	*
-*/
 func NewStorageCursorRaw(raw string) StorageIndexCursor {
 	key, fileID, seek, length, err := ParseIndexRaw([]byte(raw))
 	if err != nil {
@@ -112,8 +93,6 @@ func ReadStatusStorageIndex(indexFile string, bundling bool) map[string]StorageI
 
 		if len(raw) == C.STATUS_HEAP_BYTES {
 			key := StatusKey(raw)
-			DebugLog(fmt.Sprintf("raw : %s", raw))
-			DebugLog(fmt.Sprintf("key : %s", key))
 			index := NewStorageCursorRaw(string(raw))
 
 			if bundling {
@@ -257,7 +236,7 @@ func ChainKey(raw []byte) string {
 	return hex.EncodeToString(raw[:C.CHAIN_KEY_BYTES])
 }
 
-func ChainIndex(raw []byte) []interface{} {
+func ChainIndex(raw []byte) ChainIndexCursor {
 	offset := C.TIME_HASH_BYTES
 
 	// height 추출
@@ -274,12 +253,17 @@ func ChainIndex(raw []byte) []interface{} {
 
 	// length 추출
 	length := F.BinDec(raw[offset : offset+C.LENGTH_BYTES])
-	return []interface{}{height, fileID, seek, length}
 
+	return ChainIndexCursor{
+		Height: height,
+		FileID: fileID,
+		Seek:   int64(seek),
+		Length: int64(length),
+	}
 }
 
-func ReadChainIndexes(directory string) map[string][]interface{} {
-	indexes := make(map[string][]interface{})
+func ReadChainIndexes(directory string) map[string]ChainIndexCursor {
+	indexes := make(map[string]ChainIndexCursor)
 
 	indexFile := filepath.Join(directory, "index")
 	header, _ := ReadPart(indexFile, 0, C.CHAIN_HEADER_BYTES)

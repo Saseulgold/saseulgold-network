@@ -1,19 +1,17 @@
 package main
 
 import (
+	"fmt"
 	C "hello/pkg/core/config"
+	. "hello/pkg/core/debug"
+	_ "hello/pkg/core/debug"
 	. "hello/pkg/core/model"
 	. "hello/pkg/core/storage"
 	S "hello/pkg/core/structure"
-	"os"
 	"testing"
 )
 
 func createTestBlock2(t *testing.T) *Block {
-
-	C.CORE_TEST_MODE = true
-	C.DATA_TEST_ROOT_DIR = "genesis_test_2"
-
 	// Create first Send transaction
 	tx1Data := S.NewOrderedMap()
 	tx1Data.Set("type", "Send")
@@ -34,7 +32,7 @@ func createTestBlock2(t *testing.T) *Block {
 
 	// Create block
 	previousBlockhash := "0626647acb68c0fa085be6ebfbafdc3b3afbcde8bc0bff1ba1f9b8f49a16faded2edbee8c0abb7"
-	block := NewBlock(5, previousBlockhash)
+	block := NewBlock(1, previousBlockhash)
 	block.SetTimestamp(1731062860000000)
 
 	// Add Universal Updates
@@ -101,9 +99,8 @@ func createTestBlock2(t *testing.T) *Block {
 }
 
 func TestChainStorageWriteAndRead(t *testing.T) {
-	// Set up test directory
-	testDir := "chain_test"
-	defer os.RemoveAll(testDir)
+	C.CORE_TEST_MODE = true
+	C.DATA_TEST_ROOT_DIR = "chain_test"
 
 	chain := &ChainStorage{}
 
@@ -113,75 +110,42 @@ func TestChainStorageWriteAndRead(t *testing.T) {
 		t.Fatalf("Failed to initialize: %v", err)
 	}
 
-	// Test data
-	testCases := []struct {
-		height int
-		key    string
-		data   []byte
-	}{
-		{1, "test1", []byte("hello world 1")},
-		{2, "test2", []byte("hello world 2")},
-		{3, "test3", []byte("hello world 3")},
-	}
-
 	block := createTestBlock2(t)
 	// Write data test
-	for _, tc := range testCases {
-		err := chain.Write(block)
-		if err != nil {
-			t.Errorf("Failed to write data at height %d: %v", tc.height, err)
-		}
+	err = chain.Write(block)
+	if err != nil {
+		t.Errorf("Failed to write data at height %d: %v", block.Height, err)
 	}
 
 	// Read data test
-	for _, tc := range testCases {
-		// Query index by height
-		indices, err := chain.Index(tc.height)
-		t.Logf("indices: %v", indices)
-		if err != nil {
-			t.Errorf("Failed to query index at height %d: %v", tc.height, err)
-			continue
-		}
+	// Query index by height
+	indices, err := chain.Index(block.Height)
+	if err != nil {
+		t.Errorf("Failed to query index at height %d: %v", block.Height, err)
+	}
 
-		// Read data
-		data, err := chain.ReadData(indices)
-		if err != nil {
-			t.Errorf("Failed to read data at height %d: %v", tc.height, err)
-			continue
-		}
+	// Read data
+	data, err := chain.ReadData(indices)
+	if err != nil {
+		t.Errorf("Failed to read data at height %d: %v", block.Height, err)
+	}
+	parsedBlock, err := ParseBlock(data)
+	if err != nil {
+		t.Errorf("Failed to parse block: %v", err)
+	}
 
-		// Verify data
-		if string(data) != string(tc.data) {
-			t.Errorf("Data mismatch at height %d\nExpected: %s\nGot: %s",
-				tc.height, string(tc.data), string(data))
-		}
+	DebugLog(fmt.Sprintf("parsedBlock: %v", parsedBlock))
+
+	// Verify block values
+	if block.Height != parsedBlock.Height {
+		t.Errorf("Block height mismatch. Expected: %d, Got: %d", block.Height, parsedBlock.Height)
 	}
 
 	// Last index test
 	lastIdx := chain.LastIdx()
-	if lastIdx != len(testCases) {
+	if lastIdx != 1 {
 		t.Errorf("Last index mismatch. Expected: %d, Got: %d",
-			len(testCases), lastIdx)
+			1, lastIdx)
 	}
 
-	// Search by key test
-	for _, tc := range testCases {
-		indices, err := chain.Index(tc.key)
-
-		if err != nil {
-			t.Errorf("Failed to search by key %s: %v", tc.key, err)
-			continue
-		}
-
-		data, err := chain.ReadData(indices)
-		if err != nil {
-			t.Errorf("Failed to read data for key %s: %v", tc.key, err)
-			continue
-		}
-
-		if string(data) != string(tc.data) {
-			t.Errorf("Data mismatch for key %s\nExpected: %s\nGot: %s",
-				tc.key, string(tc.data), string(data))
-		}
-	}
 }

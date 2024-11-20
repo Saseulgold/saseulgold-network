@@ -50,7 +50,7 @@ func TestChainStorage_Block(t *testing.T) {
 		}
 		t.Logf("needles: %v", needles)
 
-		block, err := cs.Block(needles[0].(string), needles[1])
+		block, err := cs.Block(tests[i].height)
 		if err != nil {
 			t.Fatalf("Failed to read block: %v", err)
 		}
