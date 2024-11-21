@@ -2,12 +2,7 @@ package swift
 
 import (
 	"crypto/tls"
-	"fmt"
-	"log"
 	"net"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 )
 
@@ -52,8 +47,8 @@ func (s *Server) Start() error {
 	s.listener = listener
 
 	go s.acceptConnections()
-	go s.processJobQueue()
-	go s.collectMetrics()
+	// go s.processJobQueue()
+	// go s.collectMetrics()
 
 	return nil
 }
@@ -89,28 +84,4 @@ func (s *Server) collectMetrics() {
 func (s *Server) handleConnection(conn net.Conn) {
 	defer conn.Close()
 
-}
-
-func main() {
-	// 서버 설정
-	security := SecurityConfig{
-		UseTLS: false,
-	}
-
-	// 서버 인스턴스 생성
-	server := NewServer(":8080", security)
-
-	// 서버 비동기 시작
-	if err := server.Start(); err != nil {
-		log.Fatalf("서버 시작 실패: %v", err)
-	}
-
-	// 메인 프로그램이 계속 실행되도록 시그널 처리
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-
-	// 시그널을 받을 때까지 대기
-	<-sigChan
-
-	fmt.Println("서버 종료 중...")
 }
