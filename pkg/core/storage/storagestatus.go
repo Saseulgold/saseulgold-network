@@ -627,3 +627,11 @@ func (sf *StatusFile) Update(block *Block) error {
 
 	return nil
 }
+
+func (sf *StatusFile) CountLocalStatus(prefix string) int {
+	return GetStatusIndexInstance().CountLocalIndexes(prefix)
+}
+
+func (sf *StatusFile) CountUniversalStatus(prefix string) int {
+	return GetStatusIndexInstance().CountUniversalIndexes(prefix)
+}

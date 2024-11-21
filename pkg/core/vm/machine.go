@@ -83,3 +83,19 @@ func (m *Machine) Commit(block *Block) error {
 
 	return nil
 }
+
+func (m *Machine) PreLoad(universalUpdates map[string]map[string]interface{}, localUpdates map[string]map[string]interface{}) {
+	for key, update := range universalUpdates {
+		old, exists := update["old"]
+		if exists {
+			m.interpreter.SetUniversalLoads(key, old)
+		}
+	}
+
+	for key, update := range localUpdates {
+		old, exists := update["old"]
+		if exists {
+			m.interpreter.SetLocalLoads(key, old)
+		}
+	}
+}

@@ -240,3 +240,10 @@ func (s *StatusIndex) CountUniversalIndexes(prefix string) int {
 	}
 	return 0
 }
+
+func (s *StatusIndex) CountLocalIndexes(prefix string) int {
+	if indexes, ok := s.localIndexes[prefix]; ok {
+		return len(indexes)
+	}
+	return 0
+}

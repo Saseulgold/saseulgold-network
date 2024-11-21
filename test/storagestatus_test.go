@@ -10,6 +10,7 @@ import (
 	. "hello/pkg/core/model"
 	S "hello/pkg/core/storage"
 	. "hello/pkg/core/structure"
+	native "hello/pkg/core/vm/native"
 
 	"fmt"
 	"strings"
@@ -166,6 +167,18 @@ func TestMainUpdate(t *testing.T) {
 		// Generate expected value
 
 	}
+	if native.BalancePrefix() != "b3c1ed9ce9df9d2531bb6e2945f044590974408f547f3574d56075e13394770d" {
+		t.Errorf("BalancePrefix is not correct: %s", native.BalancePrefix())
+	}
+
+	sfi := S.GetStatusIndexInstance()
+	sfi.Load()
+	if sf.CountUniversalStatus(native.BalancePrefix()) != 8 {
+		t.Errorf("CountUniversalStatus is not 8, but %d", sf.CountUniversalStatus(native.BalancePrefix()))
+	}
+
+	// sf.CachedUniversalIndexes = S.ReadStatusStorageIndex(sf.UniversalBundleIndex(), true)
+	// DebugAssert(sf.CountUniversalStatus(native.BalancePrefix()) == 8, "CountUniversalStatus is not 8, but %d", sf.CountUniversalStatus(native.BalancePrefix()))
 	// sf.Update(&block)
 }
 
