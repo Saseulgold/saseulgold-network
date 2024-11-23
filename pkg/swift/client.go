@@ -58,12 +58,12 @@ func (c *Client) Connect() error {
 		lastErr = err
 		time.Sleep(currentDelay)
 
-		// 지수 백오프
+		// Exponential backoff
 		currentDelay *= 2
 		if currentDelay > c.retryConfig.MaxBackoff {
 			currentDelay = c.retryConfig.MaxBackoff
 		}
 	}
 
-	return errors.New("최대 재시도 횟수 초과: " + lastErr.Error())
+	return errors.New("Max retry count exceeded: " + lastErr.Error())
 }
