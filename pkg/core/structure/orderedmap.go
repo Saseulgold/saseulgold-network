@@ -35,15 +35,19 @@ func (om *OrderedMap) Ser() string {
 		key := e.Value.(string)
 		value := om.m[key]
 
-		// Check if value is of type string, and wrap in quotes if so
-		if strValue, ok := value.(string); ok {
+		// If value is OrderedMap, recursively call Ser()
+		if nestedMap, ok := value.(*OrderedMap); ok {
+			result += fmt.Sprintf(`"%s":%s`, key, nestedMap.Ser())
+		} else if strValue, ok := value.(string); ok {
+			// If value is string, wrap with quotes
 			result += fmt.Sprintf(`"%s":"%s"`, key, strValue)
 		} else {
+			// For other types, print as is
 			result += fmt.Sprintf(`"%s":%v`, key, value)
 		}
 
 		if e.Next() != nil {
-			result += "," // Add a comma if there are more elements
+			result += "," // Add comma if there are more elements
 		}
 	}
 	result += "}"

@@ -16,7 +16,7 @@ var (
 
 // MempoolTx contains metadata for transactions stored in the mempool
 type MempoolTx struct {
-	Tx     SignedTransaction
+	Tx     *SignedTransaction
 	Time   int64 // Time when transaction was added to mempool
 	Height int   // Block height when transaction was added
 	Fee    int64 // Transaction fee
@@ -48,7 +48,7 @@ func GetMempoolInstance() *MempoolStorage {
 }
 
 // AddTransaction adds a new transaction to the mempool
-func (mp *MempoolStorage) AddTransaction(tx SignedTransaction) error {
+func (mp *MempoolStorage) AddTransaction(tx *SignedTransaction) error {
 	mp.mu.Lock()
 	defer mp.mu.Unlock()
 
@@ -115,11 +115,11 @@ func (mp *MempoolStorage) Clear() {
 }
 
 // GetTransactions returns a list of transactions sorted by priority
-func (mp *MempoolStorage) GetTransactions(limit int) []SignedTransaction {
+func (mp *MempoolStorage) GetTransactions(limit int) []*SignedTransaction {
 	mp.mu.RLock()
 	defer mp.mu.RUnlock()
 
-	result := make([]SignedTransaction, 0, limit)
+	result := make([]*SignedTransaction, 0, limit)
 	for i := 0; i < limit && i < len(mp.priorityQueue); i++ {
 		result = append(result, mp.priorityQueue[i].Tx)
 	}

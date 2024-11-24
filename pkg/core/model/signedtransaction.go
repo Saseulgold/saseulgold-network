@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	S "hello/pkg/core/structure"
 	"hello/pkg/crypto"
 	"hello/pkg/util"
@@ -25,17 +26,84 @@ func (tx SignedTransaction) GetSize() int {
 }
 
 func (tx SignedTransaction) GetTxHash() string {
-	ts, _ := tx.Data.Get("timestamp")
-	return util.TimeHash(util.Hash(tx.Ser()), ts.(int64))
-}
+	transaction, ok := tx.Data.Get("transaction")
+	if !ok || transaction == nil {
+		return ""
+	}
 
-func (tx *SignedTransaction) Sign(privateKey string) string {
-	txHash := tx.GetTxHash()
-	tx.Signature = crypto.Sign(txHash, privateKey)
-	return tx.Signature
+	txMap, ok := transaction.(*S.OrderedMap)
+	if !ok {
+		return ""
+	}
+
+	timestamp, ok := txMap.Get("timestamp")
+	if !ok {
+		return ""
+	}
+
+	return util.TimeHash(util.Hash(tx.Ser()), timestamp.(int64))
 }
 
 func (tx *SignedTransaction) GetTimestamp() int64 {
-	ts, _ := tx.Data.Get("timestamp")
-	return ts.(int64)
+	transaction, ok := tx.Data.Get("transaction")
+	if !ok || transaction == nil {
+		return 0
+	}
+
+	txMap, ok := transaction.(*S.OrderedMap)
+	if !ok {
+		return 0
+	}
+
+	timestamp, ok := txMap.Get("timestamp")
+	if !ok {
+		return 0
+	}
+
+	return timestamp.(int64)
+}
+
+func (tx *SignedTransaction) Validate() error {
+	if tx.Xpub == "" {
+		return fmt.Errorf("The signed transaction must contain the xpub parameter")
+	}
+
+	transaction, ok := tx.Data.Get("transaction")
+	if !ok || transaction == nil {
+		return fmt.Errorf("The signed transaction must contain the transaction parameter")
+	}
+
+	txMap, ok := transaction.(*S.OrderedMap)
+	if !ok {
+		return fmt.Errorf("Transaction parameter must be an OrderedMap")
+	}
+
+	txType, ok := txMap.Get("type")
+	if !ok || txType == nil {
+		return fmt.Errorf("The signed transaction must contain the transaction.type parameter")
+	}
+
+	if _, ok := txType.(string); !ok {
+		return fmt.Errorf("Parameter transaction.type must be of string type")
+	}
+
+	timestamp, ok := txMap.Get("timestamp")
+	if !ok || timestamp == nil {
+		return fmt.Errorf("The signed transaction must contain the transaction.timestamp parameter")
+	}
+
+	if _, ok := timestamp.(int64); !ok {
+		return fmt.Errorf("Parameter transaction.timestamp must be of integer type")
+	}
+
+	if tx.Signature == "" {
+		return fmt.Errorf("The signed transaction must contain the signature parameter")
+	}
+
+	// Verify signature
+	if !crypto.SignatureValidity(tx.Data.Ser(), tx.Xpub, tx.Signature) {
+		return fmt.Errorf("Invalid signature: %s (transaction hash: %s)", tx.Signature, tx.GetTxHash())
+	}
+
+	return nil
 }

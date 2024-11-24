@@ -2,8 +2,8 @@ package network
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
-	"time"
 
 	. "hello/pkg/core/model"
 	. "hello/pkg/core/storage"
@@ -37,65 +37,9 @@ func NewNodeService(
 
 // BroadcastTransaction broadcasts a new transaction to other nodes
 func (s *NodeService) BroadcastTransaction(ctx context.Context, tx *SignedTransaction) error {
-	return s.swift.BroadcastTransaction(ctx, tx)
-}
-
-// SyncBlocks synchronizes blocks with other nodes
-func (s *NodeService) SyncBlocks(ctx context.Context) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	currentHeight := s.statusStorage.BundleHeight()
-
-	// Check latest block heights from other nodes
-	peerHeights, err := s.swift.GetPeerHeights(ctx)
-	if err != nil {
-		return err
+	txPacket := &swift.Packet{
+		Type:    swift.PacketTypeTransaction,
+		Payload: json.RawMessage(tx.Ser()),
 	}
-
-	// Sync blocks from peers with higher blocks
-	for peer, height := range peerHeights {
-		if height > currentHeight {
-			blocks, err := s.swift.FetchBlocks(ctx, peer, currentHeight+1, height)
-			if err != nil {
-				continue
-			}
-
-			// Validate and store received blocks
-			for _, block := range blocks {
-				if err := s.chainStorage.AddBlock(block); err != nil {
-					return err
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
-// BroadcastBlock broadcasts a newly created block to other nodes
-func (s *NodeService) BroadcastBlock(ctx context.Context, block *Block) error {
-	return s.swift.BroadcastBlock(ctx, block)
-}
-
-// Start starts the NodeService
-func (s *NodeService) Start(ctx context.Context) error {
-	// Periodically perform block synchronization
-	go func() {
-		ticker := time.NewTicker(30 * time.Second)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				if err := s.SyncBlocks(ctx); err != nil {
-					// Error logging
-				}
-			}
-		}
-	}()
-
-	return nil
+	return s.swift.Broadcast(ctx, txPacket)
 }

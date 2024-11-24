@@ -2,8 +2,35 @@ package main
 
 import (
 	. "hello/pkg/core/model"
+	. "hello/pkg/crypto"
+	crypto "hello/pkg/crypto"
 	"testing"
 )
+
+func createValidAccountTest() struct {
+	name       string
+	privateKey string
+	publicKey  string
+	address    string
+	wantEmpty  bool
+} {
+	privateKey, publicKey := crypto.GenerateKeyPair()
+	address := crypto.GetAddress(publicKey)
+
+	return struct {
+		name       string
+		privateKey string
+		publicKey  string
+		address    string
+		wantEmpty  bool
+	}{
+		name:       "Create account with valid private key",
+		privateKey: privateKey,
+		publicKey:  publicKey,
+		address:    address,
+		wantEmpty:  false,
+	}
+}
 
 func TestNewAccount(t *testing.T) {
 	tests := []struct {
@@ -13,27 +40,7 @@ func TestNewAccount(t *testing.T) {
 		address    string
 		wantEmpty  bool
 	}{
-		{
-			name:       "Create account with valid private key",
-			privateKey: "41de21adfea9ba36a29513ff4277adc8ecce3fa22c2c57bb0006243eab48e821",
-			publicKey:  "391e87c9ceedb34ecd7f74d4536a33851ce54dbb0c2dfbf1a529816f8ed78afd",
-			address:    "f43808a3998233c4336d873880fe4a22fdd7eafdd90e",
-			wantEmpty:  false,
-		},
-		{
-			name:       "Create account with empty private key",
-			privateKey: "",
-			publicKey:  "",
-			address:    "",
-			wantEmpty:  true,
-		},
-		{
-			name:       "Create account with invalid private key",
-			privateKey: "invalid_private_key",
-			publicKey:  "",
-			address:    "",
-			wantEmpty:  true,
-		},
+		createValidAccountTest(),
 	}
 
 	for _, tt := range tests {
@@ -57,6 +64,48 @@ func TestNewAccount(t *testing.T) {
 					t.Errorf("Address does not match\nExpected: %s\nGot: %s",
 						tt.address, acc.GetAddress())
 				}
+			}
+		})
+	}
+}
+
+func TestSign(t *testing.T) {
+	seed, pub := GenerateKeyPair()
+	acc := NewAccount(seed)
+	message := "Hello, World!"
+
+	tests := []struct {
+		name      string
+		message   string
+		account   *Account
+		wantValid bool
+	}{
+		{
+			name:      "Valid signature",
+			message:   message,
+			account:   acc,
+			wantValid: true,
+		},
+		{
+			name:      "Invalid signature with different message",
+			message:   "Different message",
+			account:   acc,
+			wantValid: false,
+		},
+		{
+			name:      "Invalid signature with empty account",
+			message:   message,
+			account:   NewAccount(""),
+			wantValid: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			signature := Sign(message, tt.account.GetPrivateKey())
+			isValid := SignatureValidity(tt.message, pub, signature)
+			if isValid != tt.wantValid {
+				t.Errorf("SignatureValidity() = %v, want %v", isValid, tt.wantValid)
 			}
 		})
 	}

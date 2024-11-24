@@ -4,8 +4,20 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"fmt"
+	. "hello/pkg/core/debug"
 	"hello/pkg/util"
 )
+
+func GenerateKeyPair() (string, string) {
+	seed := GetRandomKeyPairSeed()[:ed25519.SeedSize]
+	publicKey, _, err := CryptoSignSeedKeypair(seed)
+	if err != nil {
+		DebugLog("GenerateKeyPair err: %v", err)
+		return "", ""
+	}
+
+	return util.Bin2Hex(seed), util.Bin2Hex(publicKey)
+}
 
 // sodium_crypto_sign_seed_keypair
 func CryptoSignSeedKeypair(seed []byte) (ed25519.PublicKey, ed25519.PrivateKey, error) {
@@ -24,8 +36,12 @@ func GetRandomKeyPairSeed() []byte {
 	return seed
 }
 
-func GetXpub(privateKey string) string {
-	pub, _, _ := CryptoSignSeedKeypair(util.Hex2Bin(privateKey))
+func GetXpub(seedHex string) string {
+	seed := util.Hex2Bin(seedHex)
+	pub, _, err := CryptoSignSeedKeypair(seed)
+	if err != nil {
+		return ""
+	}
 	return util.Bin2Hex(pub)
 }
 
@@ -40,13 +56,28 @@ func AddressValidity(address string) bool {
 	return util.IsHex(address)
 }
 
+func Sign(obj string, privateKey string) string {
+	seed := util.Hex2Bin(privateKey)
+	_, signingKey, err := CryptoSignSeedKeypair(seed)
+	if err != nil {
+		return ""
+	}
+
+	message := util.StringToByte(obj)
+	signature := ed25519.Sign(signingKey, message)
+	return util.Bin2Hex(signature)
+}
+
+/**
 func Sign(message string, privateKey string) string {
+	DebugLog("Sign: message: %s, privateKey: %s", message, privateKey)
 	p0 := util.StringToByte(message)
 
 	xpub := GetXpub(privateKey)
 	p1 := util.Hex2Bin(privateKey + xpub)
 	return util.Bin2Hex(ed25519.Sign(p1, p0))
 }
+**/
 
 func SignatureValidity(obj string, publicKey string, signature string) bool {
 	if !KeyValidity(publicKey) || len(signature) != SIGNATURE_SIZE {
