@@ -33,6 +33,7 @@ func createPingCmd() *cobra.Command {
 				log.Fatalf("RPC call failed: %v", err)
 			}
 			fmt.Printf("RPC response: %v\n", response)
+
 		},
 		PreRun: func(cmd *cobra.Command, args []string) {
 			cmd.Flags().Parse(args)

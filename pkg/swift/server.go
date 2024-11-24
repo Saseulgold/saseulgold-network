@@ -152,6 +152,19 @@ func (s *Server) collectMetrics() {
 }
 
 func (s *Server) HandleConnection(conn net.Conn) error {
+	// connection cleanup
+	defer func() {
+		s.mu.Lock()
+		delete(s.connections, conn.RemoteAddr().String())
+		s.mu.Unlock()
+		conn.Close()
+	}()
+
+	// read timeout;
+	if err := conn.SetReadDeadline(time.Now().Add(30 * time.Second)); err != nil {
+		return fmt.Errorf("failed to set read deadline: %v", err)
+	}
+
 	for {
 		SwiftInfoLog("new connection request: %s\n", conn.RemoteAddr().String())
 		header := make([]byte, 4)
@@ -210,6 +223,7 @@ func (s *Server) HandleConnection(conn net.Conn) error {
 		}
 	}
 }
+
 func (s *Server) Close(addr string) error {
 	conn, exists := s.connections[addr]
 	if !exists || conn == nil {
@@ -333,32 +347,6 @@ func (s *Server) GetPeers() ([]string, error) {
 	}
 
 	return peers, nil
-}
-
-// Ping sends a ping message to check connection status
-func (s *Server) Ping(ctx context.Context) error {
-	// "ping" 문자열을 JSON 형식으로 변경
-	pingPayload := []byte(`"ping"`)
-	pingPacket := &Packet{
-		Type:    PacketTypePing,
-		Payload: json.RawMessage(pingPayload),
-	}
-
-	if err := s.Send(pingPacket); err != nil {
-		return fmt.Errorf("failed to send ping: %v", err)
-	}
-
-	// 응답 대기
-	response, err := s.ReceiveMessage()
-	if err != nil {
-		return fmt.Errorf("failed to receive ping response: %v", err)
-	}
-
-	if response.Type != PacketTypePong {
-		return fmt.Errorf("invalid response type: %v", response.Type)
-	}
-
-	return nil
 }
 
 // Shutdown gracefully shuts down the server and cleans up resources
