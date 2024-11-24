@@ -11,6 +11,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	C "hello/pkg/core/config"
@@ -24,7 +25,6 @@ type RetryConfig struct {
 
 type Server struct {
 	address       string
-	nodeID        string
 	connections   map[string]net.Conn
 	metrics       *Metrics
 	priorityQueue *PriorityQueue
@@ -32,6 +32,11 @@ type Server struct {
 	compression   CompressionType
 	listener      net.Listener
 	retryConfig   RetryConfig
+	mu            sync.RWMutex
+}
+
+func SwiftInfoLog(format string, args ...interface{}) {
+	fmt.Printf(format, args...)
 }
 
 func SwiftRootDir() string {
@@ -44,7 +49,6 @@ func SwiftRootDir() string {
 func NewServer(address string, security SecurityConfig) *Server {
 	return &Server{
 		address:       address,
-		nodeID:        fmt.Sprintf("%016x", time.Now().UnixNano()),
 		connections:   make(map[string]net.Conn),
 		metrics:       NewMetrics(),
 		priorityQueue: &PriorityQueue{},
@@ -55,6 +59,7 @@ func NewServer(address string, security SecurityConfig) *Server {
 			MaxRetries: 3,
 			MaxBackoff: 30 * time.Second,
 		},
+		mu: sync.RWMutex{},
 	}
 }
 
@@ -114,10 +119,12 @@ func (s *Server) acceptConnections() {
 			continue
 		}
 
-		clientID := conn.RemoteAddr().String()
-		s.connections[clientID] = conn
+		s.mu.Lock()
+		remoteAddr := conn.RemoteAddr().String()
+		s.connections[remoteAddr] = conn
+		s.mu.Unlock()
 
-		go s.handleConnection(conn)
+		go s.HandleConnection(conn)
 	}
 }
 
@@ -144,10 +151,9 @@ func (s *Server) collectMetrics() {
 	}
 }
 
-func (s *Server) handleConnection(conn net.Conn) error {
-	defer conn.Close()
-
+func (s *Server) HandleConnection(conn net.Conn) error {
 	for {
+		SwiftInfoLog("new connection request: %s\n", conn.RemoteAddr().String())
 		// 패킷 길이를 담은 헤더(4바이트) 읽기
 		header := make([]byte, 4)
 		if _, err := io.ReadFull(conn, header); err != nil {
@@ -186,33 +192,49 @@ func (s *Server) handleConnection(conn net.Conn) error {
 			// 블록 요청 처리
 		case PacketTypeBlockResponse:
 			// 블록 응답 처리
+		case PacketTypePing:
+			if err := s.Send(&Packet{
+				Type:    PacketTypePong,
+				Payload: json.RawMessage(`"pong"`),
+			}); err != nil {
+				return fmt.Errorf("pong 응답 실패: %v", err)
+			}
+			continue
+		case PacketTypePong:
+			SwiftInfoLog("pong received\n")
+			continue
 		default:
 			return fmt.Errorf("알 수 없는 패킷 타입: %v", packet.Type)
 		}
 	}
 }
+func (s *Server) Close(addr string) error {
+	conn, exists := s.connections[addr]
+	if !exists || conn == nil {
+		return nil
+	}
 
-func (s *Server) closeConnection(conn net.Conn) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.CloseConnection(conn)
+}
+
+func (s *Server) CloseConnection(conn net.Conn) error {
 	return conn.Close()
 }
 
 // BroadcastBlock은 블록을 모든 피어에게 전송합니다
 func (s *Server) Broadcast(ctx context.Context, packet *Packet) error {
-	return s.Send(packet.Type, packet.Payload)
+	return s.Send(packet)
 }
 
-func (s *Server) Send(packetType PacketType, payload interface{}) error {
-	conn := s.connections[s.nodeID]
-	packet := &Packet{
-		Type: packetType,
-	}
+func (s *Server) Send(packet *Packet) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 
-	if payload != nil {
-		payloadBytes, err := json.Marshal(payload)
-		if err != nil {
-			return fmt.Errorf("failed to serialize payload: %v", err)
-		}
-		packet.Payload = payloadBytes
+	if len(s.connections) == 0 {
+		return fmt.Errorf("no active connections")
 	}
 
 	packetBytes, err := json.Marshal(packet)
@@ -220,26 +242,38 @@ func (s *Server) Send(packetType PacketType, payload interface{}) error {
 		return fmt.Errorf("failed to serialize packet: %v", err)
 	}
 
-	// Create header with packet length
 	header := make([]byte, 4)
 	binary.BigEndian.PutUint32(header, uint32(len(packetBytes)))
 
-	// Send header and packet sequentially
 	for _, conn := range s.connections {
-		if _, err := conn.Write(header); err != nil {
-			return fmt.Errorf("헤더 전송 실패: %v", err)
+		if conn == nil {
+			continue
 		}
-	}
-
-	if _, err := conn.Write(packetBytes); err != nil {
-		return fmt.Errorf("failed to send packet: %v", err)
+		if _, err := conn.Write(header); err != nil {
+			return fmt.Errorf("failed to send header: %v", err)
+		}
+		if _, err := conn.Write(packetBytes); err != nil {
+			return fmt.Errorf("failed to send packet: %v", err)
+		}
 	}
 
 	return nil
 }
 
 func (s *Server) ReceiveMessage() (*Packet, error) {
-	conn := s.connections[s.nodeID]
+	s.mu.RLock()
+	if len(s.connections) == 0 {
+		s.mu.RUnlock()
+		return nil, errors.New("서버에 활성화된 연결이 없습니다")
+	}
+
+	// 첫 번째 활성 연결 사용
+	var conn net.Conn
+	for _, c := range s.connections {
+		conn = c
+		break
+	}
+	s.mu.RUnlock()
 
 	// 4바이트 헤더 버퍼 선언
 	header := make([]byte, 4)
@@ -267,18 +301,20 @@ func (s *Server) ReceiveMessage() (*Packet, error) {
 }
 
 func (s *Server) GetPeers() ([]string, error) {
-	conn := s.connections[s.nodeID]
-
-	if conn == nil {
-		return nil, errors.New("server is not connected")
+	s.mu.RLock()
+	if len(s.connections) == 0 {
+		s.mu.RUnlock()
+		return nil, errors.New("서버에 활성화된 연결이 없습니다")
 	}
+
+	s.mu.RUnlock()
 
 	// Send peer list request message
 	heightReq := &Packet{
 		Type:    PacketTypeHeightRequest,
-		Payload: json.RawMessage(s.nodeID),
+		Payload: json.RawMessage(s.address),
 	}
-	if err := s.Send(PacketTypeHeightRequest, heightReq); err != nil {
+	if err := s.Send(heightReq); err != nil {
 		return nil, fmt.Errorf("failed to request peer list: %v", err)
 	}
 
@@ -295,4 +331,72 @@ func (s *Server) GetPeers() ([]string, error) {
 	}
 
 	return peers, nil
+}
+
+// Ping sends a ping message to check connection status
+func (s *Server) Ping(ctx context.Context) error {
+	// "ping" 문자열을 JSON 형식으로 변경
+	pingPayload := []byte(`"ping"`)
+	pingPacket := &Packet{
+		Type:    PacketTypePing,
+		Payload: json.RawMessage(pingPayload),
+	}
+
+	if err := s.Send(pingPacket); err != nil {
+		return fmt.Errorf("failed to send ping: %v", err)
+	}
+
+	// 응답 대기
+	response, err := s.ReceiveMessage()
+	if err != nil {
+		return fmt.Errorf("failed to receive ping response: %v", err)
+	}
+
+	if response.Type != PacketTypePong {
+		return fmt.Errorf("invalid response type: %v", response.Type)
+	}
+
+	return nil
+}
+
+// Shutdown gracefully shuts down the server and cleans up resources
+func (s *Server) Shutdown() error {
+	// 리스너 종료
+	if s.listener != nil {
+		if err := s.listener.Close(); err != nil {
+			return fmt.Errorf("failed to close listener: %v", err)
+		}
+	}
+
+	// 모든 연결 종료
+	for id, conn := range s.connections {
+		if err := conn.Close(); err != nil {
+			return fmt.Errorf("failed to close connection (%s): %v", id, err)
+		}
+		delete(s.connections, id)
+	}
+
+	// PID 파일 제거
+	pidFile := SwiftRootDir()
+	if err := os.Remove(pidFile); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("PID 파일 제거 실패: %v", err)
+	}
+
+	return nil
+}
+
+func (s *Server) Connect(targetAddr string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	conn, err := net.Dial("tcp", targetAddr)
+	if err != nil {
+		return fmt.Errorf("연결 실패: %v", err)
+	}
+
+	SwiftInfoLog("success to connect: %s\n", targetAddr)
+	s.connections[targetAddr] = conn
+	go s.HandleConnection(conn)
+
+	return nil
 }
