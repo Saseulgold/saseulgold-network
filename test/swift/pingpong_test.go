@@ -9,7 +9,7 @@ import (
 func TestPingPong(t *testing.T) {
 	server := NewServer("localhost:9001", SecurityConfig{UseTLS: false})
 
-	node := NewNodeService(server, ":8001")
+	node := NewNodeService(server)
 	if err := node.Start(); err != nil {
 		t.Fatalf("Failed to start node service: %v", err)
 	}

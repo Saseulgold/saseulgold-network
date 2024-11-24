@@ -87,5 +87,7 @@ func RunServerCMD() *cobra.Command {
 	nodeCmd.AddCommand(nodeStartCmd)
 	rootCmd.AddCommand(nodeCmd)
 
+	nodeCmd.AddCommand(createPingCmd())
+
 	return rootCmd
 }

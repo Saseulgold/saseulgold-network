@@ -1,6 +1,7 @@
 package program
 
 import (
+	"encoding/json"
 	"fmt"
 	"hello/pkg/core/network"
 	"hello/pkg/swift"
@@ -12,9 +13,40 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func createPingCmd() *cobra.Command {
+	var targetNode string
+
+	cmd := &cobra.Command{
+		Use:   "ping",
+		Short: "ping to another node",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Printf("ping to node: %s\n", targetNode)
+
+			req := swift.Packet{
+				Type:    swift.PacketTypePing,
+				Payload: json.RawMessage(`{"message": "hello"}`),
+			}
+
+			response, err := network.CallRPC(targetNode, req)
+			if err != nil {
+				log.Fatalf("RPC call failed: %v", err)
+			}
+			fmt.Printf("RPC response: %v\n", response)
+		},
+		PreRun: func(cmd *cobra.Command, args []string) {
+			cmd.Flags().Parse(args)
+		},
+	}
+
+	cmd.Flags().StringVarP(&targetNode, "peer", "p", "", "Target node to ping")
+	cmd.MarkFlagRequired("peer")
+
+	return cmd
+}
+
 func createNodeStartCmd(port *string, useTLS *bool) *cobra.Command {
 	var foreground bool
-	var rpcPort string
 
 	cmd := &cobra.Command{
 		Use:   "start",
@@ -26,7 +58,7 @@ func createNodeStartCmd(port *string, useTLS *bool) *cobra.Command {
 			}
 
 			server := swift.NewServer("localhost:"+*port, security)
-			node := network.NewNodeService(server, "localhost:"+rpcPort)
+			node := network.NewNodeService(server)
 
 			if !foreground {
 				// Fork process
@@ -55,7 +87,6 @@ func createNodeStartCmd(port *string, useTLS *bool) *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(port, "port", "p", "9090", "Port for Swift server")
-	cmd.Flags().StringVarP(&rpcPort, "rpc-port", "r", "9091", "Port for RPC server")
 	cmd.Flags().BoolVarP(useTLS, "tls", "t", false, "Use TLS for security")
 	cmd.Flags().BoolVarP(&foreground, "foreground", "f", false, "Run node in foreground mode")
 

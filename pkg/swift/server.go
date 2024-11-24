@@ -154,57 +154,59 @@ func (s *Server) collectMetrics() {
 func (s *Server) HandleConnection(conn net.Conn) error {
 	for {
 		SwiftInfoLog("new connection request: %s\n", conn.RemoteAddr().String())
-		// 패킷 길이를 담은 헤더(4바이트) 읽기
 		header := make([]byte, 4)
 		if _, err := io.ReadFull(conn, header); err != nil {
 			if err == io.EOF {
 				return nil
 			}
-			return fmt.Errorf("헤더 읽기 실패: %v", err)
+			return fmt.Errorf("failed to read header: %v", err)
 		}
+		SwiftInfoLog("received header: %v\n", header)
 
-		// 패킷 길이 추출
+		// get packet length
 		packetLen := binary.BigEndian.Uint32(header)
 
-		// 패킷 데이터 읽기
+		// read packet data
 		packetBytes := make([]byte, packetLen)
 		if _, err := io.ReadFull(conn, packetBytes); err != nil {
-			return fmt.Errorf("패킷 읽기 실패: %v", err)
+			SwiftInfoLog("failed to read packet: %v\n", err)
+			return fmt.Errorf("failed to read packet: %v", err)
 		}
 
-		// 패킷 디코딩
+		// decode packet
 		var packet Packet
 		if err := json.Unmarshal(packetBytes, &packet); err != nil {
-			return fmt.Errorf("패킷 파싱 실패: %v", err)
+			return fmt.Errorf("failed to parse packet: %v", err)
 		}
+		SwiftInfoLog("received packet: %v\n", packet)
 
-		// 패킷 타입에 따른 처리
+		// process packet
 		switch packet.Type {
 		case PacketTypeTransaction:
-			// 트랜잭션 처리 로직
+			// process transaction
 		case PacketTypeBlock:
-			// 블록 처리 로직
+			// process block
 		case PacketTypeHeightRequest:
-			// 블록 높이 요청 처리
+			// process height request
 		case PacketTypeHeightResponse:
-			// 블록 높이 응답 처리
+			// process height response
 		case PacketTypeBlockRequest:
-			// 블록 요청 처리
+			// process block request
 		case PacketTypeBlockResponse:
-			// 블록 응답 처리
+			// process block response
 		case PacketTypePing:
 			if err := s.Send(&Packet{
 				Type:    PacketTypePong,
 				Payload: json.RawMessage(`"pong"`),
 			}); err != nil {
-				return fmt.Errorf("pong 응답 실패: %v", err)
+				return fmt.Errorf("failed to send pong response: %v", err)
 			}
 			continue
 		case PacketTypePong:
 			SwiftInfoLog("pong received\n")
 			continue
 		default:
-			return fmt.Errorf("알 수 없는 패킷 타입: %v", packet.Type)
+			return fmt.Errorf("unknown packet type: %v", packet.Type)
 		}
 	}
 }
