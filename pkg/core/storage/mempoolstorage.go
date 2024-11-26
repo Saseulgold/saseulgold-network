@@ -52,7 +52,10 @@ func (mp *MempoolStorage) AddTransaction(tx *SignedTransaction) error {
 	mp.mu.Lock()
 	defer mp.mu.Unlock()
 
-	txHash := tx.GetTxHash()
+	txHash, err := tx.GetTxHash()
+	if err != nil {
+		return err
+	}
 
 	// Check if transaction already exists
 	if _, exists := mp.pool[txHash]; exists {
@@ -60,7 +63,11 @@ func (mp *MempoolStorage) AddTransaction(tx *SignedTransaction) error {
 	}
 
 	// Check transaction size limit
-	if tx.GetSize() > C.TX_SIZE_LIMIT {
+	size, err := tx.GetSize()
+	if err != nil {
+		return err
+	}
+	if size > C.TX_SIZE_LIMIT {
 		return ERR_TX_TOO_BIG
 	}
 
@@ -74,7 +81,7 @@ func (mp *MempoolStorage) AddTransaction(tx *SignedTransaction) error {
 		Tx:     tx,
 		Time:   time.Now().UnixNano(),
 		Height: LastHeight(),
-		TxSize: tx.GetSize(),
+		TxSize: size,
 	}
 
 	// Add to pool

@@ -15,7 +15,10 @@ func TestDeploy(t *testing.T) {
 	C.DATA_TEST_ROOT_DIR = "register_test"
 
 	userMethod := &Method{
+		Type:    "contract",
 		Name:    "userMethod",
+		Space:   "test",
+		Writer:  "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4",
 		Version: "1",
 		Parameters: Parameters{
 			"value1": NewParameter(map[string]interface{}{
@@ -66,8 +69,11 @@ func TestDeploy(t *testing.T) {
 
 	signedData := NewSignedData()
 	signedData.SetAttribute("code", code)
+	signedData.SetAttribute("from", userMethod.Writer)
 
-	post := &Method{Parameters: Parameters{},
+	post := &Method{
+		Type:       "contract",
+		Parameters: Parameters{},
 		Executions: []Execution{},
 	}
 
@@ -77,7 +83,12 @@ func TestDeploy(t *testing.T) {
 	interpreter.SetPostProcess(post)
 
 	msg, _ := interpreter.Execute()
+	result := interpreter.GetResult()
 	t.Logf("Error message: %v", msg)
+	t.Logf("Result: %v", result)
+
+	updates := interpreter.GetLocalUpdates()
+	t.Logf("Updates: %v", updates)
 
 	/**
 	prefix := "contract"

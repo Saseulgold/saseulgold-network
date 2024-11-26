@@ -70,10 +70,13 @@ func (block *Block) SetTimestamp(timestamp int) {
 	block.Timestamp_s = timestamp
 }
 
-func (block *Block) AppendTransaction(tx SignedTransaction) bool {
-	txHash := tx.GetTxHash()
+func (block *Block) AppendTransaction(tx SignedTransaction) error {
+	txHash, err := tx.GetTxHash()
+	if err != nil {
+		return err
+	}
 	block.Transactions[txHash] = tx
-	return true
+	return nil
 }
 
 func (block *Block) AppendLocalUpdate(update Update) bool {
@@ -101,7 +104,11 @@ func (block Block) BlockRoot() string {
 func (block Block) THashs() []string {
 	txs := F.SortedValueK(block.Transactions)
 	return F.Map(txs, func(tx SignedTransaction) string {
-		return tx.GetTxHash()
+		hash, err := tx.GetTxHash()
+		if err != nil {
+			return ""
+		}
+		return hash
 	})
 }
 

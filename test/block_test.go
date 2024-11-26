@@ -30,21 +30,38 @@ func TestUpdate_GetHash0(t *testing.T) {
 func createTestBlock_1(t *testing.T) *Block {
 	// 첫 번째 Send 트랜잭션 생성
 	tx1Data := S.NewOrderedMap()
+	data1 := S.NewOrderedMap()
 	tx1Data.Set("type", "Send")
 	tx1Data.Set("to", "50c3a6cd858c90574bcdc35b2da5dbc7225275f50edf")
-	tx1Data.Set("amount", 3142500000)
+	tx1Data.Set("amount", "3142500000")
 	tx1Data.Set("from", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
-	tx1Data.Set("timestamp", int64(1731062859308000))
-	tx1 := NewSignedTransaction(tx1Data)
+	tx1Data.Set("timestamp", 1731062859308000)
+	tx1Data.Set("nonce", "1")
+	data1.Set("transaction", tx1Data)
+	data1.Set("public_key", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
+	data1.Set("signature", "asfd")
+	tx1, err := NewSignedTransaction(data1)
+
+	if err != nil {
+		t.Fatalf("Failed to create tx1: %v", err)
+	}
 
 	// 두 번째 Send 트랜잭션 생성
 	tx2Data := S.NewOrderedMap()
+	data2 := S.NewOrderedMap()
 	tx2Data.Set("type", "Send")
 	tx2Data.Set("to", "50c3a6cd858c90574bcdc35b2da5dbc7225275f50edf")
-	tx2Data.Set("amount", 3142500000)
+	tx2Data.Set("amount", "3142500000")
 	tx2Data.Set("from", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
-	tx2Data.Set("timestamp", int64(1731062859742000))
-	tx2 := NewSignedTransaction(tx2Data)
+	tx2Data.Set("timestamp", 1731062859742000)
+	tx2Data.Set("nonce", "2")
+	data2.Set("transaction", tx2Data)
+	data2.Set("public_key", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
+	data2.Set("signature", "asfd")
+	tx2, err := NewSignedTransaction(data2)
+	if err != nil {
+		t.Fatalf("Failed to create tx2: %v", err)
+	}
 
 	// 블록 생성
 	previousBlockhash := "0626647acb68c0fa085be6ebfbafdc3b3afbcde8bc0bff1ba1f9b8f49a16faded2edbee8c0abb7"
@@ -117,21 +134,38 @@ func createTestBlock_1(t *testing.T) *Block {
 func createTestBlock_2(t *testing.T) *Block {
 	// 첫 번째 Send 트랜잭션 생성
 	tx1Data := S.NewOrderedMap()
+	data1 := S.NewOrderedMap()
 	tx1Data.Set("type", "Send")
 	tx1Data.Set("to", "50c3a6cd858c90574bcdc35b2da5dbc7225275f50edf")
-	tx1Data.Set("amount", 4000000000)
+	tx1Data.Set("amount", "4000000000")
 	tx1Data.Set("from", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
-	tx1Data.Set("timestamp", int64(1731062959308000))
-	tx1 := NewSignedTransaction(tx1Data)
+	tx1Data.Set("timestamp", 1731062959308000)
+	tx1Data.Set("nonce", "3")
+	data1.Set("transaction", tx1Data)
+
+	data1.Set("public_key", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
+	data1.Set("signature", "asfd")
+	tx1, err := NewSignedTransaction(data1)
+	if err != nil {
+		t.Fatalf("Failed to create tx1: %v", err)
+	}
 
 	// 두 번째 Send 트랜잭션 생성
 	tx2Data := S.NewOrderedMap()
+	data2 := S.NewOrderedMap()
 	tx2Data.Set("type", "Send")
 	tx2Data.Set("to", "50c3a6cd858c90574bcdc35b2da5dbc7225275f50edf")
-	tx2Data.Set("amount", 5000000000)
+	tx2Data.Set("amount", "5000000000")
 	tx2Data.Set("from", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
-	tx2Data.Set("timestamp", int64(1731062959742000))
-	tx2 := NewSignedTransaction(tx2Data)
+	tx2Data.Set("timestamp", 1731062959742000)
+	tx2Data.Set("nonce", "4")
+	data2.Set("transaction", tx2Data)
+	data2.Set("public_key", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
+	data2.Set("signature", "asfd")
+	tx2, err := NewSignedTransaction(data2)
+	if err != nil {
+		t.Fatalf("Failed to create tx2: %v", err)
+	}
 
 	// 블록 생성
 	previousBlockhash := "0626647acb68c0fa085be6ebfbafdc3b3afbcde8bc0bff1ba1f9b8f49a16faded2edbee8c0abb7"
@@ -168,21 +202,37 @@ func createTestBlock_2(t *testing.T) *Block {
 func createTestBlock_3(t *testing.T) *Block {
 	// 첫 번째 Send 트랜잭션 생성
 	tx1Data := S.NewOrderedMap()
+	data1 := S.NewOrderedMap()
 	tx1Data.Set("type", "Send")
 	tx1Data.Set("to", "50c3a6cd858c90574bcdc35b2da5dbc7225275f50edf")
-	tx1Data.Set("amount", 6000000000)
+	tx1Data.Set("amount", "6000000000")
 	tx1Data.Set("from", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
-	tx1Data.Set("timestamp", int64(1731063059308000))
-	tx1 := NewSignedTransaction(tx1Data)
+	tx1Data.Set("timestamp", 1731063059308000)
+	tx1Data.Set("nonce", "5")
+	data1.Set("transaction", tx1Data)
+	data1.Set("public_key", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
+	data1.Set("signature", "asfd")
+	tx1, err := NewSignedTransaction(data1)
+	if err != nil {
+		t.Fatalf("Failed to create tx1: %v", err)
+	}
 
 	// 두 번째 Send 트랜잭션 생성
 	tx2Data := S.NewOrderedMap()
+	data2 := S.NewOrderedMap()
 	tx2Data.Set("type", "Send")
 	tx2Data.Set("to", "50c3a6cd858c90574bcdc35b2da5dbc7225275f50edf")
-	tx2Data.Set("amount", 7000000000)
+	tx2Data.Set("amount", "7000000000")
 	tx2Data.Set("from", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
-	tx2Data.Set("timestamp", int64(1731063059742000))
-	tx2 := NewSignedTransaction(tx2Data)
+	tx2Data.Set("timestamp", 1731063059742000)
+	tx2Data.Set("nonce", "6")
+	data2.Set("transaction", tx2Data)
+	data2.Set("public_key", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
+	data2.Set("signature", "asfd")
+	tx2, err := NewSignedTransaction(data2)
+	if err != nil {
+		t.Fatalf("Failed to create tx2: %v", err)
+	}
 
 	// 블록 생성
 	previousBlockhash := "0626647acb68c0fa085be6ebfbafdc3b3afbcde8bc0bff1ba1f9b8f49a16faded2edbee8c0abb7"

@@ -102,7 +102,7 @@ func TestArithmeticOperators(t *testing.T) {
 				abi.PreciseDiv(abi.Param("value2"), "2", 3),
 				2,
 			),
-			// 복잡한 연산 추가
+			// Add complex calculation
 			// 1. value1 * 1.5 = 30 * 1.5 = 45.000 (scale=3)
 			// 2. value2 * 0.8 = 10 * 0.8 = 8.000 (scale=3)
 			// 3. if (45.000 > 40) then (45.000 - 8.000) else (45.000 + 8.000)
@@ -145,17 +145,17 @@ func TestArithmeticOperators(t *testing.T) {
 		t.Errorf("Error occurred during execution: %v", err)
 	}
 
-	// 첫번째 실행 결과 검증 (30 - 10 = 20)
+	// First execution result validation (30 - 10 = 20)
 	if methodSub.GetExecutions()[0] != "20.00" {
 		t.Errorf("First execution result error. Expected: 20, Actual: %v", methodSub.GetExecutions()[0])
 	}
 
-	// 두번째 실행 결과 검증 ((30 * 0.5) + (10 / 2) = 15 + 5 = 20)
+	// Second execution result validation ((30 * 0.5) + (10 / 2) = 15 + 5 = 20)
 	if methodSub.GetExecutions()[1] != "20.00" {
 		t.Errorf("Second execution result error. Expected: 20.00, Actual: %v", methodSub.GetExecutions()[1])
 	}
 
-	// 세번째 실행 결과 검증 ((30 * 1.5) - (10 * 0.8) = 45 - 8 = 37)
+	// Third execution result validation ((30 * 1.5) - (10 * 0.8) = 45 - 8 = 37)
 	if methodSub.GetExecutions()[2] != "74" {
 		t.Errorf("Third execution result error. Expected: 74, Actual: %v", methodSub.GetExecutions()[2])
 	}
@@ -181,18 +181,18 @@ func TestLogicalOperators(t *testing.T) {
 			}),
 		},
 		Executions: []Execution{
-			// AND 연산자 테스트
+			// AND operator test
 			abi.And(
 				abi.Gt(abi.Param("value1"), "5"),
 				abi.Lt(abi.Param("value2"), "30"),
 			),
-			// OR 연산자 테스트
+			// OR operator test
 			abi.Or(
 				abi.Eq(abi.Param("value1"), "5"),
 				abi.Gt(abi.Param("value2"), "15"),
 			),
-			// NOT 연산자 테스트
-			// 복합 논리 연산 테스트
+			// NOT operator test
+			// Complex logical operation test
 			abi.And(
 				abi.Or(
 					abi.Gt(abi.Param("value1"), "5"),
@@ -217,17 +217,17 @@ func TestLogicalOperators(t *testing.T) {
 		t.Errorf("Error occurred during execution: %v", err)
 	}
 
-	// 첫번째 실행 결과 검증 (10 > 5 && 20 < 30 = true)
+	// First execution result validation (10 > 5 && 20 < 30 = true)
 	if methodLogical.GetExecutions()[0] != true {
 		t.Errorf("First execution result error. Expected: true, Actual: %v", methodLogical.GetExecutions()[0])
 	}
 
-	// 두번째 실행 결과 검증 (10 == 5 || 20 > 15 = true)
+	// Second execution result validation (10 == 5 || 20 > 15 = true)
 	if methodLogical.GetExecutions()[1] != true {
 		t.Errorf("Second execution result error. Expected: true, Actual: %v", methodLogical.GetExecutions()[1])
 	}
 
-	// 세번째 실행 결과 검증 ((10 > 5 || 20 < 10) && (10 == 20) = false)
+	// Third execution result validation ((10 > 5 || 20 < 10) && (10 == 20) = false)
 	if methodLogical.GetExecutions()[2] != false {
 		t.Errorf("Third execution result error. Expected: false, Actual: %v", methodLogical.GetExecutions()[2])
 	}
@@ -298,4 +298,39 @@ func TestConditionOperators(t *testing.T) {
 	}
 
 	t.Logf("Error message: %v", errMsg)
+}
+
+func TestConditionFalse(t *testing.T) {
+	interpreter := vm.NewInterpreter()
+	interpreter.Init("transaction")
+	post := &Method{}
+
+	methodCondition := &Method{
+		Parameters: Parameters{
+			"amount": NewParameter(map[string]interface{}{
+				"type": "string",
+			}),
+		},
+		Executions: []Execution{
+			abi.Condition(
+				abi.Lt(abi.Param("amount"), "0"),
+				"Amount must be greater than 0",
+			),
+		},
+	}
+
+	signedData := NewSignedData()
+	signedData.SetAttribute("amount", "10")
+
+	interpreter.Reset()
+	interpreter.SetSignedData(signedData)
+	interpreter.SetCode(methodCondition)
+	interpreter.SetPostProcess(post)
+	errMsg, _ := interpreter.Execute()
+
+	if errMsg != "Amount must be greater than 0" {
+		t.Errorf("Expected error message 'Amount must be greater than 0', got %v", errMsg)
+	}
+
+	t.Logf("Error message correctly returned: %v", errMsg)
 }

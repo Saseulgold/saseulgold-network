@@ -90,6 +90,17 @@ func SignatureValidity(obj string, publicKey string, signature string) bool {
 func VerifySignature(signature, message, publicKey []byte) bool {
 	return ed25519.Verify(publicKey, message, signature)
 }
+func CreateSignature(message []byte, privateKey string) (string, error) {
+	seed := util.Hex2Bin(privateKey)
+	_, signingKey, err := CryptoSignSeedKeypair(seed)
+	if err != nil {
+		return "", err
+	}
+
+	signature := ed25519.Sign(signingKey, message)
+	signatureHex := util.Bin2Hex(signature)
+	return signatureHex, nil
+}
 
 const (
 	KEY_SIZE       = 64  // Equivalent to SODIUM_CRYPTO_AUTH_BYTES * 2
@@ -98,4 +109,24 @@ const (
 
 func KeyValidity(key string) bool {
 	return len(key) == KEY_SIZE && util.IsHex(key)
+}
+
+func Signature(obj string, privateKey string) string {
+	message := util.StringToByte(obj)
+	pubKey := GetXpub(privateKey)
+	signingKey := util.Hex2Bin(privateKey + pubKey)
+	signature := ed25519.Sign(signingKey, message)
+	return util.Bin2Hex(signature)
+}
+
+func SignatureValidityV2(obj string, publicKey string, signature string) bool {
+	if len(signature) != SIGNATURE_SIZE || !util.IsHex(signature) {
+		return false
+	}
+
+	message := util.StringToByte(obj)
+	signatureBytes := util.Hex2Bin(signature)
+	publicKeyBytes := util.Hex2Bin(publicKey)
+
+	return ed25519.Verify(publicKeyBytes, message, signatureBytes)
 }

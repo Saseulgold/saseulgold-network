@@ -380,10 +380,3 @@ func SignVerify(obj interface{}, publicKey string, signature string) ABI {
 		Value: []interface{}{obj, publicKey, signature},
 	}
 }
-
-func DecodeJson(target interface{}) ABI {
-	return ABI{
-		Key:   "$decode_json",
-		Value: []interface{}{target},
-	}
-}

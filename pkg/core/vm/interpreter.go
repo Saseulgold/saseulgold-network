@@ -121,23 +121,25 @@ func (i *Interpreter) Set(data *SignedData, code *Method, postProcess *Method) {
 }
 
 func (i *Interpreter) Process(abi interface{}) interface{} {
-
 	switch op := abi.(type) {
 	case ABI:
 		method, ok := i.methods[op.Key]
 		if !ok {
 			panic("Method not found: " + op.Key)
 		}
-		DebugLog("Process method:", i.mode, "method:", op.Key, "value:", op.Value)
 
 		if arr, ok := op.Value.([]interface{}); ok {
+			processedArr := make([]interface{}, len(arr))
 			for index, v := range arr {
-				if _, isABI := v.(ABI); isABI {
-					arr[index] = i.Process(v)
+				if abiVal, isABI := v.(ABI); isABI {
+					processedArr[index] = i.Process(abiVal)
+				} else {
+					processedArr[index] = v
 				}
 			}
-			op.Value = arr
+			return method(i, processedArr)
 		}
+
 		return method(i, op.Value)
 	default:
 		return op

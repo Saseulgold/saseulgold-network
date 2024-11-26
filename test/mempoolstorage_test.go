@@ -4,39 +4,27 @@ import (
 	. "hello/pkg/core/model"
 	. "hello/pkg/core/storage"
 	S "hello/pkg/core/structure"
-	"hello/pkg/util"
 	"testing"
 )
 
-func TestMempoolStorage_AddTransaction(t *testing.T) {
-	mp := GetMempoolInstance()
-	mp.Clear() // Clear before test
-
-	tests := []struct {
-		name    string
-		tx      SignedTransaction
-		wantErr error
-	}{}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := mp.AddTransaction(tt.tx)
-			if err != tt.wantErr {
-				t.Errorf("AddTransaction() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
 func createTestTransaction(txType string) SignedTransaction {
-	tx1Data := S.NewOrderedMap()
-	tx1Data.Set("type", txType)
-	tx1Data.Set("to", "50c3a6cd858c90574bcdc35b2da5dbc7225275f50edf")
-	tx1Data.Set("amount", 3142500000)
-	tx1Data.Set("from", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
-	tx1Data.Set("timestamp", util.CurrentTime(nil))
+	data := S.NewOrderedMap()
+	txData := S.NewOrderedMap()
+	txData.Set("type", txType)
+	txData.Set("to", "867b8991f4f2eb94398d4647f5ddc57b30f8cb36acdf")
+	txData.Set("amount", "10000000000")
+	txData.Set("from", "4a8fd2ebb308370a689c3ef47cb83ba182683def3d4f")
+	txData.Set("timestamp", int64(1732359603011000))
 
-	tx := NewSignedTransaction(tx1Data)
+	data.Set("transaction", txData)
+	data.Set("public_key", "bdfcefde7c536e8342f1ec65c69373f9ff46f33c18acf0f5848c71e037eca9f2")
+	data.Set("signature", "b1adf108db92fe4e062bd7e79c4d48b8202267f2968740a59fbdaf66f6f826768d7fb740cec4075dbe71abf4143aed9fa901e8b90b357ded06a5647ecb74da0c")
+
+	tx, err := NewSignedTransaction(data)
+	if err != nil {
+		panic(err)
+	}
+
 	return tx
 }
 
@@ -46,10 +34,14 @@ func TestMempoolStorage_GetTransaction(t *testing.T) {
 
 	// Add test transaction with specific hash
 	tx := createTestTransaction("tx1")
-	mp.AddTransaction(tx)
+	mp.AddTransaction(&tx)
 
 	// Query existing transaction
-	if got := mp.GetTransaction(tx.GetTxHash()); got == nil {
+	txHash, err := tx.GetTxHash()
+	if err != nil {
+		panic(err)
+	}
+	if got := mp.GetTransaction(txHash); got == nil {
 		t.Error("GetTransaction() = nil, want transaction")
 	}
 
@@ -65,13 +57,17 @@ func TestMempoolStorage_RemoveTransaction(t *testing.T) {
 
 	// Add test transaction
 	tx := createTestTransaction("tx1")
-	mp.AddTransaction(tx)
+	mp.AddTransaction(&tx)
 
 	// Remove transaction
-	mp.RemoveTransaction(tx.GetTxHash())
+	txHash, err := tx.GetTxHash()
+	if err != nil {
+		panic(err)
+	}
+	mp.RemoveTransaction(txHash)
 
 	// Query removed transaction
-	if got := mp.GetTransaction(tx.GetTxHash()); got != nil {
+	if got := mp.GetTransaction(txHash); got != nil {
 		t.Error("RemoveTransaction() failed to remove transaction")
 	}
 }
@@ -87,12 +83,16 @@ func TestMempoolStorage_GetTransactions(t *testing.T) {
 	}
 
 	for _, tx := range txs {
-		t.Logf("Transaction hash: %v", tx.GetTxHash())
+		txHash, err := tx.GetTxHash()
+		if err != nil {
+			panic(err)
+		}
+		t.Logf("Transaction hash: %v", txHash)
 	}
 
 	for _, tx := range txs {
 		t.Logf("Adding transaction: %v", tx)
-		mp.AddTransaction(tx)
+		mp.AddTransaction(&tx)
 	}
 
 	// Query transactions (should be sorted by fee)

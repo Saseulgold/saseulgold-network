@@ -1,7 +1,6 @@
 package vm
 
 import (
-	. "hello/pkg/core/abi"
 	F "hello/pkg/util"
 )
 
@@ -12,7 +11,7 @@ func OpLoadParam(i *Interpreter, vars interface{}) interface{} {
 		for _, v := range arr {
 			str, ok := v.(string)
 			if !ok {
-				DebugLog("OpLoadParam: value is not string")
+				OperatorLog("OpLoadParam", "input:", vars, "result: nil")
 				return nil
 			}
 
@@ -30,6 +29,7 @@ func OpLoadParam(i *Interpreter, vars interface{}) interface{} {
 		}
 	}
 
+	OperatorLog("OpLoadParam", "input:", vars, "result:", result)
 	return result
 }
 
@@ -60,13 +60,16 @@ func OpReadLocal(i *Interpreter, vars interface{}) interface{} {
 	case ProcessPost:
 		statusHash = F.StatusHash(i.postProcess.GetWriter(), i.postProcess.GetSpace(), attr, key)
 	default:
+		OperatorLog("OpReadLocal", "input:", vars, "result: nil")
 		return nil
 	}
 
 	if statusHash == "" {
+		OperatorLog("OpReadLocal", "input:", vars, "result: nil")
 		return nil
 	}
 
+	var result interface{}
 	switch i.state {
 	case StateRead:
 		i.AddLocalLoads(statusHash)
@@ -74,15 +77,17 @@ func OpReadLocal(i *Interpreter, vars interface{}) interface{} {
 		if i.process == ProcessPost {
 			cachedData := i.SignedData.GetCachedLocal(statusHash)
 			if cachedData != nil {
-				return cachedData
+				result = cachedData
+				break
 			}
 		}
-		return i.GetLocalStatus(statusHash, defaultVal)
+		result = i.GetLocalStatus(statusHash, defaultVal)
 	case StateExecution:
-		return i.GetLocalStatus(statusHash, defaultVal)
+		result = i.GetLocalStatus(statusHash, defaultVal)
 	}
 
-	return nil
+	OperatorLog("OpReadLocal", "input:", vars, "result:", result)
+	return result
 }
 
 func OpReadUniversal(i *Interpreter, vars interface{}) interface{} {
@@ -112,13 +117,16 @@ func OpReadUniversal(i *Interpreter, vars interface{}) interface{} {
 	case ProcessPost:
 		statusHash = F.StatusHash(i.postProcess.GetWriter(), i.postProcess.GetSpace(), attr, key)
 	default:
+		OperatorLog("OpReadUniversal", "input:", vars, "result: nil")
 		return nil
 	}
 
 	if statusHash == "" {
+		OperatorLog("OpReadUniversal", "input:", vars, "result: nil")
 		return nil
 	}
 
+	var result interface{}
 	switch i.state {
 	case StateRead:
 		i.AddUniversalLoads(statusHash)
@@ -126,13 +134,15 @@ func OpReadUniversal(i *Interpreter, vars interface{}) interface{} {
 		if i.process == ProcessPost {
 			cachedData := i.SignedData.GetCachedUniversal(statusHash)
 			if cachedData != nil {
-				return cachedData
+				result = cachedData
+				break
 			}
 		}
-		return i.GetUniversalStatus(statusHash, defaultVal)
+		result = i.GetUniversalStatus(statusHash, defaultVal)
 	case StateExecution:
-		return i.GetUniversalStatus(statusHash, defaultVal)
+		result = i.GetUniversalStatus(statusHash, defaultVal)
 	}
 
-	return nil
+	OperatorLog("OpReadUniversal", "input:", vars, "result:", result)
+	return result
 }

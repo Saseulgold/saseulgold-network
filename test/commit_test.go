@@ -33,22 +33,41 @@ func TestCommit(t *testing.T) {
 
 func createTestBlock1(t *testing.T) *Block {
 	// Create first Send transaction
+	data1 := S.NewOrderedMap()
 	tx1Data := S.NewOrderedMap()
 	tx1Data.Set("type", "Send")
 	tx1Data.Set("to", "50c3a6cd858c90574bcdc35b2da5dbc7225275f50edf")
 	tx1Data.Set("amount", 3142500000)
 	tx1Data.Set("from", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
 	tx1Data.Set("timestamp", int64(1731062859308000))
-	tx1 := NewSignedTransaction(tx1Data)
+
+	data1.Set("transaction", tx1Data)
+	data1.Set("public_key", "bdfcefde7c536e8342f1ec65c69373f9ff46f33c18acf0f5848c71e037eca9f2")
+	data1.Set("signature", "b1adf108db92fe4e062bd7e79c4d48b8202267f2968740a59fbdaf66f6f826768d7fb740cec4075dbe71abf4143aed9fa901e8b90b357ded06a5647ecb74da0c")
+
+	tx1, err := NewSignedTransaction(data1)
+	if err != nil {
+		panic(err)
+	}
 
 	// Create second Send transaction
+	data2 := S.NewOrderedMap()
+
 	tx2Data := S.NewOrderedMap()
 	tx2Data.Set("type", "Send")
 	tx2Data.Set("to", "50c3a6cd858c90574bcdc35b2da5dbc7225275f50edf")
 	tx2Data.Set("amount", 3142500000)
 	tx2Data.Set("from", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
 	tx2Data.Set("timestamp", int64(1731062859742000))
-	tx2 := NewSignedTransaction(tx2Data)
+
+	data2.Set("transaction", tx2Data)
+	data2.Set("public_key", "bdfcefde7c536e8342f1ec65c69373f9ff46f33c18acf0f5848c71e037eca9f2")
+	data2.Set("signature", "b1adf108db92fe4e062bd7e79c4d48b8202267f2968740a59fbdaf66f6f826768d7fb740cec4075dbe71abf4143aed9fa901e8b90b357ded06a5647ecb74da0c")
+
+	tx2, err := NewSignedTransaction(data2)
+	if err != nil {
+		panic(err)
+	}
 
 	// Create block
 	previousBlockhash := "0626647acb68c0fa085be6ebfbafdc3b3afbcde8bc0bff1ba1f9b8f49a16faded2edbee8c0abb7"

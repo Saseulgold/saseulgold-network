@@ -223,7 +223,7 @@ func Publish() *Method {
 	from := abi.Param("from")
 	code := abi.Param("code")
 
-	decodedCode := abi.DecodeJson(code)
+	decodedCode := abi.DecodeJSON(code)
 
 	codeType := abi.Get(decodedCode, "t")
 	name := abi.Get(decodedCode, "n")
@@ -234,10 +234,10 @@ func Publish() *Method {
 	codeID := abi.Hash([]interface{}{writer, space, name})
 
 	contractInfo := abi.ReadLocal("contract", codeID, nil)
-	contractInfo = abi.DecodeJson(contractInfo)
+	contractInfo = abi.DecodeJSON(contractInfo)
 
 	requestInfo := abi.ReadLocal("request", codeID, nil)
-	requestInfo = abi.DecodeJson(requestInfo)
+	requestInfo = abi.DecodeJSON(requestInfo)
 
 	contractVersion := abi.Get(contractInfo, "v")
 	requestVersion := abi.Get(requestInfo, "v")

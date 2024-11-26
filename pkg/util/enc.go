@@ -173,6 +173,10 @@ func RootSpace() string {
 	return Hash(C.SYSTEM_NONCE)
 }
 
+func RootSpaceId() string {
+	return SpaceID(C.ZERO_ADDRESS, RootSpace())
+}
+
 func SpaceID(owner string, space string) string {
 	return Hash(Concat(owner, space))
 }
