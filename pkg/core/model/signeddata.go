@@ -27,6 +27,25 @@ func NewSignedData() *SignedData {
 	}
 }
 
+func NewSignedDataFromTransaction(data *SignedTransaction) *SignedData {
+	hash, err := data.GetTxHash()
+	if err != nil {
+		return nil
+	}
+	return &SignedData{
+		Data:            data.Data,
+		PublicKey:       data.GetXpub(),
+		Signature:       data.GetSignature(),
+		Hash:            hash,
+		Cid:             data.GetCid(),
+		Type:            data.GetType(),
+		Timestamp:       int64(data.GetTimestamp()),
+		Attributes:      make(map[string]interface{}),
+		CachedUniversal: make(map[string]interface{}),
+		CachedLocal:     make(map[string]interface{}),
+	}
+}
+
 func (s *SignedData) GetAttribute(key string) interface{} {
 	if val, ok := s.Attributes[key]; ok {
 		return val

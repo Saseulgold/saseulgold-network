@@ -2,10 +2,10 @@ package model
 
 import (
 	"fmt"
-	. "hello/pkg/core/debug"
 	S "hello/pkg/core/structure"
 	"hello/pkg/crypto"
 	"hello/pkg/util"
+	F "hello/pkg/util"
 )
 
 type SignedTransaction struct {
@@ -21,10 +21,18 @@ func NewSignedTransaction(data *S.OrderedMap) (SignedTransaction, error) {
 		return SignedTransaction{}, fmt.Errorf("the signed transaction must contain the transaction parameter")
 	}
 
+	if txStr, ok := txData.(string); ok {
+		txMap, err := S.ParseOrderedMap(txStr)
+		if err != nil {
+			return SignedTransaction{}, err
+		}
+		data.Set("transaction", txMap)
+	}
+
 	tx := SignedTransaction{Data: data}
 
 	publicKey, ok := data.Get("public_key")
-	DebugLog(fmt.Sprintf("publicKey: %v", publicKey))
+
 	if !ok || publicKey == nil {
 		return tx, fmt.Errorf("the signed transaction must contain the public_key parameter")
 	}
@@ -40,7 +48,7 @@ func NewSignedTransaction(data *S.OrderedMap) (SignedTransaction, error) {
 	return tx, nil
 }
 
-func (tx SignedTransaction) Ser() (string, error) {
+func (tx *SignedTransaction) Ser() (string, error) {
 	if tx.Xpub == "" {
 		return "", fmt.Errorf("The signed transaction must contain the public_key parameter")
 	}
@@ -67,7 +75,7 @@ func (tx SignedTransaction) Ser() (string, error) {
 	return copy.Ser(), nil
 }
 
-func (tx SignedTransaction) GetSize() (int, error) {
+func (tx *SignedTransaction) GetSize() (int, error) {
 	ser, err := tx.Ser()
 	if err != nil {
 		return 0, err
@@ -75,7 +83,7 @@ func (tx SignedTransaction) GetSize() (int, error) {
 	return len(ser), nil
 }
 
-func (tx SignedTransaction) GetTimestamp() int {
+func (tx *SignedTransaction) GetTimestamp() int {
 	timestamp, ok := tx.Data.Get("timestamp")
 	if !ok {
 		return 0
@@ -83,15 +91,15 @@ func (tx SignedTransaction) GetTimestamp() int {
 	return timestamp.(int)
 }
 
-func (tx SignedTransaction) GetCid() string {
+func (tx *SignedTransaction) GetCid() string {
 	cid, ok := tx.Data.Get("cid")
 	if !ok {
-		return ""
+		return F.RootSpaceId()
 	}
 	return cid.(string)
 }
 
-func (tx SignedTransaction) GetType() string {
+func (tx *SignedTransaction) GetType() string {
 	txType, ok := tx.Data.Get("type")
 	if !ok {
 		return ""
@@ -99,25 +107,16 @@ func (tx SignedTransaction) GetType() string {
 	return txType.(string)
 }
 
-func (tx SignedTransaction) GetTx() *S.OrderedMap {
+func (tx *SignedTransaction) GetTxData() *SignedData {
 	transaction, ok := tx.Data.Get("transaction")
 	if !ok || transaction == nil {
 		return nil
 	}
 
-	if str, ok := transaction.(string); ok {
-		txMap, err := S.ParseOrderedMap(str)
-		if err != nil {
-			return nil
-		}
-		return txMap
-	}
-	return transaction.(*S.OrderedMap)
+	return NewSignedDataFromTransaction(tx)
 }
 
-func (tx SignedTransaction) GetTxHash() (string, error) {
-	DebugLog(fmt.Sprintf("tx.Data: %v", tx.Data))
-
+func (tx *SignedTransaction) GetTxHash() (string, error) {
 	transaction, ok := tx.Data.Get("transaction")
 	if !ok || transaction == nil {
 		return "", fmt.Errorf("the signed transaction must contain the transaction parameter")
@@ -185,4 +184,12 @@ func (tx *SignedTransaction) Validate() error {
 	}
 
 	return nil
+}
+
+func (tx *SignedTransaction) GetXpub() string {
+	return tx.Xpub
+}
+
+func (tx *SignedTransaction) GetSignature() string {
+	return tx.Signature
 }

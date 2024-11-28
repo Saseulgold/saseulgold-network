@@ -5,9 +5,9 @@ import (
 	C "hello/pkg/core/config"
 )
 
-func DebugLog(format string, args ...interface{}) {
+func DebugLog(args ...interface{}) {
 	if C.CORE_TEST_MODE {
-		fmt.Printf(format+"\n", args...)
+		fmt.Printf("%s\n", args)
 	}
 }
 

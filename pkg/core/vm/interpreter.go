@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"fmt"
 	. "hello/pkg/core/abi"
 	C "hello/pkg/core/config"
 	. "hello/pkg/core/model"
@@ -72,6 +73,15 @@ func (i *Interpreter) Reset() {
 	i.universalUpdates = make(map[string]map[string]interface{})
 	i.localUpdates = make(map[string]map[string]interface{})
 }
+func (i *Interpreter) Set(data *SignedData, code *Method, postProcess *Method) {
+	i.SignedData = data
+	i.code = code
+	i.postProcess = postProcess
+	i.breakFlag = false
+	i.weight = 0
+	i.result = "Conditional Error"
+	i.setDefaultValue()
+}
 
 func (i *Interpreter) SetSignedData(signedData *SignedData) {
 	i.SignedData = signedData
@@ -94,13 +104,30 @@ func (i *Interpreter) Init(mode string) {
 		i.loadMethod("CastOperator")
 		i.loadMethod("UtilOperator")
 		i.loadMethod("ReadOperator")
-		/*
-			if mode == "transaction" {
-				i.loadMethod("WriteOperator")
-			} else {
-				i.loadMethod("ChainOperator")
-			}
-		*/
+
+		if mode == "transaction" {
+			i.loadMethod("WriteOperator")
+		} else {
+			// i.loadMethod("ChainOperator")
+		}
+	}
+}
+
+func (i *Interpreter) Read() {
+	i.state = StateRead
+	i.process = ProcessMain
+	DebugLog("Read Contract:", i.code.GetName(), "; state:", i.state, "; process:", i.process)
+
+	// common
+	for _, execution := range i.code.GetExecutions() {
+		i.Process(execution)
+	}
+
+	i.process = ProcessPost
+
+	// post process
+	for _, execution := range i.postProcess.GetExecutions() {
+		i.Process(execution)
 	}
 }
 
@@ -108,16 +135,6 @@ func (i *Interpreter) loadMethod(name string) {
 	for methodName, method := range OperatorFunctions[name] {
 		i.methods[methodName] = method
 	}
-}
-
-func (i *Interpreter) Set(data *SignedData, code *Method, postProcess *Method) {
-	i.SignedData = data
-	i.code = code
-	i.postProcess = postProcess
-	i.breakFlag = false
-	i.weight = 0
-	i.result = "Conditional Error"
-	i.setDefaultValue()
 }
 
 func (i *Interpreter) Process(abi interface{}) interface{} {
@@ -144,6 +161,42 @@ func (i *Interpreter) Process(abi interface{}) interface{} {
 	default:
 		return op
 	}
+}
+
+func (i *Interpreter) ParameterValidate() error {
+	if i.mode == "transaction" {
+		from := i.SignedData.GetAttribute("from")
+
+		// Validate from address matches signer
+		if from != GetAddress(i.SignedData.PublicKey) {
+			return fmt.Errorf("Invalid from address: %v", from)
+		}
+	}
+
+	// Validate all parameters
+	for _, param := range i.code.GetParameters() {
+		// Convert array parameter to Parameter object if needed
+
+		if !param.ObjValidity() {
+			return fmt.Errorf("%s error", i.mode)
+		}
+
+		value := i.SignedData.GetAttribute(param.GetName())
+		if value == nil {
+			value = param.GetDefault()
+		}
+
+		if err := param.StructureValidity(value); err != nil {
+			return fmt.Errorf("Invalid parameter %s: %s", param.GetName(), err.Error())
+		}
+
+		if err := param.TypeValidity(value); err != nil {
+			return fmt.Errorf("Invalid parameter %s: %s", param.GetName(), err.Error())
+		}
+	}
+
+	return nil
+
 }
 
 func (i *Interpreter) setDefaultValue() {
@@ -178,7 +231,7 @@ func (i *Interpreter) setDefaultValue() {
 	}
 }
 
-func (i *Interpreter) Execute() (interface{}, bool) {
+func (i *Interpreter) Execute() (interface{}, error) {
 	executions := i.code.GetExecutions()
 	postExecutions := i.postProcess.GetExecutions()
 
@@ -190,7 +243,7 @@ func (i *Interpreter) Execute() (interface{}, bool) {
 		executions[key] = i.Process(execution)
 
 		if i.breakFlag {
-			return executions[key], false
+			return executions[key], fmt.Errorf("%v", i.result)
 		}
 	}
 
@@ -200,11 +253,13 @@ func (i *Interpreter) Execute() (interface{}, bool) {
 	switch i.mode {
 	case "transaction":
 		if processLength > C.TX_SIZE_LIMIT {
-			return "Too long processing.", false
+			msg := "Too long processing."
+			return msg, fmt.Errorf(msg)
 		}
 	default:
 		if processLength > C.BLOCK_TX_SIZE_LIMIT {
-			return "Too long processing.", false
+			msg := "Too long processing."
+			return msg, fmt.Errorf(msg)
 		}
 	}
 
@@ -215,7 +270,7 @@ func (i *Interpreter) Execute() (interface{}, bool) {
 		postExecutions[key] = i.Process(execution)
 
 		if i.breakFlag {
-			return postExecutions[key], false
+			return postExecutions[key], fmt.Errorf("%v", i.result)
 		}
 	}
 
@@ -227,7 +282,7 @@ func (i *Interpreter) Execute() (interface{}, bool) {
 		executions[key] = i.Process(execution)
 
 		if i.breakFlag {
-			return executions[key], true
+			return executions[key], fmt.Errorf("%v", i.result)
 		}
 	}
 
@@ -238,11 +293,11 @@ func (i *Interpreter) Execute() (interface{}, bool) {
 		postExecutions[key] = i.Process(execution)
 
 		if i.breakFlag {
-			return postExecutions[key], true
+			return postExecutions[key], fmt.Errorf("%v", i.result)
 		}
 	}
 
-	return executions[len(executions)-1], true
+	return executions[len(executions)-1], nil
 }
 
 func (i *Interpreter) SetCode(code *Method) {

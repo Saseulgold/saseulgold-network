@@ -3,11 +3,13 @@ package vm
 import (
 	"fmt"
 	C "hello/pkg/core/config"
+	. "hello/pkg/core/debug"
 	. "hello/pkg/core/model"
 	"hello/pkg/core/storage"
 	"hello/pkg/rpc"
 	"hello/pkg/util"
 	F "hello/pkg/util"
+	"slices"
 )
 
 type Machine struct {
@@ -33,6 +35,10 @@ func GetMachineInstance() *Machine {
 		}
 	}
 	return instance
+}
+
+func (m *Machine) GetInterpreter() *Interpreter {
+	return m.interpreter
 }
 
 func (m *Machine) Init(previousBlock *Block, roundTimestamp int64) {
@@ -134,42 +140,61 @@ func (m *Machine) TxValidity(tx *SignedTransaction) (bool, error) {
 	return true, nil
 }
 
+func (m *Machine) loadContracts() {
+	m.contracts = rpc.NativeContracts()
+}
+
 func (m *Machine) PreCommit() error {
-	code := &rpc.Code{}
-	m.contracts = code.Contracts()
+	m.loadContracts()
 
 	txs := util.SortedValueK[*SignedTransaction](*m.transactions)
 
 	for _, tx := range txs {
 		txHash, err := tx.GetTxHash()
+		DebugLog("preCommit	:", txHash)
 		if err != nil {
 			delete(*m.transactions, txHash)
 			continue
 		}
 
 		if m.ValidateTxTimestamp(tx) && tx.Validate() == nil {
-
 			if err := m.MountContract(tx); err != nil {
+				if err := m.interpreter.ParameterValidate(); err != nil {
+					m.interpreter.Read()
+				} else {
+					DebugPanic("ParameterValidate error: %v", err)
+				}
+			} else {
+				DebugPanic("MountContract error: %v", err)
+			}
+		}
+
+		delete(*m.transactions, txHash)
+	}
+
+	for hash, transaction := range *m.transactions {
+		if err := m.MountContract(transaction); err == nil {
+			if _, err := m.interpreter.Execute(); err == nil {
+				(*m.transactions)[hash] = transaction
 				continue
 			}
 		}
 
-		// Invalid transaction
-		delete(*m.transactions, txHash)
+		delete(*m.transactions, hash)
 	}
 
 	return nil
 }
 
 func (m *Machine) MountContract(tx *SignedTransaction) error {
-	txMap := tx.GetTx()
+	txMap := tx.GetTxData()
 
-	cid, ok := txMap.Get("cid")
+	cid, ok := txMap.Data.Get("cid")
 	if !ok {
 		cid = F.RootSpaceId()
 	}
 
-	txType, ok := txMap.Get("type")
+	txType, ok := txMap.Data.Get("type")
 	if !ok {
 		return fmt.Errorf("transaction type not found")
 	}
@@ -183,13 +208,10 @@ func (m *Machine) MountContract(tx *SignedTransaction) error {
 	if code == nil {
 		return fmt.Errorf("contract code is nil")
 	}
-	/**
-		if ($cid === Config::rootSpaceId() && in_array($name, Code::SYSTEM_METHODS)) {
-			$this->interpreter->set($transaction, $code, new Method());
-	} else {
-			$this->interpreter->set($transaction, $code, $this->post_process_contract);
-		}
-		**/
+
+	if cid.(string) == F.RootSpaceId() && slices.Contains(rpc.SystemMethods, name) {
+		m.interpreter.Set(tx.GetTxData(), code, new(Method))
+	}
 
 	return nil
 }

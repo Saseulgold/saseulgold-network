@@ -10,10 +10,11 @@ type Code struct{}
 
 var SystemMethods = []string{"Genesis", "Register", "Grant", "Revoke", "Oracle", "Faucet", "Publish", "Send", "Submit"}
 
-func (c *Code) Contracts() map[string]map[string]*Method {
+func NativeContracts() map[string]map[string]*Method {
 	contracts := make(map[string]map[string]*Method)
 	rootCid := F.RootSpaceId()
 
+	contracts[rootCid] = make(map[string]*Method)
 	contracts[rootCid]["Genesis"] = native.Genesis()
 	contracts[rootCid]["Register"] = native.Register()
 	contracts[rootCid]["Revoke"] = native.Revoke()
@@ -24,10 +25,12 @@ func (c *Code) Contracts() map[string]map[string]*Method {
 	return contracts
 }
 
-func (c *Code) GetNativeContract(methodName string) *Method {
-	return c.Contracts()[F.RootSpace()][methodName]
+func GetNativeContract(methodName string) *Method {
+	return NativeContracts()[F.RootSpace()][methodName]
 }
 
-func (c *Code) GetContract(cid string, methodName string) *Method {
-	return c.Contracts()[cid][methodName]
+/**
+func GetContract(cid string, methodName string) *Method {
+	return Contracts()[cid][methodName]
 }
+**/
