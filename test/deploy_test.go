@@ -82,13 +82,14 @@ func TestDeploy(t *testing.T) {
 	interpreter.SetCode(publishMethod)
 	interpreter.SetPostProcess(post)
 
-	msg, _ := interpreter.Execute()
+	_, msg := interpreter.Execute()
 	result := interpreter.GetResult()
 	t.Logf("Error message: %v", msg)
 	t.Logf("Result: %v", result)
 
 	updates := interpreter.GetLocalUpdates()
 	t.Logf("Updates: %v", updates)
+	abi.DebugLog("Writer:", userMethod.Writer)
 
 	/**
 	prefix := "contract"

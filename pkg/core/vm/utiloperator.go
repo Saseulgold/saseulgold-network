@@ -2,6 +2,7 @@ package vm
 
 import (
 	"encoding/json"
+	D "hello/pkg/core/debug"
 	"hello/pkg/util"
 	"regexp"
 	"strings"
@@ -93,6 +94,10 @@ func OpRegMatch(i *Interpreter, vars interface{}) interface{} {
 		return false
 	}
 
+	if len(pattern) >= 2 && pattern[0] == '/' && pattern[len(pattern)-1] == '/' {
+		pattern = pattern[1 : len(pattern)-1]
+	}
+
 	matched, err := regexp.MatchString(pattern, value)
 	if err != nil {
 		OperatorLog("OpRegMatch", "input:", vars, "result:", false)
@@ -125,7 +130,6 @@ func OpDecodeJson(i *Interpreter, vars interface{}) interface{} {
 	if arr, ok := vars.([]interface{}); ok && len(arr) > 0 {
 		// 첫 번째 요소가 이미 map인 경우 직접 반환
 		if m, ok := arr[0].(map[string]interface{}); ok {
-			OperatorLog("OpDecodeJson", "input:", vars, "result:", m)
 			return m
 		}
 
@@ -134,17 +138,14 @@ func OpDecodeJson(i *Interpreter, vars interface{}) interface{} {
 			var result interface{}
 			err := json.Unmarshal([]byte(jsonStr), &result)
 			if err == nil {
-				OperatorLog("OpDecodeJson", "input:", vars, "result:", result)
 				return result
 			}
 		}
 
-		// 그 외의 경우 원본 값 반환
-		OperatorLog("OpDecodeJson", "input:", vars, "result:", arr[0])
+		D.DebugPanic("OpDecodeJson", "input:", vars, "result:", arr[0])
 		return arr[0]
 	}
 
-	OperatorLog("OpDecodeJson", "input:", vars, "result:", nil)
 	return nil
 }
 

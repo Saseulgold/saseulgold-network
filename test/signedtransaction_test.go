@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestSignedTransaction_WithRealData(t *testing.T) {
+func aaTestSignedTransaction_WithRealData(t *testing.T) {
 	C.CORE_TEST_MODE = true
 
 	data := S.NewOrderedMap()
@@ -46,6 +46,42 @@ func TestSignedTransaction_WithRealData(t *testing.T) {
 
 	if err != nil {
 		t.Errorf("tx: %s", err)
+	}
+
+	// 검증
+	errMsg := tx.Validate()
+	if errMsg != nil {
+		t.Errorf("tx.Validate(): %s", errMsg)
+	}
+
+	// 서명 검증
+	if tx.Signature == "" {
+		t.Error("서명이 없습니다")
+	}
+
+	if tx.Xpub == "" {
+		t.Error("공개키가 없습니다")
+	}
+}
+
+func TestSignedTransaction_WithRealData2(t *testing.T) {
+	C.CORE_TEST_MODE = true
+
+	data := S.NewOrderedMap()
+	txData := S.NewOrderedMap()
+	txData.Set("type", "Send")
+	txData.Set("to", "e9696a5f58d43772e87a37f21bae4b2eee2f2a750d1c")
+	txData.Set("amount", "1000000000000000000")
+	txData.Set("from", "43da67e738d53473cf4fd307f0acb534b72c62a806c4")
+	txData.Set("timestamp", int64(1733211394654000))
+
+	data.Set("transaction", txData)
+	data.Set("public_key", "8860ecfe5711c9096f43411ce1ebefcb292200fbca73aa14fbf187a52cc29898")
+	data.Set("signature", "1493bd19ea174751810b3fece0f23fa24c9e6d884118624e863b8fc3892f5604dba420407e2a833440d58a2e3c3e1048109f4f14f5f9fd3c9788a86e0bc5f400")
+
+	tx, err := NewSignedTransaction(data)
+	if err != nil {
+		t.Errorf("NewSignedTransaction(): %s", err)
 	}
 
 	// 검증

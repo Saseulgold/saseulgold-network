@@ -1,6 +1,7 @@
 package vm
 
 import (
+	. "hello/pkg/core/debug"
 	F "hello/pkg/util"
 )
 
@@ -11,7 +12,8 @@ func OpLoadParam(i *Interpreter, vars interface{}) interface{} {
 		for _, v := range arr {
 			str, ok := v.(string)
 			if !ok {
-				OperatorLog("OpLoadParam", "input:", vars, "result: nil")
+				OperatorLog("OpLoadParam", "result: nil")
+				DebugLog("OpLoadParam", "input:", vars)
 				return nil
 			}
 
@@ -28,8 +30,12 @@ func OpLoadParam(i *Interpreter, vars interface{}) interface{} {
 			}
 		}
 	}
-
-	OperatorLog("OpLoadParam", "input:", vars, "result:", result)
+	if result == nil {
+		OperatorLog("OpLoadParam", "result: nil")
+		DebugPanic("OpLoadParam", "input:", vars)
+	} else {
+		OperatorLog("OpLoadParam", "result:", result)
+	}
 	return result
 }
 

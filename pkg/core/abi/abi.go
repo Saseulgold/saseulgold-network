@@ -62,10 +62,10 @@ func Or(vars ...interface{}) ABI {
 	}
 }
 
-func Get(abi interface{}, key interface{}) ABI {
+func Get(obj, key interface{}) ABI {
 	return ABI{
 		Key:   "$get",
-		Value: []interface{}{abi, key},
+		Value: []interface{}{obj, key},
 	}
 }
 
@@ -158,7 +158,7 @@ func IsInt(vars interface{}) ABI {
 func IsString(vars interface{}) ABI {
 	return ABI{
 		Key:   "$is_string",
-		Value: []interface{}{vars},
+		Value: vars,
 	}
 }
 
@@ -242,22 +242,9 @@ func In(target, cases interface{}) ABI {
 
 // I/O
 func Param(vars interface{}) ABI {
-	switch v := vars.(type) {
-	case string:
-		return ABI{
-			Key:   "$load_param",
-			Value: []interface{}{v},
-		}
-	case []interface{}:
-		return ABI{
-			Key:   "$load_param",
-			Value: v,
-		}
-	default:
-		return ABI{
-			Key:   "$load_param",
-			Value: []interface{}{vars},
-		}
+	return ABI{
+		Key:   "$load_param",
+		Value: []interface{}{vars},
 	}
 }
 

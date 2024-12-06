@@ -28,6 +28,7 @@ var OperatorFunctions = map[string]map[string]MethodFunc{
 		"$count":       OpCount,
 		"$strlen":      OpStrlen,
 		"$encode_json": OpEncodeJson,
+		"$reg_match":   OpRegMatch,
 		"$decode_json": OpDecodeJson,
 		"$hash_limit":  OpHashLimit,
 		"$hash_many":   OpHashMany,
@@ -49,7 +50,7 @@ var OperatorFunctions = map[string]map[string]MethodFunc{
 	},
 	"ComparisonOperator": {
 		"$eq":  OpEq,
-		"$neq": OpNeq,
+		"$ne":  OpNeq,
 		"$gt":  OpGt,
 		"$gte": OpGte,
 		"$lt":  OpLt,
@@ -59,5 +60,8 @@ var OperatorFunctions = map[string]map[string]MethodFunc{
 		"$load_param":     OpLoadParam,
 		"$read_local":     OpReadLocal,
 		"$read_universal": OpReadUniversal,
+	},
+	"WriteOperator": {
+		"$write_universal": OpWriteUniversal,
 	},
 }

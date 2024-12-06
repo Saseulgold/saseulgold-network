@@ -13,7 +13,8 @@ func OpEq(i *Interpreter, vars interface{}) interface{} {
 
 	left := arr[0]
 	right := arr[1]
-
+	DebugLog("OpEq: left =", left)
+	DebugLog("OpEq: right =", right)
 	switch {
 	case isNumeric(left).(bool) && isNumeric(right).(bool):
 		return toFloat64(left) == toFloat64(right)

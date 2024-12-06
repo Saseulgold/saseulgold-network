@@ -2,11 +2,12 @@ package vm
 
 import (
 	"fmt"
+	D "hello/pkg/core/debug"
 	"reflect"
 )
 
-func OperatorLog(vars ...interface{}) interface{} {
-	fmt.Printf("OperatorLog: %+v\n", vars)
+func OperatorLog(args ...interface{}) interface{} {
+	fmt.Println(args...)
 	return true
 }
 
@@ -74,17 +75,15 @@ func OpIsString(i *Interpreter, vars interface{}) interface{} {
 	if arr, ok := vars.([]interface{}); ok {
 		for _, v := range arr {
 			if _, ok := v.(string); !ok {
-				result := fmt.Sprintf("IsString:Not a string type: %v", v)
-				OperatorLog("OpIsString", "input:", vars, "result:", result)
-				return result
+				i.result = fmt.Sprintf("IsString:Not a string type: %v", v)
+				return false
 			}
 		}
-		OperatorLog("OpIsString", "input:", vars, "result: true")
 		return true
 	}
-	result := "IsString:Not an array type"
-	OperatorLog("OpIsString", "input:", vars, "result:", result)
-	return result
+
+	D.DebugPanic("OpIsString", "input:", vars, "result: false")
+	return false
 }
 
 func OpIsNull(i *Interpreter, vars interface{}) interface{} {

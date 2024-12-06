@@ -70,7 +70,8 @@ func ParseBlock(data []byte) (*Block, error) {
 	}
 
 	if universalUpdatesRaw, exists := rawData["universal_updates"].(map[string]interface{}); exists {
-		block.UniversalUpdates = make(UpdateMap)
+		updates := make(map[string]Update)
+		block.UniversalUpdates = &updates
 		for key, value := range universalUpdatesRaw {
 			updateBytes, err := json.Marshal(value)
 			if err != nil {
@@ -80,12 +81,13 @@ func ParseBlock(data []byte) (*Block, error) {
 			if err := json.Unmarshal(updateBytes, &update); err != nil {
 				return nil, err
 			}
-			block.UniversalUpdates[key] = update
+			updates[key] = update
 		}
 	}
 
 	if localUpdatesRaw, exists := rawData["local_updates"].(map[string]interface{}); exists {
-		block.LocalUpdates = make(UpdateMap)
+		updates := make(map[string]Update)
+		block.LocalUpdates = &updates
 		for key, value := range localUpdatesRaw {
 			updateBytes, err := json.Marshal(value)
 			if err != nil {
@@ -95,7 +97,7 @@ func ParseBlock(data []byte) (*Block, error) {
 			if err := json.Unmarshal(updateBytes, &update); err != nil {
 				return nil, err
 			}
-			block.LocalUpdates[key] = update
+			updates[key] = update
 		}
 	}
 
@@ -105,6 +107,22 @@ func ParseBlock(data []byte) (*Block, error) {
 }
 
 func (c *ChainStorage) Block(needle interface{}) (*Block, error) {
+	if height, ok := needle.(int); ok {
+		DebugLog(fmt.Sprintf("Block height: %d", height))
+		idx := c.ReadIdx(height)
+		index, err := c.ReadIndex(idx)
+		if err != nil {
+			return nil, err
+		}
+
+		data, err := c.ReadData(index)
+		if err != nil {
+			return nil, err
+		}
+
+		return ParseBlock(data)
+	}
+
 	data, err := c.ReadData(needle.(ChainIndexCursor))
 	if err != nil {
 		return nil, err

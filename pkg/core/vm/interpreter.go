@@ -8,6 +8,7 @@ import (
 
 	. "hello/pkg/crypto"
 	F "hello/pkg/util"
+	"reflect"
 )
 
 type State int
@@ -29,6 +30,38 @@ const (
 	ProcessPost
 )
 
+func (p Process) String() string {
+	switch p {
+	case ProcessNull:
+		return "ProcessNull"
+	case ProcessMain:
+		return "ProcessMain"
+	case ProcessPost:
+		return "ProcessPost"
+	default:
+		return fmt.Sprintf("Unknown Process(%d)", p)
+	}
+}
+
+func (s State) String() string {
+	switch s {
+	case StateNull:
+		return "StateNull"
+	case StateRead:
+		return "StateRead"
+	case StateCondition:
+		return "StateCondition"
+	case StateExecution:
+		return "StateExecution"
+	case StateMain:
+		return "StateMain"
+	case StatePost:
+		return "StatePost"
+	default:
+		return fmt.Sprintf("Unknown State(%d)", s)
+	}
+}
+
 type MethodFunc func(*Interpreter, interface{}) interface{}
 
 type Interpreter struct {
@@ -46,8 +79,8 @@ type Interpreter struct {
 	process          Process
 	universals       map[string]interface{}
 	locals           map[string]interface{}
-	universalUpdates map[string]map[string]interface{}
-	localUpdates     map[string]map[string]interface{}
+	universalUpdates UpdateMap
+	localUpdates     UpdateMap
 }
 
 func NewInterpreter() *Interpreter {
@@ -57,8 +90,8 @@ func NewInterpreter() *Interpreter {
 		postProcess:      nil,
 		universals:       make(map[string]interface{}),
 		locals:           make(map[string]interface{}),
-		universalUpdates: make(map[string]map[string]interface{}),
-		localUpdates:     make(map[string]map[string]interface{}),
+		universalUpdates: &map[string]Update{},
+		localUpdates:     &map[string]Update{},
 	}
 }
 
@@ -70,9 +103,10 @@ func (i *Interpreter) Reset() {
 	i.result = ""
 	i.weight = 0
 
-	i.universalUpdates = make(map[string]map[string]interface{})
-	i.localUpdates = make(map[string]map[string]interface{})
+	i.universalUpdates = &map[string]Update{}
+	i.localUpdates = &map[string]Update{}
 }
+
 func (i *Interpreter) Set(data *SignedData, code *Method, postProcess *Method) {
 	i.SignedData = data
 	i.code = code
@@ -88,8 +122,6 @@ func (i *Interpreter) SetSignedData(signedData *SignedData) {
 }
 
 func (i *Interpreter) Init(mode string) {
-	println("Init mode:", mode)
-
 	if mode == "" {
 		mode = "transaction"
 	}
@@ -146,6 +178,10 @@ func (i *Interpreter) Process(abi interface{}) interface{} {
 		}
 
 		if arr, ok := op.Value.([]interface{}); ok {
+			for idx, v := range arr {
+				DebugLog("Array item", idx, ":", v, "type:", reflect.TypeOf(v))
+			}
+
 			processedArr := make([]interface{}, len(arr))
 			for index, v := range arr {
 				if abiVal, isABI := v.(ABI); isABI {
@@ -238,12 +274,17 @@ func (i *Interpreter) Execute() (interface{}, error) {
 	i.state = StateCondition
 	i.process = ProcessMain
 
+	DebugLog("MainCondition", i.process.String(), i.state.String())
+
 	// main, condition
 	for key, execution := range executions {
 		executions[key] = i.Process(execution)
 
 		if i.breakFlag {
-			return executions[key], fmt.Errorf("%v", i.result)
+			OperatorLog("MainCondition breakFlag:", i.breakFlag, i.result)
+			return nil, fmt.Errorf("%v", i.result)
+		} else {
+			OperatorLog("MainCondition ok:", i.result)
 		}
 	}
 
@@ -270,7 +311,10 @@ func (i *Interpreter) Execute() (interface{}, error) {
 		postExecutions[key] = i.Process(execution)
 
 		if i.breakFlag {
+			OperatorLog("PostCondition breakFlag:", i.breakFlag, postExecutions[key])
 			return postExecutions[key], fmt.Errorf("%v", i.result)
+		} else {
+			OperatorLog("PostCondition ok:", postExecutions[key])
 		}
 	}
 
@@ -278,11 +322,18 @@ func (i *Interpreter) Execute() (interface{}, error) {
 	i.state = StateExecution
 	i.process = ProcessMain
 
+	DebugLog("MainExecution", i.process.String(), i.state.String())
+	DebugLog("MainExecution executions:", executions)
+
 	for key, execution := range executions {
+		DebugLog("MainExecution", i.process.String(), i.state.String(), "execution: ", execution)
 		executions[key] = i.Process(execution)
 
 		if i.breakFlag {
+			OperatorLog("MainExecution breakFlag:", i.breakFlag, executions[key])
 			return executions[key], fmt.Errorf("%v", i.result)
+		} else {
+			OperatorLog("MainExecution ok:", executions[key])
 		}
 	}
 
@@ -293,7 +344,10 @@ func (i *Interpreter) Execute() (interface{}, error) {
 		postExecutions[key] = i.Process(execution)
 
 		if i.breakFlag {
+			OperatorLog("PostExecution breakFlag:", i.breakFlag, postExecutions[key])
 			return postExecutions[key], fmt.Errorf("%v", i.result)
+		} else {
+			OperatorLog("PostExecution ok:", postExecutions[key])
 		}
 	}
 
@@ -347,12 +401,12 @@ func (i *Interpreter) GetLocalStatus(statusHash string, defaultVal interface{}) 
 }
 
 func (i *Interpreter) SetLocalStatus(statusHash string, value interface{}) bool {
-	if updates, ok := i.localUpdates[statusHash]; ok {
-		updates["new"] = value
+	if updates, ok := (*i.localUpdates)[statusHash]; ok {
+		updates.New = value
 	} else {
-		i.localUpdates[statusHash] = map[string]interface{}{
-			"old": i.GetLocalStatus(statusHash, nil),
-			"new": value,
+		(*i.localUpdates)[statusHash] = Update{
+			Old: i.GetLocalStatus(statusHash, nil),
+			New: value,
 		}
 	}
 
@@ -363,12 +417,13 @@ func (i *Interpreter) SetLocalStatus(statusHash string, value interface{}) bool 
 }
 
 func (i *Interpreter) SetUniversalStatus(statusHash string, value interface{}) bool {
-	if updates, ok := i.universalUpdates[statusHash]; ok {
-		updates["new"] = value
+	OperatorLog("SetUniversalStatus", "statusHash:", statusHash, "value:", value)
+	if updates, ok := (*i.universalUpdates)[statusHash]; ok {
+		updates.New = value
 	} else {
-		i.universalUpdates[statusHash] = map[string]interface{}{
-			"old": i.GetUniversalStatus(statusHash, nil),
-			"new": value,
+		(*i.universalUpdates)[statusHash] = Update{
+			Old: i.GetUniversalStatus(statusHash, nil),
+			New: value,
 		}
 	}
 
@@ -386,11 +441,11 @@ func (i *Interpreter) GetUniversalStatus(statusHash string, defaultVal interface
 	return defaultVal
 }
 
-func (i *Interpreter) GetUniversalUpdates() map[string]map[string]interface{} {
+func (i *Interpreter) GetUniversalUpdates() UpdateMap {
 	return i.universalUpdates
 }
 
-func (i *Interpreter) GetLocalUpdates() map[string]map[string]interface{} {
+func (i *Interpreter) GetLocalUpdates() UpdateMap {
 	return i.localUpdates
 }
 

@@ -83,16 +83,39 @@ func (tx *SignedTransaction) GetSize() (int, error) {
 	return len(ser), nil
 }
 
-func (tx *SignedTransaction) GetTimestamp() int {
-	timestamp, ok := tx.Data.Get("timestamp")
+func (tx *SignedTransaction) GetTimestamp() int64 {
+	transaction, ok := tx.Data.Get("transaction")
+
+	if !ok || transaction == nil {
+		return 0
+	}
+
+	timestamp, ok := transaction.(*S.OrderedMap).Get("timestamp")
+
 	if !ok {
 		return 0
 	}
-	return timestamp.(int)
+
+	timestampInt64, ok := timestamp.(int64)
+	if !ok {
+		if timestampInt, ok := timestamp.(int); ok {
+			timestampInt64 = int64(timestampInt)
+		} else {
+			return 0
+		}
+	}
+
+	return timestampInt64
 }
 
-func (tx *SignedTransaction) GetCid() string {
-	cid, ok := tx.Data.Get("cid")
+func (tx *SignedTransaction) GetCID() string {
+	transaction, ok := tx.Data.Get("transaction")
+
+	if !ok || transaction == nil {
+		return ""
+	}
+
+	cid, ok := transaction.(*S.OrderedMap).Get("cid")
 	if !ok {
 		return F.RootSpaceId()
 	}
@@ -100,7 +123,12 @@ func (tx *SignedTransaction) GetCid() string {
 }
 
 func (tx *SignedTransaction) GetType() string {
-	txType, ok := tx.Data.Get("type")
+	transaction, ok := tx.Data.Get("transaction")
+	if !ok || transaction == nil {
+		return ""
+	}
+
+	txType, ok := transaction.(*S.OrderedMap).Get("type")
 	if !ok {
 		return ""
 	}
@@ -166,7 +194,9 @@ func (tx *SignedTransaction) Validate() error {
 	}
 
 	if _, ok := timestamp.(int64); !ok {
-		return fmt.Errorf("parameter transaction.timestamp must be of integer type")
+		if _, ok := timestamp.(int); !ok {
+			return fmt.Errorf("parameter transaction.timestamp must be of integer type")
+		}
 	}
 
 	if tx.Signature == "" {

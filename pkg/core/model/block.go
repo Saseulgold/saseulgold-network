@@ -2,20 +2,22 @@ package model
 
 import (
 	"encoding/json"
+	"fmt"
 	F "hello/pkg/util"
 )
 
-type TransactionMap = map[string]SignedTransaction
-type UpdateMap = map[string]Update
+type TransactionMap = *map[string]*SignedTransaction
+type UpdateMap = *map[string]Update
 
 type BlockHeader struct {
 	Height      int    `json:"height"`
-	Timestamp_s int    `json:"s_timestamp"`
+	Timestamp_s int64  `json:"s_timestamp"`
 	BlockRoot   string `json:"block_root"`
 }
 
 func (bh BlockHeader) Ser() string {
 	j, _ := json.Marshal(bh)
+	fmt.Println(string(j))
 	return string(j)
 }
 
@@ -25,7 +27,7 @@ type Block struct {
 	UniversalUpdates  UpdateMap
 	LocalUpdates      UpdateMap
 	PreviousBlockhash string `json:"previous_blockhash"`
-	Timestamp_s       int    `json:"s_timestamp"`
+	Timestamp_s       int64  `json:"s_timestamp"`
 	Vout              string `json:"vout"`
 	Nonce             string `json:"nonce"`
 	RewardAddress     string `json:"reward_address"`
@@ -36,9 +38,9 @@ func NewBlock(height int, previous_blockhash string) Block {
 	return Block{
 		Height:            height,
 		PreviousBlockhash: previous_blockhash,
-		Transactions:      make(TransactionMap, 8),
-		UniversalUpdates:  make(UpdateMap, 16),
-		LocalUpdates:      make(UpdateMap, 4),
+		Transactions:      &map[string]*SignedTransaction{},
+		UniversalUpdates:  &map[string]Update{},
+		LocalUpdates:      &map[string]Update{},
 	}
 }
 
@@ -48,7 +50,7 @@ func CreateBlock(
 	universalUpdates UpdateMap,
 	localUpdates UpdateMap,
 	previousBlockhash string,
-	timestamp_s int,
+	timestamp_s int64,
 	vout string,
 	nonce string,
 	rewardAddress string,
@@ -66,7 +68,7 @@ func CreateBlock(
 	}
 }
 
-func (block *Block) SetTimestamp(timestamp int) {
+func (block *Block) SetTimestamp(timestamp int64) {
 	block.Timestamp_s = timestamp
 }
 
@@ -75,19 +77,19 @@ func (block *Block) AppendTransaction(tx SignedTransaction) error {
 	if err != nil {
 		return err
 	}
-	block.Transactions[txHash] = tx
+	(*block.Transactions)[txHash] = &tx
 	return nil
 }
 
 func (block *Block) AppendLocalUpdate(update Update) bool {
 	key := F.FillHash(update.Key)
-	block.LocalUpdates[key] = update
+	(*block.LocalUpdates)[key] = update
 	return true
 }
 
 func (block *Block) AppendUniversalUpdate(update Update) bool {
 	key := F.FillHash(update.Key)
-	block.UniversalUpdates[key] = update
+	(*block.UniversalUpdates)[key] = update
 	return true
 }
 
@@ -102,8 +104,8 @@ func (block Block) BlockRoot() string {
 }
 
 func (block Block) THashs() []string {
-	txs := F.SortedValueK(block.Transactions)
-	return F.Map(txs, func(tx SignedTransaction) string {
+	txs := F.SortedValueK(*block.Transactions)
+	return F.Map(txs, func(tx *SignedTransaction) string {
 		hash, err := tx.GetTxHash()
 		if err != nil {
 			return ""
@@ -114,10 +116,10 @@ func (block Block) THashs() []string {
 
 func (block Block) UHashs() []string {
 	hashs := make(map[string]Update)
-	for _, update := range block.UniversalUpdates {
+	for _, update := range *block.UniversalUpdates {
 		hashs[update.GetHash()] = update
 	}
-	for _, update := range block.LocalUpdates {
+	for _, update := range *block.LocalUpdates {
 		hashs[update.GetHash()] = update
 	}
 
@@ -175,19 +177,19 @@ func (block Block) Ser(t string) string {
 }
 func (block *Block) Init() {
 	if block.Transactions == nil {
-		tm := make(TransactionMap, 8)
+		tm := new(map[string]*SignedTransaction)
 		block.Transactions = tm
 	}
 	if block.UniversalUpdates == nil {
-		uu := make(UpdateMap, 16)
+		uu := new(map[string]Update)
 		block.UniversalUpdates = uu
 	}
 	if block.LocalUpdates == nil {
-		m := make(UpdateMap, 4)
+		m := new(map[string]Update)
 		block.LocalUpdates = m
 	}
 }
 
-func (block *Block) GetTimestamp() int {
+func (block *Block) GetTimestamp() int64 {
 	return block.Timestamp_s
 }

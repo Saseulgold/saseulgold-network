@@ -1,22 +1,25 @@
 package vm
 
 import (
+	. "hello/pkg/core/abi"
 	C "hello/pkg/core/config"
 	"hello/pkg/core/debug"
 	F "hello/pkg/util"
 )
 
 func OpWriteUniversal(i *Interpreter, vars interface{}) interface{} {
+	OperatorLog("op start", i.process.String(), i.state.String())
+
 	arr, ok := vars.([]interface{})
 	if !ok || len(arr) < 3 {
-		OperatorLog("OpWriteUniversal", "input:", vars, "result:", nil)
+		debug.DebugPanic("OpWriteUniversal", "input:", vars, "result:", nil)
 		return nil
 	}
 
 	attr, ok1 := arr[0].(string)
 	key, ok2 := arr[1].(string)
 	if !ok1 || !ok2 {
-		OperatorLog("OpWriteUniversal", "input:", vars, "result:", nil)
+		debug.DebugPanic("OpWriteUniversal", "input:", vars, "result:", nil)
 		return nil
 	}
 
@@ -30,16 +33,17 @@ func OpWriteUniversal(i *Interpreter, vars interface{}) interface{} {
 	}
 
 	if statusHash == "" {
-		OperatorLog("OpWriteUniversal", "input:", vars, "result:", nil)
 		return nil
 	}
 
 	var result interface{}
 	switch i.state {
 	case StateRead:
+		OperatorLog("OpWriteUniversal READ ", statusHash)
 		i.AddUniversalLoads(statusHash)
 		result = nil
 	case StateCondition:
+		OperatorLog("OpWriteUniversal CONDITION ", statusHash, arr[2])
 		value := arr[2]
 		length := len(F.String(value))
 
@@ -52,15 +56,16 @@ func OpWriteUniversal(i *Interpreter, vars interface{}) interface{} {
 			i.SignedData.SetCachedUniversal(statusHash, value)
 			i.weight += int64(len(statusHash) + length)
 		}
-		result = map[string]interface{}{
-			"$write_universal": arr,
+
+		return ABI{
+			Key:   "$write_universal",
+			Value: arr,
 		}
 	case StateExecution:
 		value := arr[2]
 		result = i.SetUniversalStatus(statusHash, value)
 	}
 
-	OperatorLog("OpWriteUniversal", "input:", vars, "result:", result)
 	return result
 }
 

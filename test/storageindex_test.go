@@ -32,8 +32,8 @@ func TestStorageIndex(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		updates := make(UpdateMap)
-		updates[update.Key] = update
+		updates := &map[string]Update{}
+		(*updates)[update.Key] = update
 
 		err = sf.WriteUniversal(updates)
 		if err != nil {
@@ -84,8 +84,8 @@ func TestStorageIndex(t *testing.T) {
 			New: "1000000000000000000000000",
 		}
 
-		updates := make(UpdateMap)
-		updates[update1.Key] = update1
+		updates := &map[string]Update{}
+		(*updates)[update1.Key] = update1
 
 		err := sf.Cache()
 		if err != nil {

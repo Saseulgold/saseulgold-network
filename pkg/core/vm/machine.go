@@ -50,7 +50,7 @@ func (m *Machine) Init(previousBlock *Block, roundTimestamp int64) {
 }
 
 func (m *Machine) ValidateTxTimestamp(tx *SignedTransaction) bool {
-	if tx.GetTimestamp() > int(util.Utime())+C.TIME_STAMP_ERROR_LIMIT {
+	if tx.GetTimestamp() > int64(util.Utime())+C.TIME_STAMP_ERROR_LIMIT {
 		return false
 	}
 
@@ -124,6 +124,7 @@ func (m *Machine) TxValidity(tx *SignedTransaction) (bool, error) {
 	roundTimestamp := util.Utime() + C.TIME_STAMP_ERROR_LIMIT
 
 	m.Init(lastBlock, roundTimestamp)
+
 	txHash, err := tx.GetTxHash()
 	if err != nil {
 		return false, err
@@ -151,15 +152,15 @@ func (m *Machine) PreCommit() error {
 
 	for _, tx := range txs {
 		txHash, err := tx.GetTxHash()
-		DebugLog("preCommit	:", txHash)
+		DebugLog("preCommitRead	:", txHash)
 		if err != nil {
 			delete(*m.transactions, txHash)
 			continue
 		}
 
 		if m.ValidateTxTimestamp(tx) && tx.Validate() == nil {
-			if err := m.MountContract(tx); err != nil {
-				if err := m.interpreter.ParameterValidate(); err != nil {
+			if err := m.MountContract(tx); err == nil {
+				if err := m.interpreter.ParameterValidate(); err == nil {
 					m.interpreter.Read()
 				} else {
 					DebugPanic("ParameterValidate error: %v", err)
@@ -172,12 +173,15 @@ func (m *Machine) PreCommit() error {
 		delete(*m.transactions, txHash)
 	}
 
-	for hash, transaction := range *m.transactions {
+	for _, transaction := range txs {
+		hash, _ := transaction.GetTxHash()
 		if err := m.MountContract(transaction); err == nil {
-			if _, err := m.interpreter.Execute(); err == nil {
-				(*m.transactions)[hash] = transaction
+			if result, err := m.interpreter.Execute(); err == nil {
+				DebugLog("Execute ", hash, " result:", result)
 				continue
 			}
+		} else {
+			DebugPanic("MountContract error: %v", err)
 		}
 
 		delete(*m.transactions, hash)
@@ -188,11 +192,11 @@ func (m *Machine) PreCommit() error {
 
 func (m *Machine) MountContract(tx *SignedTransaction) error {
 	txMap := tx.GetTxData()
+	DebugLog("MountContract tx:", string(txMap.Data.Ser()))
+	DebugLog("MountContract tx type:", txMap.Type)
+	DebugLog("MountContract tx cid:", tx.GetCID())
 
-	cid, ok := txMap.Data.Get("cid")
-	if !ok {
-		cid = F.RootSpaceId()
-	}
+	cid := tx.GetCID()
 
 	txType, ok := txMap.Data.Get("type")
 	if !ok {
@@ -200,7 +204,7 @@ func (m *Machine) MountContract(tx *SignedTransaction) error {
 	}
 	name := txType.(string)
 
-	code, ok := m.contracts[cid.(string)][name]
+	code, ok := m.contracts[cid][name]
 	if !ok {
 		return fmt.Errorf("contract not found for cid %s and method %s", cid, name)
 	}
@@ -209,9 +213,28 @@ func (m *Machine) MountContract(tx *SignedTransaction) error {
 		return fmt.Errorf("contract code is nil")
 	}
 
-	if cid.(string) == F.RootSpaceId() && slices.Contains(rpc.SystemMethods, name) {
+	if cid == F.RootSpaceId() && slices.Contains(rpc.SystemMethods, name) {
 		m.interpreter.Set(tx.GetTxData(), code, new(Method))
 	}
 
 	return nil
+}
+
+func (m *Machine) NextBlock() *Block {
+	return &Block{
+		Height:            m.previousBlock.Height + 1,
+		Transactions:      m.transactions,
+		Timestamp_s:       m.roundTimestamp,
+		UniversalUpdates:  m.interpreter.GetUniversalUpdates(),
+		LocalUpdates:      m.interpreter.GetLocalUpdates(),
+		PreviousBlockhash: m.previousBlock.BlockHash(),
+	}
+}
+
+func (m *Machine) TimeValidity(tx *SignedTransaction, timestamp int64) (bool, error) {
+	if m.previousBlock.Timestamp_s < tx.GetTimestamp() && tx.GetTimestamp() <= int64(timestamp) {
+		return true, nil
+	}
+
+	return false, fmt.Errorf("Timestamp must be greater than %d and less than %d", m.previousBlock.Timestamp_s, timestamp)
 }

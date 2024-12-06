@@ -1,6 +1,8 @@
 package vm
 
 import (
+	. "hello/pkg/core/abi"
+	D "hello/pkg/core/debug"
 	"reflect"
 )
 
@@ -42,14 +44,16 @@ func OpCondition(i *Interpreter, vars interface{}) interface{} {
 
 func OpResponse(i *Interpreter, vars interface{}) interface{} {
 	if i.state != StateExecution {
-		var result map[string][]interface{}
+		var result ABI
 		if arr, ok := vars.([]interface{}); ok {
-			result = map[string][]interface{}{
-				"$response": arr,
+			result = ABI{
+				Key:   "$response",
+				Value: arr,
 			}
 		} else {
-			result = map[string][]interface{}{
-				"$response": []interface{}{},
+			result = ABI{
+				Key:   "$response",
+				Value: []interface{}{},
 			}
 		}
 		OperatorLog("OpResponse", "input:", vars, "result:", result)
@@ -166,19 +170,9 @@ func OpGet(i *Interpreter, vars interface{}) interface{} {
 		switch v := arr[0].(type) {
 		case map[string]interface{}:
 			obj = v
-		case []interface{}:
-			if len(v) > 0 {
-				if m, ok := v[0].(map[string]interface{}); ok {
-					obj = m
-				}
-			}
 		default:
-			OperatorLog("OpGet2", "input:", vars, "type:", reflect.TypeOf(arr[0]), "result: nil")
-			return nil
-		}
-
-		if obj == nil {
-			OperatorLog("OpGet3", "input:", vars, "type:", reflect.TypeOf(arr[0]), "result: nil")
+			DebugLog("OpGet2", "input:", vars, "type:", reflect.TypeOf(v))
+			D.DebugPanic("OpGet2", "input:", vars, "type:", reflect.TypeOf(v), "result: nil")
 			return nil
 		}
 
@@ -186,10 +180,8 @@ func OpGet(i *Interpreter, vars interface{}) interface{} {
 		switch v := arr[1].(type) {
 		case string:
 			key = v
-		case float64:
-			key = reflect.TypeOf(v).String()
 		default:
-			OperatorLog("OpGet4", "input:", vars, "type:", reflect.TypeOf(arr[1]), "result: nil")
+			D.DebugPanic("OpGet4", "input:", vars, "type:", reflect.TypeOf(arr[1]), "result: nil")
 			return nil
 		}
 
@@ -199,13 +191,13 @@ func OpGet(i *Interpreter, vars interface{}) interface{} {
 		}
 
 		if val, exists := obj[key]; exists {
-			OperatorLog("OpGet5", "input:", vars, "result:", val)
 			return val
 		}
-		OperatorLog("OpGet6", "input:", vars, "result:", defaultVal)
 		return defaultVal
 	}
-	OperatorLog("OpGet7", "input:", vars, "result: nil")
+
+	DebugLog("OpGet", "input:", vars, "result: nil")
+	D.DebugPanic("OpGet", "input:", vars, "result: nil")
 	return nil
 }
 

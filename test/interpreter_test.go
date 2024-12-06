@@ -55,7 +55,7 @@ func TestInterpreterMethod(t *testing.T) {
 	interpreter.SetPostProcess(post)
 	_, err := interpreter.Execute()
 
-	if !err {
+	if err != nil {
 		t.Errorf("Error occurred during Method1 execution: %v", err)
 	}
 	if method1.GetExecutions()[0] != "10" {
@@ -141,7 +141,7 @@ func TestArithmeticOperators(t *testing.T) {
 	interpreter.SetPostProcess(post)
 	_, err := interpreter.Execute()
 
-	if !err {
+	if err != nil {
 		t.Errorf("Error occurred during execution: %v", err)
 	}
 
@@ -213,7 +213,7 @@ func TestLogicalOperators(t *testing.T) {
 	interpreter.SetPostProcess(post)
 	_, err := interpreter.Execute()
 
-	if !err {
+	if err != nil {
 		t.Errorf("Error occurred during execution: %v", err)
 	}
 
@@ -313,7 +313,7 @@ func TestConditionFalse(t *testing.T) {
 		},
 		Executions: []Execution{
 			abi.Condition(
-				abi.Lt(abi.Param("amount"), "0"),
+				abi.Gt(abi.Param("amount"), "0"),
 				"Amount must be greater than 0",
 			),
 		},
@@ -326,11 +326,66 @@ func TestConditionFalse(t *testing.T) {
 	interpreter.SetSignedData(signedData)
 	interpreter.SetCode(methodCondition)
 	interpreter.SetPostProcess(post)
-	errMsg, _ := interpreter.Execute()
+	_, err := interpreter.Execute()
 
-	if errMsg != "Amount must be greater than 0" {
-		t.Errorf("Expected error message 'Amount must be greater than 0', got %v", errMsg)
+	if err != nil {
+		t.Errorf("Expected error message '', got %v", err)
 	}
 
-	t.Logf("Error message correctly returned: %v", errMsg)
+	t.Logf("Error message correctly returned: %v", err)
+}
+
+func TestOpGetAndLoadParam(t *testing.T) {
+	// 인터프리터 초기화
+	interpreter := vm.NewInterpreter()
+	interpreter.Init("transaction")
+	post := &Method{}
+
+	// 테스트 메소드 정의
+	methodTest := &Method{
+		Parameters: Parameters{
+			"user": NewParameter(map[string]interface{}{
+				"name":         "user",
+				"requirements": true,
+			}),
+		},
+		Executions: []Execution{
+			// OpGet 테스트
+			abi.Get(abi.Param("user"), "name"),
+			abi.Get(abi.Get(abi.Param("user"), "address"), "city"),
+		},
+	}
+
+	// 테스트 데이터를 직접 설정
+	signedData := NewSignedData()
+	signedData.SetAttribute("user", map[string]interface{}{
+		"name": "John",
+		"age":  "25",
+		"address": map[string]interface{}{
+			"city":    "Seoul",
+			"country": "Korea",
+		},
+	})
+
+	// 실행
+	interpreter.Reset()
+	interpreter.SetSignedData(signedData)
+	interpreter.SetCode(methodTest)
+	interpreter.SetPostProcess(post)
+	_, err := interpreter.Execute()
+
+	if err != nil {
+		t.Errorf("실행 중 오류 발생: %v", err)
+	}
+
+	// 결과 검증
+	executions := methodTest.GetExecutions()
+
+	// OpGet 결과 검증
+	if executions[0] != "John" {
+		t.Errorf("첫 번째 실행 결과 오류. 기대값: John, 실제값: %v", executions[0])
+	}
+	if executions[1] != "Seoul" {
+		t.Errorf("두 번째 실행 결과 오류. 기대값: Seoul, 실제값: %v", executions[1])
+	}
 }

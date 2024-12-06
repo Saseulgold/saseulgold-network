@@ -4,384 +4,152 @@ import (
 	_ "fmt"
 	C "hello/pkg/core/config"
 	. "hello/pkg/core/model"
-
 	. "hello/pkg/core/storage"
 	S "hello/pkg/core/structure"
 	"testing"
 )
 
-func TestUpdate_GetHash0(t *testing.T) {
-	oldValue := "99999999999999996783125000"
-	newValue := "99999999999999993566250000"
-	update := Update{
-		Key: "b3c1ed9ce9df9d2531bb6e2945f044590974408f547f3574d56075e13394770da53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4",
-		Old: oldValue,
-		New: newValue,
-	}
+func TestBlock_WithMultipleUpdates(t *testing.T) {
+	C.CORE_TEST_MODE = true
+	C.DATA_TEST_ROOT_DIR = "genesis_test_2"
 
-	expectedHash := "b3c1ed9ce9df9d2531bb6e2945f044590974408f547f3574d56075e13394770da53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c49b7a4cfee50af6cfe8d35060e2ed250039a31ad30d18a02f8b5f7934cd2004f6"
-	actualHash := update.GetHash()
-
-	if actualHash != expectedHash {
-		t.Errorf("GetHash() = %v; want %v", actualHash, expectedHash)
-	}
-}
-
-func createTestBlock_1(t *testing.T) *Block {
-	// 첫 번째 Send 트랜잭션 생성
-	tx1Data := S.NewOrderedMap()
-	data1 := S.NewOrderedMap()
-	tx1Data.Set("type", "Send")
-	tx1Data.Set("to", "50c3a6cd858c90574bcdc35b2da5dbc7225275f50edf")
-	tx1Data.Set("amount", "3142500000")
-	tx1Data.Set("from", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
-	tx1Data.Set("timestamp", 1731062859308000)
-	tx1Data.Set("nonce", "1")
-	data1.Set("transaction", tx1Data)
-	data1.Set("public_key", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
-	data1.Set("signature", "asfd")
-	tx1, err := NewSignedTransaction(data1)
-
+	// 트랜잭션 생성
+	txData := S.NewOrderedMap()
+	data := S.NewOrderedMap()
+	txData.Set("type", "Submit")
+	txData.Set("phrase", "062844d209aac040ae0d923501f7ef000567fc639ec0481d0e26f7678a273ccfc4e9d05d37f904")
+	txData.Set("nonce", "9916046")
+	txData.Set("calculated_hash", "000010adf9537cb677709b57aaf34b3ea19ca5b77d34180436f8a41c0680c03d")
+	txData.Set("from", "570802432a9917544300c9a3db0becbab5539f4c54aa")
+	txData.Set("timestamp", int64(1733129866477000))
+	data.Set("transaction", txData)
+	data.Set("public_key", "e3360fb1b094899e82b04e3e81a234af06bd4fee13fb66d6e1b08048bd569e52")
+	data.Set("signature", "70d5e58e0618c95644523f3e7fbecba3c04eb63a303b5da6813119a89074e651616de8b9dd0cdbca1db114c8d2e18114410f158d2aacf8c07114d78b0a6cd00b")
+	tx, err := NewSignedTransaction(data)
 	if err != nil {
-		t.Fatalf("Failed to create tx1: %v", err)
-	}
-
-	// 두 번째 Send 트랜잭션 생성
-	tx2Data := S.NewOrderedMap()
-	data2 := S.NewOrderedMap()
-	tx2Data.Set("type", "Send")
-	tx2Data.Set("to", "50c3a6cd858c90574bcdc35b2da5dbc7225275f50edf")
-	tx2Data.Set("amount", "3142500000")
-	tx2Data.Set("from", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
-	tx2Data.Set("timestamp", 1731062859742000)
-	tx2Data.Set("nonce", "2")
-	data2.Set("transaction", tx2Data)
-	data2.Set("public_key", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
-	data2.Set("signature", "asfd")
-	tx2, err := NewSignedTransaction(data2)
-	if err != nil {
-		t.Fatalf("Failed to create tx2: %v", err)
+		t.Fatalf("Failed to create tx: %v", err)
 	}
 
 	// 블록 생성
-	previousBlockhash := "0626647acb68c0fa085be6ebfbafdc3b3afbcde8bc0bff1ba1f9b8f49a16faded2edbee8c0abb7"
-	block := NewBlock(1, previousBlockhash)
-	block.SetTimestamp(1731062860000000)
+	previousBlockhash := "062845bbcea340127a64fb4398a575f8d56ee511c92525b020df2ae24156154c568c2c459dc10e"
+	block := NewBlock(1281776, previousBlockhash)
+	block.SetTimestamp(1733129867000000)
+	block.Difficulty = 3725
+	block.RewardAddress = "570802432a9917544300c9a3db0becbab5539f4c54aa"
+	block.Vout = "738036000000000000000"
+	block.Nonce = "9916046"
 
 	// Universal Updates 추가
 	block.AppendUniversalUpdate(Update{
-		Key: "b3c1ed9ce9df9d2531bb6e2945f044590974408f547f3574d56075e13394770da53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4",
-		Old: "99999999999999993566250000",
-		New: "99999999999999990349375000",
+		Key: "fe38ef5ff626c7e8caeeba0eecb873d8652b03283aaf3bd1721ad58aa073b4b700000000000000000000000000000000000000000000",
+		Old: "00000000000000000000000000000000000000000000",
+		New: "00000000000000000000000000000000000000000000",
 	})
 
 	block.AppendUniversalUpdate(Update{
-		Key: "c8c603ff91a3c59d637c7bda83e732dea6ec74e1001b35600f0ba7831dbfe32900000000000000000000000000000000000000000000",
-		Old: "148750000",
-		New: "223125000",
+		Key: "60bca2cdd6712dc6316262cd7196a724ed2f47b59c7a4c6bac63113ddc4dc22300000000000000000000000000000000000000000000",
+		Old: "0",
+		New: "0",
 	})
 
 	block.AppendUniversalUpdate(Update{
-		Key: "b3c1ed9ce9df9d2531bb6e2945f044590974408f547f3574d56075e13394770d50c3a6cd858c90574bcdc35b2da5dbc7225275f50edf",
-		Old: "6285000000",
-		New: "9427500000",
+		Key: "1b49a8b9ffaf283c1cb5ace27b3cb04ce4dfff10caba0c7228c2e3a54df54b1f00000000000000000000000000000000000000000000",
+		Old: "1088403",
+		New: "9916046",
 	})
 
 	block.AppendUniversalUpdate(Update{
-		Key: "c5ca2cb405daf22453b559420907bb12d7fb34519ac55d81f47829054374512fa53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4",
-		Old: nil,
-		New: "100000000000000000000000000",
+		Key: "54604d2761063cbb07a16c4aa192b2bbab7d754fb7d294d4f3b3f642cb815e8c00000000000000000000000000000000000000000000",
+		Old: "3921",
+		New: "38",
+	})
+
+	block.AppendUniversalUpdate(Update{
+		Key: "1efdbeb7a5fffb7e1505672c39778da4101466076bde006530949b0e909e287f00000000000000000000000000000000000000000000",
+		Old: 1733129829124809,
+		New: 1733129867207691,
+	})
+
+	block.AppendUniversalUpdate(Update{
+		Key: "b3c1ed9ce9df9d2531bb6e2945f044590974408f547f3574d56075e13394770d570802432a9917544300c9a3db0becbab5539f4c54aa",
+		Old: "119699008308270313659337618",
+		New: "119699746344270313659337618",
+	})
+
+	block.AppendUniversalUpdate(Update{
+		Key: "7bc990ac426a5a6c43cab692b4da3046859ad68a162c1eb8e73ed73b651ed7c600000000000000000000000000000000000000000000",
+		Old: "062844d209aac040ae0d923501f7ef000567fc639ec0481d0e26f7678a273ccfc4e9d05d37f904",
+		New: "062845bbcea340127a64fb4398a575f8d56ee511c92525b020df2ae24156154c568c2c459dc10e",
 	})
 
 	block.AppendUniversalUpdate(Update{
 		Key: "87abdca0d3d3be9f71516090a362e5e79546f3183b1793789902c2e5176f62ae00000000000000000000000000000000000000000000",
-		Old: "1864",
-		New: "1832",
+		Old: "3725",
+		New: "3790",
 	})
 
 	block.AppendUniversalUpdate(Update{
 		Key: "fbab6eb9aa47eeb4d14b9473201b5aedbe0c03ba583be29f5840452ad2f1724200000000000000000000000000000000000000000000",
 		Old: nil,
-		New: "0023c5de767f70e88626023c5de767f70e88626023c5de767f70e88626023c5d",
+		New: "00114ab4c0e970882c4f6f2e56305cf18b8ce6bcdbee2af5990f43f3924e1558",
+	})
+
+	block.AppendUniversalUpdate(Update{
+		Key: "c8c603ff91a3c59d637c7bda83e732dea6ec74e1001b35600f0ba7831dbfe32900000000000000000000000000000000000000000000",
+		Old: "76153662000000000000000",
+		New: "738036000000000000000",
 	})
 
 	// Local Updates 추가
 	block.AppendLocalUpdate(Update{
 		Key: "724d2935080d38850e49b74927eb0351146c9ee955731f4ef53f24366c5eb9b100000000000000000000000000000000000000000000",
-		Old: 5,
-		New: 7,
-	})
-
-	block.AppendLocalUpdate(Update{
-		Key: "12194c0ef66a96758afcf4e7ddd3a0b851bba110c7dd2ffff358cbabd725b3fc00000000000000000000000000000000000000000000",
-		Old: nil,
-		New: 1,
-	})
-
-	block.AppendLocalUpdate(Update{
-		Key: "290eed314ce4d91c387028c290936b5b261e06f05d871bad42dfdf7436e89e9c00000000000000000000000000000000000000000000",
-		Old: nil,
-		New: "0",
+		Old: 3561659,
+		New: 3561660,
 	})
 
 	// 트랜잭션 추가
-	block.AppendTransaction(tx1)
-	block.AppendTransaction(tx2)
-
-	return &block
-}
-
-func createTestBlock_2(t *testing.T) *Block {
-	// 첫 번째 Send 트랜잭션 생성
-	tx1Data := S.NewOrderedMap()
-	data1 := S.NewOrderedMap()
-	tx1Data.Set("type", "Send")
-	tx1Data.Set("to", "50c3a6cd858c90574bcdc35b2da5dbc7225275f50edf")
-	tx1Data.Set("amount", "4000000000")
-	tx1Data.Set("from", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
-	tx1Data.Set("timestamp", 1731062959308000)
-	tx1Data.Set("nonce", "3")
-	data1.Set("transaction", tx1Data)
-
-	data1.Set("public_key", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
-	data1.Set("signature", "asfd")
-	tx1, err := NewSignedTransaction(data1)
-	if err != nil {
-		t.Fatalf("Failed to create tx1: %v", err)
-	}
-
-	// 두 번째 Send 트랜잭션 생성
-	tx2Data := S.NewOrderedMap()
-	data2 := S.NewOrderedMap()
-	tx2Data.Set("type", "Send")
-	tx2Data.Set("to", "50c3a6cd858c90574bcdc35b2da5dbc7225275f50edf")
-	tx2Data.Set("amount", "5000000000")
-	tx2Data.Set("from", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
-	tx2Data.Set("timestamp", 1731062959742000)
-	tx2Data.Set("nonce", "4")
-	data2.Set("transaction", tx2Data)
-	data2.Set("public_key", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
-	data2.Set("signature", "asfd")
-	tx2, err := NewSignedTransaction(data2)
-	if err != nil {
-		t.Fatalf("Failed to create tx2: %v", err)
-	}
-
-	// 블록 생성
-	previousBlockhash := "0626647acb68c0fa085be6ebfbafdc3b3afbcde8bc0bff1ba1f9b8f49a16faded2edbee8c0abb7"
-	block := NewBlock(2, previousBlockhash)
-	block.SetTimestamp(1731062960000000)
-
-	// Universal Updates 추가
-	block.AppendUniversalUpdate(Update{
-		Key: "b3c1ed9ce9df9d2531bb6e2945f044590974408f547f3574d56075e13394770da53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4",
-		Old: "99999999999999990349375000",
-		New: "99999999999999981349375000",
-	})
-
-	block.AppendUniversalUpdate(Update{
-		Key: "b3c1ed9ce9df9d2531bb6e2945f044590974408f547f3574d56075e13394770d50c3a6cd858c90574bcdc35b2da5dbc7225275f50edf",
-		Old: "9427500000",
-		New: "18427500000",
-	})
-
-	// Local Updates 추가
-	block.AppendLocalUpdate(Update{
-		Key: "724d2935080d38850e49b74927eb0351146c9ee955731f4ef53f24366c5eb9b100000000000000000000000000000000000000000000",
-		Old: 7,
-		New: 9,
-	})
-
-	// 트랜잭션 추가
-	block.AppendTransaction(tx1)
-	block.AppendTransaction(tx2)
-
-	return &block
-}
-
-func createTestBlock_3(t *testing.T) *Block {
-	// 첫 번째 Send 트랜잭션 생성
-	tx1Data := S.NewOrderedMap()
-	data1 := S.NewOrderedMap()
-	tx1Data.Set("type", "Send")
-	tx1Data.Set("to", "50c3a6cd858c90574bcdc35b2da5dbc7225275f50edf")
-	tx1Data.Set("amount", "6000000000")
-	tx1Data.Set("from", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
-	tx1Data.Set("timestamp", 1731063059308000)
-	tx1Data.Set("nonce", "5")
-	data1.Set("transaction", tx1Data)
-	data1.Set("public_key", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
-	data1.Set("signature", "asfd")
-	tx1, err := NewSignedTransaction(data1)
-	if err != nil {
-		t.Fatalf("Failed to create tx1: %v", err)
-	}
-
-	// 두 번째 Send 트랜잭션 생성
-	tx2Data := S.NewOrderedMap()
-	data2 := S.NewOrderedMap()
-	tx2Data.Set("type", "Send")
-	tx2Data.Set("to", "50c3a6cd858c90574bcdc35b2da5dbc7225275f50edf")
-	tx2Data.Set("amount", "7000000000")
-	tx2Data.Set("from", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
-	tx2Data.Set("timestamp", 1731063059742000)
-	tx2Data.Set("nonce", "6")
-	data2.Set("transaction", tx2Data)
-	data2.Set("public_key", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
-	data2.Set("signature", "asfd")
-	tx2, err := NewSignedTransaction(data2)
-	if err != nil {
-		t.Fatalf("Failed to create tx2: %v", err)
-	}
-
-	// 블록 생성
-	previousBlockhash := "0626647acb68c0fa085be6ebfbafdc3b3afbcde8bc0bff1ba1f9b8f49a16faded2edbee8c0abb7"
-	block := NewBlock(3, previousBlockhash)
-	block.SetTimestamp(1731063060000000)
-
-	// Universal Updates 추가
-	block.AppendUniversalUpdate(Update{
-		Key: "b3c1ed9ce9df9d2531bb6e2945f044590974408f547f3574d56075e13394770da53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4",
-		Old: "99999999999999981349375000",
-		New: "99999999999999968349375000",
-	})
-
-	block.AppendUniversalUpdate(Update{
-		Key: "b3c1ed9ce9df9d2531bb6e2945f044590974408f547f3574d56075e13394770d50c3a6cd858c90574bcdc35b2da5dbc7225275f50edf",
-		Old: "18427500000",
-		New: "31427500000",
-	})
-
-	// Local Updates 추가
-	block.AppendLocalUpdate(Update{
-		Key: "724d2935080d38850e49b74927eb0351146c9ee955731f4ef53f24366c5eb9b100000000000000000000000000000000000000000000",
-		Old: 9,
-		New: 11,
-	})
-
-	// 트랜잭션 추가
-	block.AppendTransaction(tx1)
-	block.AppendTransaction(tx2)
-
-	return &block
-}
-
-func TestBlock_WithMultipleUpdates(t *testing.T) {
-	C.CORE_TEST_MODE = true
-	C.DATA_TEST_ROOT_DIR = "genesis_test_2"
-
-	block := createTestBlock_1(t)
+	block.AppendTransaction(tx)
 
 	// 검증 로직
-	expectedBlockRoot := "7e8d8bc16377cb1157fa0cfc001ea2958ad17df7119b528fca809b6360a2c9df"
-	actualBlockRoot := block.BlockRoot()
-	if actualBlockRoot != expectedBlockRoot {
-		t.Errorf("BlockRoot() = %v; want %v", actualBlockRoot, expectedBlockRoot)
-	}
 
-	expectedTxRoot := "61c1ced40de12595e08f5858aa7e38bbb57db57456bd4fbc4b7bdf0f298c515a"
+	expectedTxRoot := "1790d8a9c5c07a12c5f3c8a7d18512a1dc1d5082345d097dcabeea126e36a12e"
 	actualTxRoot := block.TransactionRoot()
 	if actualTxRoot != expectedTxRoot {
 		t.Errorf("TransactionRoot() = %v; want %v", actualTxRoot, expectedTxRoot)
 	}
 
-	expectedUpdateRoot := "044c6a958a5a94594d1488f7256d264b9032fb8795202e8eab8aadb4fa91e541"
+	expectedUpdateRoot := "eb8d6dc3ca89fc6654a97126f070d5fc5a3a05ddfbc61a62ed87a4adc583ffd3"
 	actualUpdateRoot := block.UpdateRoot()
 	if actualUpdateRoot != expectedUpdateRoot {
 		t.Errorf("UpdateRoot() = %v; want %v", actualUpdateRoot, expectedUpdateRoot)
 	}
 
-	// Print block data
-	t.Logf("\n=== Block Data Verification Results ===")
-	t.Logf("Height: %d", block.Height)
-	t.Logf("Previous Block Hash: %s", block.PreviousBlockhash)
-	t.Logf("Timestamp: %d", block.Timestamp_s)
-	t.Logf("Block Root: %s", block.BlockRoot())
-	t.Logf("Transaction Root: %s", block.TransactionRoot())
-	t.Logf("Update Root: %s", block.UpdateRoot())
-
-	t.Logf("\n=== Transaction List ===")
-	for txHash, tx := range block.Transactions {
-		t.Logf("Transaction Hash: %s", txHash)
-		if val, _ := tx.Data.Get("type"); val != nil {
-			t.Logf("- Type: %v", val)
-		}
-		if val, _ := tx.Data.Get("from"); val != nil {
-			t.Logf("- From Address: %v", val)
-		}
-		if val, _ := tx.Data.Get("to"); val != nil {
-			t.Logf("- To Address: %v", val)
-		}
-		if val, _ := tx.Data.Get("amount"); val != nil {
-			t.Logf("- Amount: %v", val)
-		}
-		if val, _ := tx.Data.Get("timestamp"); val != nil {
-			t.Logf("- Timestamp: %v\n", val)
-		}
+	expectedBlockRoot := "4061165ff7383021921d8354c21aa43f30254486067539b003c8f6d2cc7c13d5"
+	actualBlockRoot := block.BlockRoot()
+	if actualBlockRoot != expectedBlockRoot {
+		t.Errorf("BlockRoot() = %v; want %v", actualBlockRoot, expectedBlockRoot)
 	}
 
-	t.Logf("\n=== Universal Updates List ===")
-	for _, update := range block.UniversalUpdates {
-		t.Logf("Key: %s", update.Key)
-		t.Logf("Old Value: %v", update.Old)
-		t.Logf("New Value: %v\n", update.New)
+	expectedBlockHeader := "20c60593fafff926da4a179ed654629c5ae892fe8de1d7f48840950bfffb5773"
+	actualBlockHeader := block.BlockHeader()
+	if actualBlockHeader != expectedBlockHeader {
+		t.Errorf("BlockHeader() = %v; want %v", actualBlockHeader, expectedBlockHeader)
 	}
 
-	t.Logf("\n=== Local Updates List ===")
-	for _, update := range block.LocalUpdates {
-		t.Logf("Key: %s", update.Key)
-		t.Logf("Old Value: %v", update.Old)
-		t.Logf("New Value: %v\n", update.New)
+	expectedBlockHash := "062845be1278c064126c0dfbbac31850a780508b8f22bab9e4e7d752941356edeed1f78b7ca555"
+	actualBlockHash := block.BlockHash()
+	if actualBlockHash != expectedBlockHash {
+		t.Errorf("BlockHash() = %v; want %v", actualBlockHash, expectedBlockHash)
 	}
 
 	chain := GetChainStorageInstance()
-	err := chain.Touch()
+	err = chain.Touch()
 	if err != nil {
 		t.Errorf("Error occurred during touching chain: %v", err)
 	}
 
-	err = chain.Write(block)
-
+	err = chain.Write(&block)
 	if err != nil {
 		t.Errorf("Error occurred during writing block: %v", err)
-	}
-
-	err = chain.Write(createTestBlock_2(t))
-	if err != nil {
-		t.Errorf("Error occurred during writing block: %v", err)
-	}
-
-	err = chain.Write(createTestBlock_3(t))
-	if err != nil {
-		t.Errorf("Error occurred during writing block: %v", err)
-	}
-}
-
-func aaTestBlockIndex(t *testing.T) {
-	C.CORE_TEST_MODE = true
-	C.DATA_TEST_ROOT_DIR = "genesis_test_2"
-
-	chain := GetChainStorageInstance()
-
-	for i := 1; i <= 3; i++ {
-		indices, err := chain.ReadIndex(i)
-		if err != nil {
-			t.Errorf("%d번째 블록 인덱스 읽기 중 오류 발생: %v", i, err)
-			continue
-		}
-
-		t.Logf("\n=== %d번째 블록 인덱스 ===", i)
-		t.Logf("높이: %v", indices.Height)
-		t.Logf("파일ID: %v", indices.FileID)
-		t.Logf("시작위치: %v", indices.Seek)
-		t.Logf("길이: %v", indices.Length)
-
-		// 블록 데이터 읽기
-		data, err := chain.ReadData(indices)
-		if err != nil {
-			t.Errorf("%d번째 블록 데이터 읽기 중 오류 발생: %v", i, err)
-			continue
-		}
-		t.Logf("데이터 길이: %d bytes", len(data))
 	}
 }

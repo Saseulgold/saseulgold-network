@@ -207,7 +207,7 @@ func (sf *StatusFile) WriteLocal(localUpdates UpdateMap) error {
 	}
 	iseek := indexInfo.Size()
 
-	for key, update := range localUpdates {
+	for key, update := range *localUpdates {
 		key = F.FillHash(key)
 		index, exists := sf.CachedLocalIndexes[key]
 		data, err := json.Marshal(update.New)
@@ -288,7 +288,7 @@ func (sf *StatusFile) WriteUniversal(blockUpdates UpdateMap) error {
 
 	iseek := int64(indexFileInfo.Size())
 
-	for key, update := range blockUpdates {
+	for key, update := range *blockUpdates {
 		key = F.FillHash(key)
 		index, exists := sf.CachedUniversalIndexes[key]
 
@@ -482,7 +482,7 @@ func (sf *StatusFile) UpdateUniversal(indexes map[string]StorageIndexCursor, uni
 	fileInfo, _ := os.Stat(latestFile)
 	seek := fileInfo.Size()
 
-	for key, update := range universalUpdates {
+	for key, update := range *universalUpdates {
 		key = F.FillHash(key)
 		index, exists := indexes[key]
 		data, _ := json.Marshal(update.New)
@@ -527,7 +527,7 @@ func (sf *StatusFile) UpdateLocal(indexes map[string]StorageIndexCursor, localUp
 	fileInfo, _ := os.Stat(latestFile)
 	seek := fileInfo.Size()
 
-	for key, update := range localUpdates {
+	for key, update := range *localUpdates {
 		key = F.FillHash(key)
 		index, exists := indexes[key]
 		data, _ := json.Marshal(update.New)
@@ -610,16 +610,16 @@ func (sf *StatusFile) Update(block *Block) error {
 	universalUpdates := block.UniversalUpdates
 
 	// Handle local updates
-	localKeys := make([]string, 0, len(localUpdates))
-	for k := range localUpdates {
+	localKeys := make([]string, 0, len(*localUpdates))
+	for k := range *localUpdates {
 		localKeys = append(localKeys, k)
 	}
 	localIndexes := sf.GetLocalIndexes(localKeys)
 	sf.UpdateLocal(localIndexes, localUpdates)
 
 	// Handle universal updates
-	universalKeys := make([]string, 0, len(universalUpdates))
-	for k := range universalUpdates {
+	universalKeys := make([]string, 0, len(*universalUpdates))
+	for k := range *universalUpdates {
 		universalKeys = append(universalKeys, k)
 	}
 	universalIndexes := sf.GetUniversalIndexes(universalKeys)

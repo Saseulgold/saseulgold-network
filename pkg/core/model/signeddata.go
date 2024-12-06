@@ -2,6 +2,7 @@ package model
 
 import (
 	"encoding/json"
+	. "hello/pkg/core/debug"
 	S "hello/pkg/core/structure"
 	"hello/pkg/util"
 )
@@ -27,19 +28,24 @@ func NewSignedData() *SignedData {
 	}
 }
 
-func NewSignedDataFromTransaction(data *SignedTransaction) *SignedData {
-	hash, err := data.GetTxHash()
+func NewSignedDataFromTransaction(tx *SignedTransaction) *SignedData {
+
+	hash, err := tx.GetTxHash()
 	if err != nil {
 		return nil
 	}
+	txData, ok := tx.Data.Get("transaction")
+	if !ok {
+		return nil
+	}
 	return &SignedData{
-		Data:            data.Data,
-		PublicKey:       data.GetXpub(),
-		Signature:       data.GetSignature(),
+		Data:            txData.(*S.OrderedMap),
+		PublicKey:       tx.GetXpub(),
+		Signature:       tx.GetSignature(),
 		Hash:            hash,
-		Cid:             data.GetCid(),
-		Type:            data.GetType(),
-		Timestamp:       int64(data.GetTimestamp()),
+		Cid:             tx.GetCID(),
+		Type:            tx.GetType(),
+		Timestamp:       int64(tx.GetTimestamp()),
 		Attributes:      make(map[string]interface{}),
 		CachedUniversal: make(map[string]interface{}),
 		CachedLocal:     make(map[string]interface{}),
@@ -66,6 +72,7 @@ func (s *SignedData) GetCachedUniversal(key string) interface{} {
 }
 
 func (s *SignedData) SetCachedUniversal(key string, value interface{}) {
+	DebugLog("SetCachedUniversal", "key:", key, "value:", value)
 	s.CachedUniversal[key] = value
 }
 

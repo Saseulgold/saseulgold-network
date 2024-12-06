@@ -19,7 +19,10 @@ func createTestBlock2(t *testing.T) *Block {
 	tx1Data.Set("amount", 3142500000)
 	tx1Data.Set("from", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
 	tx1Data.Set("timestamp", int64(1731062859308000))
-	tx1 := NewSignedTransaction(tx1Data)
+	tx1, err := NewSignedTransaction(tx1Data)
+	if err != nil {
+		t.Fatalf("Failed to create tx1: %v", err)
+	}
 
 	// Create second Send transaction
 	tx2Data := S.NewOrderedMap()
@@ -28,7 +31,10 @@ func createTestBlock2(t *testing.T) *Block {
 	tx2Data.Set("amount", 3142500000)
 	tx2Data.Set("from", "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4")
 	tx2Data.Set("timestamp", int64(1731062859742000))
-	tx2 := NewSignedTransaction(tx2Data)
+	tx2, err := NewSignedTransaction(tx2Data)
+	if err != nil {
+		t.Fatalf("Failed to create tx2: %v", err)
+	}
 
 	// Create block
 	previousBlockhash := "0626647acb68c0fa085be6ebfbafdc3b3afbcde8bc0bff1ba1f9b8f49a16faded2edbee8c0abb7"
