@@ -22,6 +22,7 @@ func NewSignedTransaction(data *S.OrderedMap) (SignedTransaction, error) {
 	}
 
 	if txStr, ok := txData.(string); ok {
+		fmt.Printf("txStr: %s\n", txStr)
 		txMap, err := S.ParseOrderedMap(txStr)
 		if err != nil {
 			return SignedTransaction{}, err

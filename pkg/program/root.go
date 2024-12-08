@@ -2,6 +2,8 @@ package program
 
 import (
 	"fmt"
+	. "hello/pkg/core/debug"
+	"hello/pkg/service"
 	"hello/pkg/swift"
 	"log"
 	"os"
@@ -36,13 +38,17 @@ func createServerStartCmd(port *string, useTLS *bool) *cobra.Command {
 				UseTLS: *useTLS,
 			}
 
-			server := swift.NewServer(":"+*port, security)
+			oracle := service.GetOracleService()
+			err := oracle.OnStartUp(security)
+			if err != nil {
+				log.Fatalf("Failed to start oracle: %v", err)
+			}
 
 			if !foreground {
 				// Fork process
 				if pid := os.Getpid(); pid != 1 {
 					// Parent process
-					if err := server.Start(); err != nil {
+					if err := oracle.Start(); err != nil {
 						log.Fatalf("Failed to start server: %v", err)
 					}
 					fmt.Printf("Server started in background mode. PID: %d\n", pid)
@@ -51,7 +57,8 @@ func createServerStartCmd(port *string, useTLS *bool) *cobra.Command {
 			}
 
 			// Child process or foreground mode
-			if err := server.Start(); err != nil {
+			DebugLog("server starting")
+			if err := oracle.Start(); err != nil {
 				log.Fatalf("Failed to start server: %v", err)
 			}
 
@@ -83,11 +90,10 @@ func RunServerCMD() *cobra.Command {
 	serverCmd.AddCommand(serverStartCmd)
 	rootCmd.AddCommand(serverCmd)
 	nodeCmd := createNodeCmd()
-	nodeStartCmd := createNodeStartCmd(&port, &useTLS)
-	nodeCmd.AddCommand(nodeStartCmd)
-	rootCmd.AddCommand(nodeCmd)
 
 	nodeCmd.AddCommand(createPingCmd())
+	nodeCmd.AddCommand(createPeerCmd())
+	rootCmd.AddCommand(nodeCmd)
 
 	return rootCmd
 }

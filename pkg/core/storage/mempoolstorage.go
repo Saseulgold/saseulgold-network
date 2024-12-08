@@ -2,6 +2,7 @@ package storage
 
 import (
 	"errors"
+	"fmt"
 	C "hello/pkg/core/config"
 	. "hello/pkg/core/model"
 	"sort"
@@ -30,7 +31,7 @@ type MempoolStorage struct {
 	// Map using transaction hash as key
 	pool map[string]*MempoolTx
 
-	// Transaction priority queue (ordered by fee)
+	// Transaction priority queue (ordered by ts)
 	priorityQueue []*MempoolTx
 }
 
@@ -150,8 +151,30 @@ func (mp *MempoolStorage) removeFromPriorityQueue(tx *MempoolTx) {
 }
 
 func (mp *MempoolStorage) sortPriorityQueue() {
-	// Sort by highest fee first
 	sort.Slice(mp.priorityQueue, func(i, j int) bool {
-		return mp.priorityQueue[i].Fee > mp.priorityQueue[j].Fee
+		return mp.priorityQueue[i].Tx.GetTimestamp() > mp.priorityQueue[j].Tx.GetTimestamp()
 	})
+}
+
+// FormatTransactions returns a formatted string of transactions in the mempool
+func (mp *MempoolStorage) FormatTransactions() string {
+	mp.mu.RLock()
+	defer mp.mu.RUnlock()
+
+	var result string
+	for i, tx := range mp.priorityQueue {
+		txHash, _ := tx.Tx.GetTxHash()
+		result += fmt.Sprintf("%d. TxHash: %s, Time: %s, Height: %d, Size: %d bytes\n",
+			i+1,
+			txHash,
+			time.Unix(0, tx.Time).Format(time.RFC3339),
+			tx.Height,
+			tx.TxSize,
+		)
+	}
+
+	if result == "" {
+		return "No transactions in mempool"
+	}
+	return result
 }

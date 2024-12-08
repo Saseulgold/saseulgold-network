@@ -238,3 +238,24 @@ func (m *Machine) TimeValidity(tx *SignedTransaction, timestamp int64) (bool, er
 
 	return false, fmt.Errorf("Timestamp must be greater than %d and less than %d", m.previousBlock.Timestamp_s, timestamp)
 }
+
+func (m *Machine) Epoch() string {
+	currentTime := util.Utime()
+	timeInEpoch := currentTime % 5000
+
+	if timeInEpoch < 3000 {
+		return "txtime"
+	}
+	return "blocktime"
+}
+
+func (m *Machine) IsInBlockTime() bool {
+	currentTime := util.Utime()
+	timeInEpoch := currentTime % 5000
+
+	return timeInEpoch >= 3000 // 마지막 2초는 블록 생성 시간
+}
+
+func (m *Machine) GetCurrentEpoch() int64 {
+	return util.Utime() / 5000
+}

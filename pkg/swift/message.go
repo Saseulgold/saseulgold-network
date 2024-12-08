@@ -8,7 +8,7 @@ type MessageType string
 
 const (
 	TypeTransaction MessageType = "transaction"
-	TypeRPC         MessageType = "rpc"
+	TypeRequest     MessageType = "request"
 	TypeHeartbeat   MessageType = "heartbeat"
 )
 

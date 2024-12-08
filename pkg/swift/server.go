@@ -15,7 +15,11 @@ import (
 	"time"
 
 	C "hello/pkg/core/config"
+	. "hello/pkg/core/debug"
+	"hello/pkg/core/vm"
 )
+
+type PacketHandler func(ctx context.Context, packet *Packet) error
 
 type RetryConfig struct {
 	RetryDelay time.Duration
@@ -26,6 +30,7 @@ type RetryConfig struct {
 type Server struct {
 	address       string
 	connections   map[string]net.Conn
+	handlers      map[PacketType]func(ctx context.Context, packet *Packet) error
 	metrics       *Metrics
 	priorityQueue *PriorityQueue
 	security      SecurityConfig
@@ -35,8 +40,26 @@ type Server struct {
 	mu            sync.RWMutex
 }
 
+func (s *Server) RegisterHandler(packetType PacketType, handler PacketHandler) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.handlers[packetType] = handler
+}
+
+func (s *Server) FormatPeerList() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var connections []string
+	for addr := range s.connections {
+		connections = append(connections, addr)
+	}
+
+	return fmt.Sprintf("{connections: %v}", connections)
+}
+
 func SwiftInfoLog(format string, args ...interface{}) {
-	fmt.Printf(format, args...)
+	fmt.Printf(format+"\n", args...)
 }
 
 func SwiftRootDir() string {
@@ -59,7 +82,8 @@ func NewServer(address string, security SecurityConfig) *Server {
 			MaxRetries: 3,
 			MaxBackoff: 30 * time.Second,
 		},
-		mu: sync.RWMutex{},
+		mu:       sync.RWMutex{},
+		handlers: make(map[PacketType]func(ctx context.Context, packet *Packet) error),
 	}
 }
 
@@ -67,14 +91,19 @@ func (s *Server) Start() error {
 	var listener net.Listener
 	var err error
 
+	machine := vm.GetMachineInstance()
+	machine.GetInterpreter().Reset()
+
 	if s.security.UseTLS {
 		tlsConfig, err := newTLSConfig(s.security)
 		if err != nil {
 			return err
 		}
 		listener, err = tls.Listen("tcp", s.address, tlsConfig)
+		DebugLog("tls listener created")
 	} else {
 		listener, err = net.Listen("tcp", s.address)
+		DebugLog("tcp listener created")
 	}
 
 	if err != nil {
@@ -86,27 +115,27 @@ func (s *Server) Start() error {
 	}
 
 	s.listener = listener
-	// PID 파일 생성
 
 	go s.acceptConnections()
 	go s.processJobQueue()
 	go s.collectMetrics()
 
+	DebugLog("server started")
 	return nil
 }
 
 func (s *Server) writePID() error {
 	pidFile := SwiftRootDir()
 
-	// PID 파일 디렉토리 생성
+	// Create PID file directory
 	if err := os.MkdirAll(filepath.Dir(pidFile), 0755); err != nil {
-		return fmt.Errorf("PID 파일 디렉토리 생성 실패: %v", err)
+		return fmt.Errorf("PID file directory creation failed: %v", err)
 	}
 
-	// 현재 프로세스의 PID를 파일에 기록
+	// Write the current process's PID to the file
 	pid := os.Getpid()
 	if err := os.WriteFile(pidFile, []byte(fmt.Sprintf("%d", pid)), 0644); err != nil {
-		return fmt.Errorf("PID 파일 작성 실패: %v", err)
+		return fmt.Errorf("failed to write PID file: %v", err)
 	}
 
 	return nil
@@ -137,7 +166,7 @@ func (s *Server) processJobQueue() {
 		case <-ticker.C:
 			if s.priorityQueue.Len() > 0 {
 				if job := s.priorityQueue.Pop(); job != nil {
-					// job 처리 로직
+					// job processing logic
 				}
 			}
 		}
@@ -164,6 +193,9 @@ func (s *Server) HandleConnection(conn net.Conn) error {
 	if err := conn.SetReadDeadline(time.Now().Add(30 * time.Second)); err != nil {
 		return fmt.Errorf("failed to set read deadline: %v", err)
 	}
+
+	// context에 연결 정보 추가
+	ctx := context.WithValue(context.Background(), "connection", conn)
 
 	for {
 		SwiftInfoLog("new connection request: %s\n", conn.RemoteAddr().String())
@@ -195,31 +227,41 @@ func (s *Server) HandleConnection(conn net.Conn) error {
 
 		// process packet
 		switch packet.Type {
-		case PacketTypeTransaction:
-			// process transaction
-		case PacketTypeBlock:
-			// process block
-		case PacketTypeHeightRequest:
-			// process height request
-		case PacketTypeHeightResponse:
-			// process height response
-		case PacketTypeBlockRequest:
-			// process block request
-		case PacketTypeBlockResponse:
-			// process block response
 		case PacketTypePing:
-			if err := s.Send(&Packet{
+			if err := s.Send(ctx, &Packet{
 				Type:    PacketTypePong,
 				Payload: json.RawMessage(`"pong"`),
 			}); err != nil {
 				return fmt.Errorf("failed to send pong response: %v", err)
 			}
 			continue
-		case PacketTypePong:
-			SwiftInfoLog("pong received\n")
+		case PacketTypePeerRequest:
+			peerList := s.FormatPeerList()
+			SwiftInfoLog("peer list: %s\n", peerList)
+
+			// server peer list to client
+			peerListJSON, err := json.Marshal(peerList)
+			if err != nil {
+				return fmt.Errorf("peer list 직렬화 실패: %v", err)
+			}
+
+			if err := s.Send(ctx, &Packet{
+				Type:    PacketTypePeerResponse,
+				Payload: peerListJSON,
+			}); err != nil {
+				return fmt.Errorf("failed to send peer response: %v", err)
+			}
 			continue
 		default:
-			return fmt.Errorf("unknown packet type: %v", packet.Type)
+			if handler, ok := s.handlers[packet.Type]; ok {
+				err := handler(ctx, &packet)
+				if err != nil {
+					SwiftInfoLog("packet handler error: %v", err)
+					return fmt.Errorf("packet handler error: %v", err)
+				}
+			} else {
+				return fmt.Errorf("unknown packet type: %v", packet.Type)
+			}
 		}
 	}
 }
@@ -242,15 +284,35 @@ func (s *Server) CloseConnection(conn net.Conn) error {
 
 // BroadcastBlock은 블록을 모든 피어에게 전송합니다
 func (s *Server) Broadcast(ctx context.Context, packet *Packet) error {
-	return s.Send(packet)
+	s.mu.RLock()
+	connections := make([]net.Conn, 0, len(s.connections))
+	for _, conn := range s.connections {
+		connections = append(connections, conn)
+	}
+	s.mu.RUnlock()
+
+	if len(connections) == 0 {
+		return fmt.Errorf("no active connections")
+	}
+
+	for _, conn := range connections {
+		connCtx := context.WithValue(ctx, "connection", conn)
+		if err := s.Send(connCtx, packet); err != nil {
+			return fmt.Errorf("broadcast to peer(%s) failed: %v", conn.RemoteAddr().String(), err)
+		}
+	}
+
+	return nil
 }
 
-func (s *Server) Send(packet *Packet) error {
+func (s *Server) Send(ctx context.Context, packet *Packet) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	if len(s.connections) == 0 {
-		return fmt.Errorf("no active connections")
+	// Extract connection info from context
+	connInfo, ok := ctx.Value("connection").(net.Conn)
+	if !ok || connInfo == nil {
+		return fmt.Errorf("connection info not found in context")
 	}
 
 	packetBytes, err := json.Marshal(packet)
@@ -261,16 +323,11 @@ func (s *Server) Send(packet *Packet) error {
 	header := make([]byte, 4)
 	binary.BigEndian.PutUint32(header, uint32(len(packetBytes)))
 
-	for _, conn := range s.connections {
-		if conn == nil {
-			continue
-		}
-		if _, err := conn.Write(header); err != nil {
-			return fmt.Errorf("failed to send header: %v", err)
-		}
-		if _, err := conn.Write(packetBytes); err != nil {
-			return fmt.Errorf("failed to send packet: %v", err)
-		}
+	if _, err := connInfo.Write(header); err != nil {
+		return fmt.Errorf("failed to send header: %v", err)
+	}
+	if _, err := connInfo.Write(packetBytes); err != nil {
+		return fmt.Errorf("failed to send packet: %v", err)
 	}
 
 	return nil
@@ -318,40 +375,48 @@ func (s *Server) ReceiveMessage() (*Packet, error) {
 
 func (s *Server) GetPeers() ([]string, error) {
 	s.mu.RLock()
-	if len(s.connections) == 0 {
-		s.mu.RUnlock()
-		return nil, errors.New("서버에 활성화된 연결이 없습니다")
+	peers := make([]string, 0, len(s.connections))
+	for addr := range s.connections {
+		peers = append(peers, addr)
 	}
-
 	s.mu.RUnlock()
 
-	// Send peer list request message
-	heightReq := &Packet{
-		Type:    PacketTypeHeightRequest,
-		Payload: json.RawMessage(s.address),
-	}
-	if err := s.Send(heightReq); err != nil {
-		return nil, fmt.Errorf("failed to request peer list: %v", err)
+	if len(peers) == 0 {
+		return nil, fmt.Errorf("no active connections")
 	}
 
-	// Receive response
-	response, err := s.ReceiveMessage()
-	if err != nil {
-		return nil, fmt.Errorf("failed to receive peer list: %v", err)
+	// 응답이 온 피어들을 저장할 슬라이스
+	activePeers := make([]string, 0)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	// 각 피어에 대해 ping 전송
+	for _, peer := range peers {
+		wg.Add(1)
+		go func(addr string) {
+			defer wg.Done()
+
+			// ping 패킷 전송
+			pingPacket := &Packet{
+				Type:    PacketTypePing,
+				Payload: json.RawMessage(`"ping"`),
+			}
+
+			if err := s.Send(context.Background(), pingPacket); err == nil {
+				mu.Lock()
+				activePeers = append(activePeers, addr)
+				mu.Unlock()
+			}
+		}(peer)
 	}
 
-	// Convert response to string slice
-	var peers []string
-	if err := json.Unmarshal(response.Payload, &peers); err != nil {
-		return nil, fmt.Errorf("failed to parse peer list: %v", err)
-	}
-
-	return peers, nil
+	wg.Wait()
+	return activePeers, nil
 }
 
 // Shutdown gracefully shuts down the server and cleans up resources
 func (s *Server) Shutdown() error {
-	// 리스너 종료
+	// 스너 종료
 	if s.listener != nil {
 		if err := s.listener.Close(); err != nil {
 			return fmt.Errorf("failed to close listener: %v", err)

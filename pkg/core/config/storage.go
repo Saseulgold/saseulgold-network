@@ -8,7 +8,6 @@ var DATA_TEST_ROOT_DIR = ""
 
 var QUANTUM_ROOT_DIR = func() string {
 	dir := os.Getenv("QUANTUM_ROOT_DIR")
-	println("QUANTUM_ROOT_DIR env value:", dir)
 	if dir != "" {
 		return dir
 	}

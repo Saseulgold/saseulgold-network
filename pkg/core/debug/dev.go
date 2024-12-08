@@ -6,9 +6,9 @@ import (
 )
 
 func DebugLog(args ...interface{}) {
-	if C.CORE_TEST_MODE {
-		fmt.Printf("%s\n", args)
-	}
+	// if C.CORE_TEST_MODE {
+	fmt.Printf("%s\n", args)
+	//}
 }
 
 func DebugPanic(format string, args ...interface{}) {

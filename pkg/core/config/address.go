@@ -1,6 +1,6 @@
 package config
 
-var CORE_TEST_MODE = false
+var CORE_TEST_MODE = true
 
 const SYSTEM_NONCE = "Fiat lux. "
 const ZERO_ADDRESS = "00000000000000000000000000000000000000000000"

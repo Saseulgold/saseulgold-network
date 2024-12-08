@@ -3,10 +3,13 @@ package network
 import (
 	"encoding/binary"
 	"encoding/json"
+
+	// . "hello/pkg/core/debug"
 	"hello/pkg/swift"
 	"io"
 	"log"
 	"net"
+	"time"
 )
 
 type RPCRequest struct {
@@ -21,7 +24,7 @@ type RPCResponse struct {
 
 func CallRPC(targetNode string, packet swift.Packet) (swift.Packet, error) {
 	// Connect to the server
-	conn, err := net.Dial("tcp", targetNode)
+	conn, err := net.DialTimeout("tcp", targetNode, 3*time.Second)
 	if err != nil {
 		log.Fatalf("Failed to connect to server: %v", err)
 	}
@@ -68,6 +71,5 @@ func CallRPC(targetNode string, packet swift.Packet) (swift.Packet, error) {
 	}
 
 	// Log and return the response
-	log.Printf("RPC Response: %+v", response)
 	return response, nil
 }
