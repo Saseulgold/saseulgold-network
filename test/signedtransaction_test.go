@@ -30,7 +30,7 @@ func aaTestSignedTransaction_WithRealData(t *testing.T) {
 		t.Errorf("NewSignedTransaction(): %s", err)
 	}
 
-	hash, err := tx.GetTxHash()
+	hash := tx.GetTxHash()
 	DebugLog("hash: " + hash)
 	if hash != "06279266c2bdb852cc9ec8e60fcbbef15442fa88bb398728b9e7797fdfa0cd8878e5373dbc7089" {
 		t.Errorf("tx.GetTxHash() failed\nExpected: %s\nActual: %s", "06279266c2bdb852cc9ec8e60fcbbef15442fa88bb398728b9e7797fdfa0cd8878e5373dbc7089", hash)

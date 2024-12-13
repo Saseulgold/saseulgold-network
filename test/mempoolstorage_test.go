@@ -37,10 +37,8 @@ func TestMempoolStorage_GetTransaction(t *testing.T) {
 	mp.AddTransaction(&tx)
 
 	// Query existing transaction
-	txHash, err := tx.GetTxHash()
-	if err != nil {
-		panic(err)
-	}
+	txHash := tx.GetTxHash()
+
 	if got := mp.GetTransaction(txHash); got == nil {
 		t.Error("GetTransaction() = nil, want transaction")
 	}
@@ -60,10 +58,7 @@ func TestMempoolStorage_RemoveTransaction(t *testing.T) {
 	mp.AddTransaction(&tx)
 
 	// Remove transaction
-	txHash, err := tx.GetTxHash()
-	if err != nil {
-		panic(err)
-	}
+	txHash := tx.GetTxHash()
 	mp.RemoveTransaction(txHash)
 
 	// Query removed transaction
@@ -83,10 +78,7 @@ func TestMempoolStorage_GetTransactions(t *testing.T) {
 	}
 
 	for _, tx := range txs {
-		txHash, err := tx.GetTxHash()
-		if err != nil {
-			panic(err)
-		}
+		txHash := tx.GetTxHash()
 		t.Logf("Transaction hash: %v", txHash)
 	}
 

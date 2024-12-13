@@ -40,10 +40,10 @@ func TestBasicOperators(t *testing.T) {
 			abi.If(
 				abi.Or(
 					abi.And(
-						abi.Gte(abi.Get(abi.Param("user"), "age"), "20"),
-						abi.Lt(abi.Get(abi.Param("user"), "age"), "30"),
+						abi.Gte(abi.Get(abi.Param("user"), "age", nil), "20"),
+						abi.Lt(abi.Get(abi.Param("user"), "age", nil), "30"),
 					),
-					abi.Eq(abi.Get(abi.Param("user"), "vip"), "true"),
+					abi.Eq(abi.Get(abi.Param("user"), "vip", nil), "true"),
 				),
 				"할인 적용",
 				"정상가",
@@ -53,7 +53,7 @@ func TestBasicOperators(t *testing.T) {
 			abi.If(
 				abi.And(
 					abi.Or(
-						abi.Eq(abi.Get(abi.Param("user"), "membership"), "GOLD"),
+						abi.Eq(abi.Get(abi.Param("user"), "membership", nil), "GOLD"),
 						abi.Gte(abi.Param("amount"), "5000"),
 					),
 				),
@@ -62,7 +62,7 @@ func TestBasicOperators(t *testing.T) {
 			),
 
 			// Get 연산자 테스트
-			abi.Get(abi.Param("user"), "email"),
+			abi.Get(abi.Param("user"), "email", nil),
 		},
 	}
 

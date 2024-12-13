@@ -46,11 +46,11 @@ func TestCombinedOperators(t *testing.T) {
 					abi.Gte(
 						abi.Add(
 							abi.Param("price"),
-							abi.Get(abi.Param("user"), "point"),
+							abi.Get(abi.Param("user"), "point", nil),
 						),
 						"10000",
 					),
-					abi.Eq(abi.Get(abi.Param("user"), "vip"), "true"),
+					abi.Eq(abi.Get(abi.Param("user"), "vip", nil), "true"),
 				),
 				abi.Sub(abi.Param("price"), "1000"),
 				abi.Param("price"),

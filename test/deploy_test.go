@@ -5,20 +5,22 @@ import (
 	abi "hello/pkg/core/abi"
 	C "hello/pkg/core/config"
 	. "hello/pkg/core/model"
+	S "hello/pkg/core/structure"
 	. "hello/pkg/core/vm"
-	. "hello/pkg/core/vm/native"
+	service "hello/pkg/service"
 	"testing"
 )
 
 func TestDeploy(t *testing.T) {
 	C.CORE_TEST_MODE = true
 	C.DATA_TEST_ROOT_DIR = "register_test"
+	from := "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4"
 
 	userMethod := &Method{
 		Type:    "contract",
 		Name:    "userMethod",
 		Space:   "test",
-		Writer:  "a53ac0f003a3507e0d8fa7fb40ac6fa591f91c7227c4",
+		Writer:  from,
 		Version: "1",
 		Parameters: Parameters{
 			"value1": NewParameter(map[string]interface{}{
@@ -62,39 +64,25 @@ func TestDeploy(t *testing.T) {
 
 	fmt.Println("User Method Code:", code)
 
-	publishMethod := Publish()
-
 	interpreter := NewInterpreter()
 	interpreter.Init("transaction")
 
-	signedData := NewSignedData()
-	signedData.SetAttribute("code", code)
-	signedData.SetAttribute("from", userMethod.Writer)
+	data := S.NewOrderedMap()
+	txData := S.NewOrderedMap()
+	txData.Set("type", "Publish")
+	txData.Set("code", code)
+	txData.Set("from", from)
+	txData.Set("timestamp", int64(1733211394654000))
 
-	post := &Method{
-		Type:       "contract",
-		Parameters: Parameters{},
-		Executions: []Execution{},
+	data.Set("transaction", txData)
+	data.Set("public_key", "8860ecfe5711c9096f43411ce1ebefcb292200fbca73aa14fbf187a52cc29898")
+	data.Set("signature", "1493bd19ea174751810b3fece0f23fa24c9e6d884118624e863b8fc3892f5604dba420407e2a833440d58a2e3c3e1048109f4f14f5f9fd3c9788a86e0bc5f400")
+
+	tx, err := NewSignedTransaction(data)
+	if err != nil {
+		t.Errorf("NewSignedTransaction(): %s", err)
 	}
 
-	interpreter.Reset()
-	interpreter.SetSignedData(signedData)
-	interpreter.SetCode(publishMethod)
-	interpreter.SetPostProcess(post)
-
-	_, msg := interpreter.Execute()
-	result := interpreter.GetResult()
-	t.Logf("Error message: %v", msg)
-	t.Logf("Result: %v", result)
-
-	updates := interpreter.GetLocalUpdates()
-	t.Logf("Updates: %v", updates)
-	abi.DebugLog("Writer:", userMethod.Writer)
-
-	/**
-	prefix := "contract"
-	statusHash := F.StatusHash(publishMethod.GetWriter(), publishMethod.GetSpace(), prefix, publishMethod.GetName())
-	t.Logf("Status hash: %v", interpreter.GetLocalStatus(statusHash, nil))
-	*/
+	service.ForceCommit(map[string]*SignedTransaction{tx.GetTxData().Cid: &tx})
 
 }

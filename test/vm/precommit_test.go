@@ -52,11 +52,8 @@ func TestPreCommit(t *testing.T) {
 		t.Errorf("NewSignedTransaction error: %v", err)
 	}
 
-	txHash0, err := tx0.GetTxHash()
-	_, err = tx1.GetTxHash()
-	assert.NoError(t, err)
-
-	txHash1, err := tx1.GetTxHash()
+	txHash0 := tx0.GetTxHash()
+	txHash1 := tx1.GetTxHash()
 	assert.NoError(t, err)
 
 	if err != nil {
@@ -110,7 +107,7 @@ func TestPreCommit2(t *testing.T) {
 		t.Errorf("NewSignedTransaction error: %v", err)
 	}
 
-	txHash1, err := tx1.GetTxHash()
+	txHash1 := tx1.GetTxHash()
 	assert.NoError(t, err)
 
 	if err != nil {
