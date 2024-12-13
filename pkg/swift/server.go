@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -29,7 +28,7 @@ type RetryConfig struct {
 
 type Server struct {
 	address       string
-	connections   map[string]net.Conn
+	peers         map[string]net.Conn
 	handlers      map[PacketType]func(ctx context.Context, packet *Packet) error
 	metrics       *Metrics
 	priorityQueue *PriorityQueue
@@ -50,12 +49,12 @@ func (s *Server) FormatPeerList() string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	var connections []string
-	for addr := range s.connections {
-		connections = append(connections, addr)
+	var peers []string
+	for addr := range s.peers {
+		peers = append(peers, addr)
 	}
 
-	return fmt.Sprintf("{connections: %v}", connections)
+	return fmt.Sprintf("{peers: %v}", peers)
 }
 
 func SwiftInfoLog(format string, args ...interface{}) {
@@ -72,7 +71,7 @@ func SwiftRootDir() string {
 func NewServer(address string, security SecurityConfig) *Server {
 	return &Server{
 		address:       address,
-		connections:   make(map[string]net.Conn),
+		peers:         make(map[string]net.Conn),
 		metrics:       NewMetrics(),
 		priorityQueue: &PriorityQueue{},
 		security:      security,
@@ -148,11 +147,6 @@ func (s *Server) acceptConnections() {
 			continue
 		}
 
-		s.mu.Lock()
-		remoteAddr := conn.RemoteAddr().String()
-		s.connections[remoteAddr] = conn
-		s.mu.Unlock()
-
 		go s.HandleConnection(conn)
 	}
 }
@@ -181,13 +175,6 @@ func (s *Server) collectMetrics() {
 }
 
 func (s *Server) HandleConnection(conn net.Conn) error {
-	// connection cleanup
-	defer func() {
-		s.mu.Lock()
-		delete(s.connections, conn.RemoteAddr().String())
-		s.mu.Unlock()
-		conn.Close()
-	}()
 
 	// read timeout;
 	if err := conn.SetReadDeadline(time.Now().Add(30 * time.Second)); err != nil {
@@ -257,7 +244,7 @@ func (s *Server) HandleConnection(conn net.Conn) error {
 				err := handler(ctx, &packet)
 				if err != nil {
 					SwiftInfoLog("packet handler error: %v", err)
-					return fmt.Errorf("packet handler error: %v", err)
+					return s.SendErrorResponse(ctx, err.Error())
 				}
 			} else {
 				return fmt.Errorf("unknown packet type: %v", packet.Type)
@@ -266,8 +253,8 @@ func (s *Server) HandleConnection(conn net.Conn) error {
 	}
 }
 
-func (s *Server) Close(addr string) error {
-	conn, exists := s.connections[addr]
+func (s *Server) Close(peer string) error {
+	conn, exists := s.peers[peer]
 	if !exists || conn == nil {
 		return nil
 	}
@@ -285,17 +272,17 @@ func (s *Server) CloseConnection(conn net.Conn) error {
 // BroadcastBlock은 블록을 모든 피어에게 전송합니다
 func (s *Server) Broadcast(ctx context.Context, packet *Packet) error {
 	s.mu.RLock()
-	connections := make([]net.Conn, 0, len(s.connections))
-	for _, conn := range s.connections {
-		connections = append(connections, conn)
+	peers := make([]net.Conn, 0, len(s.peers))
+	for _, conn := range s.peers {
+		peers = append(peers, conn)
 	}
 	s.mu.RUnlock()
 
-	if len(connections) == 0 {
+	if len(peers) == 0 {
 		return fmt.Errorf("no active connections")
 	}
 
-	for _, conn := range connections {
+	for _, conn := range peers {
 		connCtx := context.WithValue(ctx, "connection", conn)
 		if err := s.Send(connCtx, packet); err != nil {
 			return fmt.Errorf("broadcast to peer(%s) failed: %v", conn.RemoteAddr().String(), err)
@@ -333,85 +320,15 @@ func (s *Server) Send(ctx context.Context, packet *Packet) error {
 	return nil
 }
 
-func (s *Server) ReceiveMessage() (*Packet, error) {
+func (s *Server) GetPeers() []string {
 	s.mu.RLock()
-	if len(s.connections) == 0 {
-		s.mu.RUnlock()
-		return nil, errors.New("서버에 활성화된 연결이 없습니다")
-	}
-
-	// 첫 번째 활성 연결 사용
-	var conn net.Conn
-	for _, c := range s.connections {
-		conn = c
-		break
-	}
-	s.mu.RUnlock()
-
-	// 4바이트 헤더 버퍼 선언
-	header := make([]byte, 4)
-
-	// Read 4-byte header (packet length)
-	if _, err := io.ReadFull(conn, header); err != nil {
-		return nil, fmt.Errorf("failed to receive header: %v", err)
-	}
-
-	// Extract packet length
-	packetLen := binary.BigEndian.Uint32(header)
-
-	// Read packet
-	packetBytes := make([]byte, packetLen)
-	if _, err := io.ReadFull(conn, packetBytes); err != nil {
-		return nil, fmt.Errorf("failed to receive packet: %v", err)
-	}
-
-	var packet Packet
-	if err := json.Unmarshal(packetBytes, &packet); err != nil {
-		return nil, fmt.Errorf("failed to parse packet: %v", err)
-	}
-
-	return &packet, nil
-}
-
-func (s *Server) GetPeers() ([]string, error) {
-	s.mu.RLock()
-	peers := make([]string, 0, len(s.connections))
-	for addr := range s.connections {
+	peers := make([]string, 0, len(s.peers))
+	for addr := range s.peers {
 		peers = append(peers, addr)
 	}
 	s.mu.RUnlock()
 
-	if len(peers) == 0 {
-		return nil, fmt.Errorf("no active connections")
-	}
-
-	// 응답이 온 피어들을 저장할 슬라이스
-	activePeers := make([]string, 0)
-	var mu sync.Mutex
-	var wg sync.WaitGroup
-
-	// 각 피어에 대해 ping 전송
-	for _, peer := range peers {
-		wg.Add(1)
-		go func(addr string) {
-			defer wg.Done()
-
-			// ping 패킷 전송
-			pingPacket := &Packet{
-				Type:    PacketTypePing,
-				Payload: json.RawMessage(`"ping"`),
-			}
-
-			if err := s.Send(context.Background(), pingPacket); err == nil {
-				mu.Lock()
-				activePeers = append(activePeers, addr)
-				mu.Unlock()
-			}
-		}(peer)
-	}
-
-	wg.Wait()
-	return activePeers, nil
+	return peers
 }
 
 // Shutdown gracefully shuts down the server and cleans up resources
@@ -424,11 +341,11 @@ func (s *Server) Shutdown() error {
 	}
 
 	// 모든 연결 종료
-	for id, conn := range s.connections {
+	for id, conn := range s.peers {
 		if err := conn.Close(); err != nil {
 			return fmt.Errorf("failed to close connection (%s): %v", id, err)
 		}
-		delete(s.connections, id)
+		delete(s.peers, id)
 	}
 
 	// PID 파일 제거
@@ -444,14 +361,39 @@ func (s *Server) Connect(targetAddr string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	conn, err := net.Dial("tcp", targetAddr)
-	if err != nil {
-		return fmt.Errorf("연결 실패: %v", err)
+	// check if already connected
+	if _, exists := s.peers[targetAddr]; exists {
+		return nil
 	}
 
-	SwiftInfoLog("success to connect: %s\n", targetAddr)
-	s.connections[targetAddr] = conn
+	// connect to target address
+	conn, err := net.Dial("tcp", targetAddr)
+	if err != nil {
+		return fmt.Errorf("connection failed: %v", err)
+	}
+
+	SwiftInfoLog("peer connection success: %s\n", targetAddr)
+	s.peers[targetAddr] = conn
 	go s.HandleConnection(conn)
 
 	return nil
+}
+
+// SendErrorResponse is a helper function to send an error response to the client
+func (s *Server) SendErrorResponse(ctx context.Context, errMsg string) error {
+	errorPayload := struct {
+		Error string `json:"error"`
+	}{
+		Error: errMsg,
+	}
+
+	payload, err := json.Marshal(errorPayload)
+	if err != nil {
+		return fmt.Errorf("error message serialization failed: %v", err)
+	}
+
+	return s.Send(ctx, &Packet{
+		Type:    PacketTypeErrorResponse,
+		Payload: payload,
+	})
 }

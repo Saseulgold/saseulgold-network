@@ -122,7 +122,7 @@ func createBroadcastTxCmd() *cobra.Command {
 	var message string
 
 	cmd := &cobra.Command{
-		Use:   "broadcast",
+		Use:   "broadcasttx",
 		Short: "broadcast transaction to network",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -152,9 +152,44 @@ func createBroadcastTxCmd() *cobra.Command {
 	return cmd
 }
 
+func createSendTxCmd() *cobra.Command {
+	var targetNode string
+	var message string
+
+	cmd := &cobra.Command{
+		Use:   "sendtx",
+		Short: "send transaction to a specific node",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Printf("sending transaction to node: %s\n", targetNode)
+
+			req := swift.Packet{
+				Type:    swift.PacketTypeSendTransactionRequest,
+				Payload: json.RawMessage(message),
+			}
+
+			response, err := network.CallRPC(targetNode, req)
+			if err != nil {
+				log.Fatalf("RPC call failed: %v", err)
+			}
+			fmt.Printf("Send transaction response: %s\n", string(response.Payload))
+		},
+		PreRun: func(cmd *cobra.Command, args []string) {
+			cmd.Flags().Parse(args)
+		},
+	}
+
+	cmd.Flags().StringVarP(&targetNode, "peer", "p", "", "Target node to send transaction")
+	cmd.Flags().StringVarP(&message, "message", "m", "", "Transaction message to send")
+	cmd.MarkFlagRequired("peer")
+	cmd.MarkFlagRequired("message")
+
+	return cmd
+}
+
 func createStatusBundleCmd() *cobra.Command {
 	var targetNode string
-
+	var key string
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "get node status bundle",
@@ -164,7 +199,7 @@ func createStatusBundleCmd() *cobra.Command {
 
 			req := swift.Packet{
 				Type:    swift.PacketTypeGetStatusBundleRequest,
-				Payload: json.RawMessage(`{}`),
+				Payload: json.RawMessage(fmt.Sprintf(`{"key": "%s"}`, key)),
 			}
 
 			response, err := network.CallRPC(targetNode, req)
@@ -184,6 +219,44 @@ func createStatusBundleCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&targetNode, "peer", "p", "", "Target node to get status bundle")
+	cmd.Flags().StringVarP(&key, "key", "k", "", "Key to get status bundle")
+	cmd.MarkFlagRequired("peer")
+	cmd.MarkFlagRequired("key")
+
+	return cmd
+}
+
+func createConnectCmd() *cobra.Command {
+	var srcNode string
+	var dstNode string
+
+	cmd := &cobra.Command{
+		Use:   "connect",
+		Short: "connect to another node",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Printf("connecting to node: %s\n", dstNode)
+
+			req := swift.Packet{
+				Type:    swift.PacketTypeHandshakeCMDRequest,
+				Payload: json.RawMessage(fmt.Sprintf(`{"peer": "%s"}`, dstNode)),
+			}
+
+			response, err := network.CallRPC(srcNode, req)
+			if err != nil {
+				log.Fatalf("RPC call failed: %v", err)
+			}
+			fmt.Printf("Connection response: %s\n", string(response.Payload))
+		},
+		PreRun: func(cmd *cobra.Command, args []string) {
+			cmd.Flags().Parse(args)
+		},
+	}
+
+	cmd.Flags().StringVarP(&srcNode, "peer", "p", "", "node to connect")
+	cmd.Flags().StringVarP(&dstNode, "dest", "d", "", "node to be connected")
+
+	cmd.MarkFlagRequired("node")
 	cmd.MarkFlagRequired("peer")
 
 	return cmd
@@ -200,7 +273,9 @@ func createNodeCmd() *cobra.Command {
 		createPeerCmd(),
 		createMempoolCmd(),
 		createBroadcastTxCmd(),
+		createSendTxCmd(),
 		createStatusBundleCmd(),
+		createConnectCmd(),
 	)
 
 	return cmd

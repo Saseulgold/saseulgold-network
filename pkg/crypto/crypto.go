@@ -118,15 +118,3 @@ func Signature(obj string, privateKey string) string {
 	signature := ed25519.Sign(signingKey, message)
 	return util.Bin2Hex(signature)
 }
-
-func SignatureValidityV2(obj string, publicKey string, signature string) bool {
-	if len(signature) != SIGNATURE_SIZE || !util.IsHex(signature) {
-		return false
-	}
-
-	message := util.StringToByte(obj)
-	signatureBytes := util.Hex2Bin(signature)
-	publicKeyBytes := util.Hex2Bin(publicKey)
-
-	return ed25519.Verify(publicKeyBytes, message, signatureBytes)
-}

@@ -5,5 +5,5 @@ import (
 )
 
 func main() {
-	RunServerCMD().Execute()
+	RunNetworkCMD().Execute()
 }

@@ -20,6 +20,13 @@ const (
 	PacketTypePong                                      // Ping
 	PacketTypePeerRequest                               // Peer
 	PacketTypePeerResponse                              // Peer
+	PacketTypeHandshakeCMDRequest                       // Handshake
+	PacketTypeHandshakeCMDResponse                      // Handshake
+
+	PacketTypeBroadcastBlockRequest  // Block transmission
+	PacketTypeBroadcastBlockResponse // Block transmission
+
+	PacketTypeErrorResponse // Error
 
 	// FOR DEV
 	PacketTypeGetStatusBundleRequest  // Get status bundle

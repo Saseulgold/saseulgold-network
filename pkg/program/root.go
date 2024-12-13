@@ -10,6 +10,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	C "hello/pkg/core/config"
+
 	"github.com/spf13/cobra"
 )
 
@@ -20,26 +22,27 @@ func createRootCmd() *cobra.Command {
 	}
 }
 
-func createServerCmd() *cobra.Command {
+func createNetworkCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "server",
-		Short: "server cli tool",
+		Use:   "network",
+		Short: "network cli tool",
 	}
 }
 
-func createServerStartCmd(port *string, useTLS *bool) *cobra.Command {
+func createNetworkStartCmd(useTLS *bool) *cobra.Command {
 	var foreground bool
 
 	cmd := &cobra.Command{
 		Use:   "start",
-		Short: "server start",
+		Short: "network start",
 		Run: func(cmd *cobra.Command, args []string) {
 			security := swift.SecurityConfig{
 				UseTLS: *useTLS,
 			}
+			port := cmd.Flag("port").Value.String()
 
 			oracle := service.GetOracleService()
-			err := oracle.OnStartUp(security)
+			err := oracle.OnStartUp(security, port)
 			if err != nil {
 				log.Fatalf("Failed to start oracle: %v", err)
 			}
@@ -71,28 +74,28 @@ func createServerStartCmd(port *string, useTLS *bool) *cobra.Command {
 		},
 	}
 
-	// 플래그 설정
-	cmd.Flags().StringVarP(port, "port", "p", "8080", "Port to run the server on")
+	var port string
 	cmd.Flags().BoolVarP(useTLS, "tls", "t", false, "Use TLS for security")
 	cmd.Flags().BoolVarP(&foreground, "foreground", "f", false, "Run server in foreground mode")
+	cmd.Flags().StringVarP(&port, "port", "p", "8080", "server port")
+
+	cmd.Flags().BoolVarP(&C.CORE_TEST_MODE, "debug", "d", false, "Enable test mode")
+	cmd.Flags().StringVarP(&C.DATA_TEST_ROOT_DIR, "rootdir", "r", "", "root dir")
 
 	return cmd
 }
 
-func RunServerCMD() *cobra.Command {
-	var port string
+func RunNetworkCMD() *cobra.Command {
 	var useTLS bool
 
 	rootCmd := createRootCmd()
-	serverCmd := createServerCmd()
-	serverStartCmd := createServerStartCmd(&port, &useTLS)
+	networkCmd := createNetworkCmd()
+	networkStartCmd := createNetworkStartCmd(&useTLS)
 
-	serverCmd.AddCommand(serverStartCmd)
-	rootCmd.AddCommand(serverCmd)
+	networkCmd.AddCommand(networkStartCmd)
+	rootCmd.AddCommand(networkCmd)
 	nodeCmd := createNodeCmd()
 
-	nodeCmd.AddCommand(createPingCmd())
-	nodeCmd.AddCommand(createPeerCmd())
 	rootCmd.AddCommand(nodeCmd)
 
 	return rootCmd
