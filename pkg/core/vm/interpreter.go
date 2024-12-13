@@ -140,7 +140,7 @@ func (i *Interpreter) Init(mode string) {
 		if mode == "transaction" {
 			i.loadMethod("WriteOperator")
 		} else {
-			// i.loadMethod("ChainOperator")
+			i.loadMethod("ChainOperator")
 		}
 	}
 }

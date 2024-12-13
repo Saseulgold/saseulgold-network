@@ -71,19 +71,19 @@ func Register() *Method {
 
 	decodedCode := abi.DecodeJSON(code)
 
-	codeType := abi.Get(decodedCode, "type")
+	codeType := abi.Get(decodedCode, "type", nil)
 	name := abi.Param("name")
-	nonce := abi.Get(decodedCode, "nonce")
-	version := abi.Get(decodedCode, "version")
-	writer := abi.Get(decodedCode, "writer")
+	nonce := abi.Get(decodedCode, "nonce", "")
+	version := abi.Get(decodedCode, "version", nil)
+	writer := abi.Get(decodedCode, "writer", nil)
 
-	codeID := abi.IDHash([]interface{}{name, nonce})
+	codeID := abi.IDHash(name, nonce)
 
 	contractInfo := abi.DecodeJSON(abi.ReadLocal("contract", codeID, nil))
 	requestInfo := abi.DecodeJSON(abi.ReadLocal("request", codeID, nil))
 
-	contractVersion := abi.Get(contractInfo, "version")
-	requestVersion := abi.Get(requestInfo, "version")
+	contractVersion := abi.Get(contractInfo, "version", "0")
+	requestVersion := abi.Get(requestInfo, "version", "0")
 
 	isNetworkManager := abi.ReadLocal("network_manager", from, nil)
 	method.AddExecution(abi.Condition(
@@ -97,7 +97,7 @@ func Register() *Method {
 	))
 
 	method.AddExecution(abi.Condition(
-		abi.IsString([]interface{}{codeType}),
+		abi.IsString(codeType),
 		"Invalid type",
 	))
 
@@ -107,7 +107,7 @@ func Register() *Method {
 	))
 
 	method.AddExecution(abi.Condition(
-		abi.IsString([]interface{}{name}),
+		abi.IsString(name),
 		"Invalid name",
 	))
 
@@ -222,16 +222,15 @@ func Publish() *Method {
 
 	from := abi.Param("from")
 	code := abi.Param("code")
-
 	decodedCode := abi.DecodeJSON(code)
 
-	codeType := abi.Get(decodedCode, "t")
-	name := abi.Get(decodedCode, "n")
-	space := abi.Get(decodedCode, "s")
-	version := abi.Get(decodedCode, "v")
-	writer := abi.Get(decodedCode, "w")
+	codeType := abi.Get(decodedCode, "t", nil)
+	name := abi.Get(decodedCode, "n", nil)
+	space := abi.Get(decodedCode, "s", nil)
+	version := abi.Get(decodedCode, "v", nil)
+	writer := abi.Get(decodedCode, "w", nil)
 
-	codeID := abi.Hash([]interface{}{writer, space, name})
+	codeID := abi.Hash(writer, space, name)
 
 	contractInfo := abi.ReadLocal("contract", codeID, nil)
 	contractInfo = abi.DecodeJSON(contractInfo)
@@ -239,8 +238,8 @@ func Publish() *Method {
 	requestInfo := abi.ReadLocal("request", codeID, nil)
 	requestInfo = abi.DecodeJSON(requestInfo)
 
-	contractVersion := abi.Get(contractInfo, "v")
-	requestVersion := abi.Get(requestInfo, "v")
+	contractVersion := abi.Get(contractInfo, "v", "0")
+	requestVersion := abi.Get(requestInfo, "v", "0")
 
 	method.AddExecution(abi.Condition(
 		abi.Eq(writer, from),
@@ -248,7 +247,7 @@ func Publish() *Method {
 	))
 
 	method.AddExecution(abi.Condition(
-		abi.IsString([]interface{}{codeType}),
+		abi.IsString(codeType),
 		abi.Concat([]interface{}{"Invalid type: ", codeType}),
 	))
 
@@ -258,7 +257,7 @@ func Publish() *Method {
 	))
 
 	method.AddExecution(abi.Condition(
-		abi.IsString([]interface{}{name}),
+		abi.IsString(name),
 		abi.Concat([]interface{}{"Invalid name: ", name}),
 	))
 
@@ -268,12 +267,12 @@ func Publish() *Method {
 	))
 
 	method.AddExecution(abi.Condition(
-		abi.IsNumeric([]interface{}{version}),
+		abi.IsNumeric(version),
 		abi.Concat([]interface{}{"Invalid version: ", version}),
 	))
 
 	method.AddExecution(abi.Condition(
-		abi.IsString([]interface{}{space}),
+		abi.IsString(space),
 		"invalid nonce",
 		// abi.Concat([]interface{}{"Invalid nonce: ", space}),
 	))

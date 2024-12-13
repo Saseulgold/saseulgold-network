@@ -6,13 +6,8 @@ import (
 )
 
 func OpEq(i *Interpreter, vars interface{}) interface{} {
-	arr, ok := vars.([]interface{})
-	if !ok || len(arr) < 2 {
-		return false
-	}
+	left, right := Unpack2(vars)
 
-	left := arr[0]
-	right := arr[1]
 	DebugLog("OpEq: left =", left)
 	DebugLog("OpEq: right =", right)
 	switch {
@@ -24,13 +19,7 @@ func OpEq(i *Interpreter, vars interface{}) interface{} {
 }
 
 func OpNeq(i *Interpreter, vars interface{}) interface{} {
-	arr, ok := vars.([]interface{})
-	if !ok || len(arr) < 2 {
-		return false
-	}
-
-	left := arr[0]
-	right := arr[1]
+	left, right := Unpack2(vars)
 
 	switch {
 	case isNumeric(left).(bool) && isNumeric(right).(bool):
@@ -41,16 +30,9 @@ func OpNeq(i *Interpreter, vars interface{}) interface{} {
 }
 
 func OpGt(i *Interpreter, vars interface{}) interface{} {
-	arr, ok := vars.([]interface{})
-	DebugLog("OpGt: arr =", arr)
-
-	if !ok || len(arr) < 2 {
-		DebugLog("OpGt: vars is not an array or has less than 2 elements")
-		return false
-	}
-
-	left := arr[0]
-	right := arr[1]
+	left, right := Unpack2(vars)
+	DebugLog("OpGt: left =", left)
+	DebugLog("OpGt: right =", right)
 
 	switch {
 	case isNumeric(left).(bool) && isNumeric(right).(bool):
@@ -64,13 +46,7 @@ func OpGt(i *Interpreter, vars interface{}) interface{} {
 }
 
 func OpGte(i *Interpreter, vars interface{}) interface{} {
-	arr, ok := vars.([]interface{})
-	if !ok || len(arr) < 2 {
-		return false
-	}
-
-	left := arr[0]
-	right := arr[1]
+	left, right := Unpack2(vars)
 
 	switch {
 	case isNumeric(left).(bool) && isNumeric(right).(bool):
@@ -81,13 +57,7 @@ func OpGte(i *Interpreter, vars interface{}) interface{} {
 }
 
 func OpLt(i *Interpreter, vars interface{}) interface{} {
-	arr, ok := vars.([]interface{})
-	if !ok || len(arr) < 2 {
-		return false
-	}
-
-	left := arr[0]
-	right := arr[1]
+	left, right := Unpack2(vars)
 
 	switch {
 	case isNumeric(left).(bool) && isNumeric(right).(bool):
@@ -98,13 +68,7 @@ func OpLt(i *Interpreter, vars interface{}) interface{} {
 }
 
 func OpLte(i *Interpreter, vars interface{}) interface{} {
-	arr, ok := vars.([]interface{})
-	if !ok || len(arr) < 2 {
-		return false
-	}
-
-	left := arr[0]
-	right := arr[1]
+	left, right := Unpack2(vars)
 
 	switch {
 	case isNumeric(left).(bool) && isNumeric(right).(bool):

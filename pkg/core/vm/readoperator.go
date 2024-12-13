@@ -1,77 +1,36 @@
 package vm
 
 import (
-	. "hello/pkg/core/debug"
 	F "hello/pkg/util"
 )
 
 func OpLoadParam(i *Interpreter, vars interface{}) interface{} {
-	var result interface{}
+	key := Unpack1(vars)
 
-	if arr, ok := vars.([]interface{}); ok {
-		for _, v := range arr {
-			str, ok := v.(string)
-			if !ok {
-				OperatorLog("OpLoadParam", "result: nil")
-				DebugLog("OpLoadParam", "input:", vars)
-				return nil
-			}
-
-			if result == nil {
-				result = i.SignedData.GetAttribute(str)
-			} else if arr, ok := result.(map[string]interface{}); ok {
-				if val, exists := arr[str]; exists {
-					result = val
-				} else {
-					break
-				}
-			} else {
-				break
-			}
-		}
-	}
-	if result == nil {
-		OperatorLog("OpLoadParam", "result: nil")
-		DebugPanic("OpLoadParam", "input:", vars)
-	} else {
-		OperatorLog("OpLoadParam", "result:", result)
-	}
-	return result
+	return i.SignedData.GetAttribute(key.(string))
 }
 
 func OpReadLocal(i *Interpreter, vars interface{}) interface{} {
-	var attr, key string
-	var defaultVal interface{}
+	attr, key, defaultVal := Unpack2Or3(vars)
 
-	if arr, ok := vars.([]interface{}); ok {
-		if len(arr) > 0 {
-			if v, ok := arr[0].(string); ok {
-				attr = v
-			}
-		}
-		if len(arr) > 1 {
-			if v, ok := arr[1].(string); ok {
-				key = v
-			}
-		}
-		if len(arr) > 2 {
-			defaultVal = arr[2]
-		}
+	_, ok := attr.(string)
+	if !ok {
+		OperatorLog("OpReadLocal", "input:", vars, "result: nil")
+		return nil
+	}
+	_, ok = key.(string)
+	if !ok {
+		OperatorLog("OpReadLocal", "input:", vars, "result: nil")
+		return nil
 	}
 
 	var statusHash string
 	switch i.process {
 	case ProcessMain:
-		statusHash = F.StatusHash(i.code.GetWriter(), i.code.GetSpace(), attr, key)
+		statusHash = F.StatusHash(i.code.GetWriter(), i.code.GetSpace(), attr.(string), key.(string))
 	case ProcessPost:
-		statusHash = F.StatusHash(i.postProcess.GetWriter(), i.postProcess.GetSpace(), attr, key)
+		statusHash = F.StatusHash(i.postProcess.GetWriter(), i.postProcess.GetSpace(), attr.(string), key.(string))
 	default:
-		OperatorLog("OpReadLocal", "input:", vars, "result: nil")
-		return nil
-	}
-
-	if statusHash == "" {
-		OperatorLog("OpReadLocal", "input:", vars, "result: nil")
 		return nil
 	}
 
@@ -92,36 +51,29 @@ func OpReadLocal(i *Interpreter, vars interface{}) interface{} {
 		result = i.GetLocalStatus(statusHash, defaultVal)
 	}
 
-	OperatorLog("OpReadLocal", "input:", vars, "result:", result)
 	return result
 }
 
 func OpReadUniversal(i *Interpreter, vars interface{}) interface{} {
-	var attr, key string
-	var defaultVal interface{}
+	attr, key, defaultVal := Unpack3(vars)
 
-	if arr, ok := vars.([]interface{}); ok {
-		if len(arr) > 0 {
-			if v, ok := arr[0].(string); ok {
-				attr = v
-			}
-		}
-		if len(arr) > 1 {
-			if v, ok := arr[1].(string); ok {
-				key = v
-			}
-		}
-		if len(arr) > 2 {
-			defaultVal = arr[2]
-		}
+	_, ok := attr.(string)
+	if !ok {
+		OperatorLog("OpReadUniversal", "input:", vars, "result: nil")
+		return nil
+	}
+	_, ok = key.(string)
+	if !ok {
+		OperatorLog("OpReadUniversal", "input:", vars, "result: nil")
+		return nil
 	}
 
 	var statusHash string
 	switch i.process {
 	case ProcessMain:
-		statusHash = F.StatusHash(i.code.GetWriter(), i.code.GetSpace(), attr, key)
+		statusHash = F.StatusHash(i.code.GetWriter(), i.code.GetSpace(), attr.(string), key.(string))
 	case ProcessPost:
-		statusHash = F.StatusHash(i.postProcess.GetWriter(), i.postProcess.GetSpace(), attr, key)
+		statusHash = F.StatusHash(i.postProcess.GetWriter(), i.postProcess.GetSpace(), attr.(string), key.(string))
 	default:
 		OperatorLog("OpReadUniversal", "input:", vars, "result: nil")
 		return nil

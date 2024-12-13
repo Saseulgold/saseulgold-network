@@ -125,10 +125,7 @@ func (m *Machine) TxValidity(tx *SignedTransaction) (bool, error) {
 
 	m.Init(lastBlock, roundTimestamp)
 
-	txHash, err := tx.GetTxHash()
-	if err != nil {
-		return false, err
-	}
+	txHash := tx.GetTxHash()
 
 	m.SetTransactions(map[string]*SignedTransaction{
 		txHash: tx,
@@ -151,12 +148,8 @@ func (m *Machine) PreCommit() error {
 	txs := util.SortedValueK[*SignedTransaction](*m.transactions)
 
 	for _, tx := range txs {
-		txHash, err := tx.GetTxHash()
+		txHash := tx.GetTxHash()
 		DebugLog("preCommitRead	:", txHash)
-		if err != nil {
-			delete(*m.transactions, txHash)
-			continue
-		}
 
 		if m.ValidateTxTimestamp(tx) && tx.Validate() == nil {
 			if err := m.MountContract(tx); err == nil {
@@ -174,7 +167,7 @@ func (m *Machine) PreCommit() error {
 	}
 
 	for _, transaction := range txs {
-		hash, _ := transaction.GetTxHash()
+		hash := transaction.GetTxHash()
 		if err := m.MountContract(transaction); err == nil {
 			if result, err := m.interpreter.Execute(); err == nil {
 				DebugLog("Execute ", hash, " result:", result)
@@ -258,4 +251,35 @@ func (m *Machine) IsInBlockTime() bool {
 
 func (m *Machine) GetCurrentEpoch() int64 {
 	return util.Utime() / 5000
+}
+
+func (m *Machine) GetPreviousBlock() *Block {
+	return m.previousBlock
+}
+
+// hash := block.BlockHash()
+
+func (m *Machine) ExpectedBlock() *Block {
+	previousBlock := m.GetPreviousBlock()
+	var previousBlockhash string
+	var Height int
+
+	if previousBlock == nil {
+		previousBlockhash = ""
+		Height = 0
+	} else {
+		previousBlockhash = previousBlock.BlockHash()
+		Height = previousBlock.Height
+	}
+
+	expectedBlock := &Block{
+		Height:            Height + 1,
+		Transactions:      m.transactions,
+		Timestamp_s:       m.roundTimestamp,
+		UniversalUpdates:  m.interpreter.GetUniversalUpdates(),
+		LocalUpdates:      m.interpreter.GetLocalUpdates(),
+		PreviousBlockhash: previousBlockhash,
+	}
+
+	return expectedBlock
 }

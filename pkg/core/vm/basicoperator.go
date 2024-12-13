@@ -6,36 +6,79 @@ import (
 	"reflect"
 )
 
+func Unpack1(vars interface{}) interface{} {
+	arr, ok := vars.([]interface{})
+	if !ok || len(arr) != 1 {
+		panic("OpUnpack1: vars is not an array or has 1 element")
+	}
+
+	return arr[0]
+}
+
+func Unpack1Or2(vars interface{}) (interface{}, interface{}) {
+	arr, ok := vars.([]interface{})
+	if !ok || len(arr) < 1 || len(arr) > 2 {
+		panic("OpUnpack1Or2: vars is not an array or has 2 elements")
+	}
+
+	var last interface{} = nil
+	if len(arr) == 2 {
+		last = arr[1]
+	}
+
+	return arr[0], last
+}
+
+func Unpack2(vars interface{}) (interface{}, interface{}) {
+	arr, ok := vars.([]interface{})
+	if !ok || len(arr) != 2 {
+		panic("OpUnpack2: vars is not an array or has 2 elements")
+	}
+
+	return arr[0], arr[1]
+}
+
+func Unpack3(vars interface{}) (interface{}, interface{}, interface{}) {
+	arr, ok := vars.([]interface{})
+	if !ok || len(arr) != 3 {
+		panic("OpUnpack3: vars is not an array or has 3 elements")
+	}
+
+	return arr[0], arr[1], arr[2]
+}
+
+func Unpack2Or3(vars interface{}) (interface{}, interface{}, interface{}) {
+	arr, ok := vars.([]interface{})
+	var last interface{} = nil
+
+	if !ok || len(arr) < 2 || len(arr) > 3 {
+		panic("OpUnpack2Or3: vars is not an array or has 4 elements")
+	}
+
+	if len(arr) == 3 {
+		last = arr[2]
+	}
+
+	return arr[0], arr[1], last
+}
+
 func OpCondition(i *Interpreter, vars interface{}) interface{} {
 	if i.state != StateCondition {
 		OperatorLog("OpCondition", "input:", vars, "result: true")
 		return true
 	}
 
-	var tf bool
-	var errMsg string
+	tf, errMsg := Unpack2(vars)
+	boolVal, _ := tf.(bool)
+	errStr, _ := errMsg.(string)
 
-	if arr, ok := vars.([]interface{}); ok {
-		if len(arr) > 0 {
-			if v, ok := arr[0].(bool); ok {
-				tf = v
-			}
-		}
-
-		if len(arr) > 1 {
-			if v, ok := arr[1].(string); ok {
-				errMsg = v
-			}
-		}
-	}
-
-	if !tf {
+	if !boolVal {
 		i.breakFlag = true
-		if errMsg != "" {
-			i.result = errMsg
+		if errStr != "" {
+			i.result = errStr
 		}
-		OperatorLog("OpCondition", "input:", vars, "result:", errMsg)
-		return errMsg
+		OperatorLog("OpCondition", "input:", vars, "result:", errStr)
+		return errStr
 	}
 
 	OperatorLog("OpCondition", "input:", vars, "result: true")
@@ -44,28 +87,18 @@ func OpCondition(i *Interpreter, vars interface{}) interface{} {
 
 func OpResponse(i *Interpreter, vars interface{}) interface{} {
 	if i.state != StateExecution {
-		var result ABI
-		if arr, ok := vars.([]interface{}); ok {
-			result = ABI{
-				Key:   "$response",
-				Value: arr,
-			}
-		} else {
-			result = ABI{
-				Key:   "$response",
-				Value: []interface{}{},
-			}
+		response := Unpack1(vars)
+		result := ABI{
+			Key:   "$response",
+			Value: []interface{}{response},
 		}
 		OperatorLog("OpResponse", "input:", vars, "result:", result)
 		return result
 	}
 
 	i.breakFlag = true
-	if arr, ok := vars.([]interface{}); ok && len(arr) > 0 {
-		i.result = arr[0]
-	} else {
-		i.result = nil
-	}
+	response := Unpack1(vars)
+	i.result = response
 	OperatorLog("OpResponse", "input:", vars, "result: nil")
 	return nil
 }
@@ -76,27 +109,11 @@ func OpWeight(i *Interpreter, vars interface{}) interface{} {
 }
 
 func OpIf(i *Interpreter, vars interface{}) interface{} {
-	var condition bool
-	var trueVal, falseVal interface{}
-
-	if arr, ok := vars.([]interface{}); ok {
-		if len(arr) > 0 {
-			if v, ok := arr[0].(bool); ok {
-				condition = v
-			}
-		}
-
-		if len(arr) > 1 {
-			trueVal = arr[1]
-		}
-
-		if len(arr) > 2 {
-			falseVal = arr[2]
-		}
-	}
+	condition, trueVal, falseVal := Unpack3(vars)
+	boolVal, _ := condition.(bool)
 
 	var result interface{}
-	if condition {
+	if boolVal {
 		result = trueVal
 	} else {
 		result = falseVal
@@ -106,122 +123,82 @@ func OpIf(i *Interpreter, vars interface{}) interface{} {
 }
 
 func OpAnd(i *Interpreter, vars interface{}) interface{} {
-	var result *bool
+	values := vars.([]interface{})
+	result := true
 
-	if arr, ok := vars.([]interface{}); ok {
-		for _, v := range arr {
-			if boolVal, ok := v.(bool); !ok {
-				OperatorLog("OpAnd", "input:", vars, "result: false")
-				return false
-			} else {
-				if result == nil {
-					result = &boolVal
-				} else {
-					newVal := *result && boolVal
-					result = &newVal
-				}
-			}
+	for _, v := range values {
+		if boolVal, ok := v.(bool); !ok || !boolVal {
+			OperatorLog("OpAnd", "input:", vars, "result: false")
+			return false
 		}
 	}
 
-	if result == nil {
-		OperatorLog("OpAnd", "input:", vars, "result: false")
-		return false
-	}
-	OperatorLog("OpAnd", "input:", vars, "result:", *result)
-	return *result
+	OperatorLog("OpAnd", "input:", vars, "result:", result)
+	return result
 }
 
 func OpOr(i *Interpreter, vars interface{}) interface{} {
-	var result *bool
+	values := vars.([]interface{})
+	result := false
 
-	if arr, ok := vars.([]interface{}); ok {
-		for _, v := range arr {
-			if boolVal, ok := v.(bool); !ok {
-				OperatorLog("OpOr", "input:", vars, "result: false")
-				return false
-			} else {
-				if result == nil {
-					result = &boolVal
-				} else {
-					newVal := *result || boolVal
-					result = &newVal
-				}
-			}
+	for _, v := range values {
+		if boolVal, ok := v.(bool); ok && boolVal {
+			result = true
+			break
 		}
 	}
 
-	if result == nil {
-		OperatorLog("OpOr", "input:", vars, "result: false")
-		return false
-	}
-	OperatorLog("OpOr", "input:", vars, "result:", *result)
-	return *result
+	OperatorLog("OpOr", "input:", vars, "result:", result)
+	return result
 }
 
 func OpGet(i *Interpreter, vars interface{}) interface{} {
-	if arr, ok := vars.([]interface{}); ok {
-		if len(arr) < 2 {
-			OperatorLog("OpGet1", "input:", vars, "type:", reflect.TypeOf(arr[0]), "result: nil")
-			return nil
-		}
+	obj, key, defaultVal := Unpack2Or3(vars)
 
-		var obj map[string]interface{}
-		switch v := arr[0].(type) {
-		case map[string]interface{}:
-			obj = v
-		default:
-			DebugLog("OpGet2", "input:", vars, "type:", reflect.TypeOf(v))
-			D.DebugPanic("OpGet2", "input:", vars, "type:", reflect.TypeOf(v), "result: nil")
-			return nil
-		}
-
-		var key string
-		switch v := arr[1].(type) {
-		case string:
-			key = v
-		default:
-			D.DebugPanic("OpGet4", "input:", vars, "type:", reflect.TypeOf(arr[1]), "result: nil")
-			return nil
-		}
-
-		var defaultVal interface{}
-		if len(arr) > 2 {
-			defaultVal = arr[2]
-		}
-
-		if val, exists := obj[key]; exists {
-			return val
-		}
+	if obj == nil {
 		return defaultVal
 	}
 
-	DebugLog("OpGet", "input:", vars, "result: nil")
-	D.DebugPanic("OpGet", "input:", vars, "result: nil")
-	return nil
+	objMap, ok := obj.(map[string]interface{})
+
+	if !ok {
+		D.DebugPanic("OpGet", "input:", vars, "type:", reflect.TypeOf(obj), "result: nil")
+		return nil
+	}
+
+	keyStr, ok := key.(string)
+	if !ok {
+		D.DebugPanic("OpGet", "input:", vars, "type:", reflect.TypeOf(key), "result: nil")
+		return nil
+	}
+
+	if val, exists := objMap[keyStr]; exists {
+		return val
+	}
+	return defaultVal
 }
 
 func OpIn(i *Interpreter, vars interface{}) interface{} {
-	if arr, ok := vars.([]interface{}); ok {
-		if len(arr) < 2 {
-			OperatorLog("OpIn", "input:", vars, "result: false")
-			return false
-		}
+	target, cases := Unpack2(vars)
 
-		target := arr[0]
-		cases, ok := arr[1].([]interface{})
-		if !ok {
-			OperatorLog("OpIn", "input:", vars, "result: false")
-			return false
-		}
+	caseArray, ok := cases.([]interface{})
+	if !ok {
+		OperatorLog("OpIn", "input:", vars, "result: false")
+		return false
+	}
 
-		for _, v := range cases {
-			if reflect.DeepEqual(target, v) {
-				OperatorLog("OpIn", "input:", vars, "result: true")
-				return true
-			}
+	for _, v := range caseArray {
+		if reflect.DeepEqual(target, v) {
+			OperatorLog("OpIn", "input:", vars, "result: true")
+			return true
 		}
 	}
+
 	OperatorLog("OpIn", "input:", vars, "result: false")
 	return false
+}
+
+func OpCheck(i *Interpreter, vars interface{}) interface{} {
+	OperatorLog("OpCheck value:", vars, "type:", reflect.TypeOf(vars))
+	return vars
 }

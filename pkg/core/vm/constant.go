@@ -2,14 +2,23 @@ package vm
 
 var OperatorFunctions = map[string]map[string]MethodFunc{
 	"BasicOperator": {
-		"$condition": OpCondition,
-		"$response":  OpResponse,
-		"$weight":    OpWeight,
-		"$if":        OpIf,
-		"$and":       OpAnd,
-		"$or":        OpOr,
-		"$get":       OpGet,
-		"$in":        OpIn,
+		"$load_param": OpLoadParam,
+		"$condition":  OpCondition,
+		"$response":   OpResponse,
+		"$weight":     OpWeight,
+		"$if":         OpIf,
+		"$and":        OpAnd,
+		"$or":         OpOr,
+		"$get":        OpGet,
+		"$in":         OpIn,
+	},
+	"ComparisonOperator": {
+		"$eq":  OpEq,
+		"$ne":  OpNeq,
+		"$gt":  OpGt,
+		"$gte": OpGte,
+		"$lt":  OpLt,
+		"$lte": OpLte,
 	},
 	"ArithmeticOperator": {
 		"$add":         OpAdd,
@@ -48,20 +57,13 @@ var OperatorFunctions = map[string]map[string]MethodFunc{
 		"$is_array":   OpIsArray,
 		"$is_double":  OpIsDouble,
 	},
-	"ComparisonOperator": {
-		"$eq":  OpEq,
-		"$ne":  OpNeq,
-		"$gt":  OpGt,
-		"$gte": OpGte,
-		"$lt":  OpLt,
-		"$lte": OpLte,
-	},
 	"ReadOperator": {
-		"$load_param":     OpLoadParam,
 		"$read_local":     OpReadLocal,
 		"$read_universal": OpReadUniversal,
+		"$check":          OpCheck,
 	},
 	"WriteOperator": {
 		"$write_universal": OpWriteUniversal,
+		"$write_local":     OpWriteLocal,
 	},
 }

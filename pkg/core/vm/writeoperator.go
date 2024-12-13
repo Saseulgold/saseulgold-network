@@ -10,26 +10,26 @@ import (
 func OpWriteUniversal(i *Interpreter, vars interface{}) interface{} {
 	OperatorLog("op start", i.process.String(), i.state.String())
 
-	arr, ok := vars.([]interface{})
-	if !ok || len(arr) < 3 {
-		debug.DebugPanic("OpWriteUniversal", "input:", vars, "result:", nil)
+	attr, key, value := Unpack3(vars)
+
+	_, ok := attr.(string)
+	if !ok {
+		OperatorLog("OpWriteUniversal", "input:", vars, "result: nil")
 		return nil
 	}
-
-	attr, ok1 := arr[0].(string)
-	key, ok2 := arr[1].(string)
-	if !ok1 || !ok2 {
-		debug.DebugPanic("OpWriteUniversal", "input:", vars, "result:", nil)
+	_, ok = key.(string)
+	if !ok {
+		OperatorLog("OpWriteUniversal", "input:", vars, "result: nil")
 		return nil
 	}
 
 	var statusHash string
 	if i.process == ProcessMain {
-		statusHash = F.StatusHash(i.code.GetWriter(), i.code.GetSpace(), attr, key)
+		statusHash = F.StatusHash(i.code.GetWriter(), i.code.GetSpace(), attr.(string), key.(string))
 		debug.DebugLog("write_universal main: attr=%s; key=%s; writer=%s; space=%s; status_hash=%s",
 			attr, key, i.code.GetWriter(), i.code.GetSpace(), statusHash)
 	} else if i.process == ProcessPost {
-		statusHash = F.StatusHash(i.postProcess.GetWriter(), i.postProcess.GetSpace(), attr, key)
+		statusHash = F.StatusHash(i.postProcess.GetWriter(), i.postProcess.GetSpace(), attr.(string), key.(string))
 	}
 
 	if statusHash == "" {
@@ -43,8 +43,7 @@ func OpWriteUniversal(i *Interpreter, vars interface{}) interface{} {
 		i.AddUniversalLoads(statusHash)
 		result = nil
 	case StateCondition:
-		OperatorLog("OpWriteUniversal CONDITION ", statusHash, arr[2])
-		value := arr[2]
+		OperatorLog("OpWriteUniversal CONDITION ", statusHash, value)
 		length := len(F.String(value))
 
 		if length > C.STATUS_SIZE_LIMIT {
@@ -59,10 +58,9 @@ func OpWriteUniversal(i *Interpreter, vars interface{}) interface{} {
 
 		return ABI{
 			Key:   "$write_universal",
-			Value: arr,
+			Value: vars,
 		}
 	case StateExecution:
-		value := arr[2]
 		result = i.SetUniversalStatus(statusHash, value)
 	}
 
@@ -70,26 +68,26 @@ func OpWriteUniversal(i *Interpreter, vars interface{}) interface{} {
 }
 
 func OpWriteLocal(i *Interpreter, vars interface{}) interface{} {
-	arr, ok := vars.([]interface{})
-	if !ok || len(arr) < 3 {
-		OperatorLog("OpWriteLocal", "input:", vars, "result:", nil)
+	attr, key, value := Unpack3(vars)
+
+	_, ok := attr.(string)
+	if !ok {
+		OperatorLog("OpWriteLocal", "input:", vars, "result: nil")
 		return nil
 	}
-
-	attr, ok1 := arr[0].(string)
-	key, ok2 := arr[1].(string)
-	if !ok1 || !ok2 {
-		OperatorLog("OpWriteLocal", "input:", vars, "result:", nil)
+	_, ok = key.(string)
+	if !ok {
+		OperatorLog("OpWriteLocal", "input:", vars, "result: nil")
 		return nil
 	}
 
 	var statusHash string
 	if i.process == ProcessMain {
-		statusHash = F.StatusHash(i.code.GetWriter(), i.code.GetSpace(), attr, key)
+		statusHash = F.StatusHash(i.code.GetWriter(), i.code.GetSpace(), attr.(string), key.(string))
 		debug.DebugLog("write_local main: key=%s; writer=%s; space=%s; value=%s",
-			key, i.code.GetWriter(), i.code.GetSpace(), F.String(arr[2])[:30])
+			key, i.code.GetWriter(), i.code.GetSpace(), F.String(value)[:30])
 	} else if i.process == ProcessPost {
-		statusHash = F.StatusHash(i.postProcess.GetWriter(), i.postProcess.GetSpace(), attr, key)
+		statusHash = F.StatusHash(i.postProcess.GetWriter(), i.postProcess.GetSpace(), attr.(string), key.(string))
 	}
 
 	if statusHash == "" {
@@ -103,7 +101,6 @@ func OpWriteLocal(i *Interpreter, vars interface{}) interface{} {
 		i.AddLocalLoads(statusHash)
 		result = nil
 	case StateCondition:
-		value := arr[2]
 		length := len(F.String(value))
 
 		if length > C.STATUS_SIZE_LIMIT {
@@ -115,11 +112,11 @@ func OpWriteLocal(i *Interpreter, vars interface{}) interface{} {
 			i.SignedData.SetCachedLocal(statusHash, value)
 			i.weight += int64(len(statusHash) + length*1000000000)
 		}
-		result = map[string]interface{}{
-			"$write_local": arr,
+		result = ABI{
+			Key:   "$write_local",
+			Value: vars,
 		}
 	case StateExecution:
-		value := arr[2]
 		result = i.SetLocalStatus(statusHash, value)
 	}
 

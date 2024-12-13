@@ -2,31 +2,30 @@ package vm
 
 import (
 	"encoding/json"
-	D "hello/pkg/core/debug"
+	"fmt"
 	"hello/pkg/util"
 	"regexp"
 	"strings"
 )
 
 func OpArrayPush(i *Interpreter, vars interface{}) interface{} {
-	arr, ok := vars.([]interface{})
-	if !ok || len(arr) < 3 {
-		OperatorLog("OpArrayPush", "input:", vars, "result:", []interface{}{})
-		return []interface{}{}
-	}
+	origin, key, value := Unpack3(vars)
 
-	origin, ok := arr[0].([]interface{})
+	originArr, ok := origin.([]interface{})
 	if !ok {
 		OperatorLog("OpArrayPush", "input:", vars, "result:", []interface{}{})
 		return []interface{}{}
 	}
 
-	key := arr[1]
-	value := arr[2]
-	origin = append(origin, map[string]interface{}{key.(string): value})
+	keyStr, ok := key.(string)
+	if !ok {
+		OperatorLog("OpArrayPush", "input:", vars, "result:", []interface{}{})
+		return []interface{}{}
+	}
 
-	OperatorLog("OpArrayPush", "input:", vars, "result:", origin)
-	return origin
+	originArr = append(originArr, map[string]interface{}{keyStr: value})
+	OperatorLog("OpArrayPush", "input:", vars, "result:", originArr)
+	return originArr
 }
 
 func OpConcat(i *Interpreter, vars interface{}) interface{} {
@@ -46,13 +45,9 @@ func OpConcat(i *Interpreter, vars interface{}) interface{} {
 }
 
 func OpCount(i *Interpreter, vars interface{}) interface{} {
-	arr, ok := vars.([]interface{})
-	if !ok || len(arr) == 0 {
-		OperatorLog("OpCount", "input:", vars, "result:", 0)
-		return 0
-	}
+	arr := Unpack1(vars)
 
-	if arr2, ok := arr[0].([]interface{}); ok {
+	if arr2, ok := arr.([]interface{}); ok {
 		result := len(arr2)
 		OperatorLog("OpCount", "input:", vars, "result:", result)
 		return result
@@ -63,14 +58,10 @@ func OpCount(i *Interpreter, vars interface{}) interface{} {
 }
 
 func OpStrlen(i *Interpreter, vars interface{}) interface{} {
-	arr, ok := vars.([]interface{})
-	if !ok || len(arr) == 0 {
-		OperatorLog("OpStrlen", "input:", vars, "result:", 0)
-		return 0
-	}
+	str := Unpack1(vars)
 
-	if str, ok := arr[0].(string); ok {
-		result := len(str)
+	if strVal, ok := str.(string); ok {
+		result := len(strVal)
 		OperatorLog("OpStrlen", "input:", vars, "result:", result)
 		return result
 	}
@@ -80,25 +71,21 @@ func OpStrlen(i *Interpreter, vars interface{}) interface{} {
 }
 
 func OpRegMatch(i *Interpreter, vars interface{}) interface{} {
-	arr, ok := vars.([]interface{})
-	if !ok || len(arr) < 2 {
-		OperatorLog("OpRegMatch", "input:", vars, "result:", false)
-		return false
-	}
+	pattern, value := Unpack2(vars)
 
-	pattern, ok1 := arr[0].(string)
-	value, ok2 := arr[1].(string)
+	patternStr, ok1 := pattern.(string)
+	valueStr, ok2 := value.(string)
 
 	if !ok1 || !ok2 {
 		OperatorLog("OpRegMatch", "input:", vars, "result:", false)
 		return false
 	}
 
-	if len(pattern) >= 2 && pattern[0] == '/' && pattern[len(pattern)-1] == '/' {
-		pattern = pattern[1 : len(pattern)-1]
+	if len(patternStr) >= 2 && patternStr[0] == '/' && patternStr[len(patternStr)-1] == '/' {
+		patternStr = patternStr[1 : len(patternStr)-1]
 	}
 
-	matched, err := regexp.MatchString(pattern, value)
+	matched, err := regexp.MatchString(patternStr, valueStr)
 	if err != nil {
 		OperatorLog("OpRegMatch", "input:", vars, "result:", false)
 		return false
@@ -109,13 +96,9 @@ func OpRegMatch(i *Interpreter, vars interface{}) interface{} {
 }
 
 func OpEncodeJson(i *Interpreter, vars interface{}) interface{} {
-	arr, ok := vars.([]interface{})
-	if !ok || len(arr) == 0 {
-		OperatorLog("OpEncodeJson", "input:", vars, "result:", "")
-		return ""
-	}
+	value := Unpack1(vars)
 
-	bytes, err := json.Marshal(arr[0])
+	bytes, err := json.Marshal(value)
 	if err != nil {
 		OperatorLog("OpEncodeJson", "input:", vars, "result:", "")
 		return ""
@@ -126,27 +109,26 @@ func OpEncodeJson(i *Interpreter, vars interface{}) interface{} {
 	return result
 }
 
-func OpDecodeJson(i *Interpreter, vars interface{}) interface{} {
-	if arr, ok := vars.([]interface{}); ok && len(arr) > 0 {
-		// 첫 번째 요소가 이미 map인 경우 직접 반환
-		if m, ok := arr[0].(map[string]interface{}); ok {
-			return m
-		}
-
-		// 문자열인 경우 JSON 디코딩 시도
-		if jsonStr, ok := arr[0].(string); ok {
-			var result interface{}
-			err := json.Unmarshal([]byte(jsonStr), &result)
-			if err == nil {
-				return result
-			}
-		}
-
-		D.DebugPanic("OpDecodeJson", "input:", vars, "result:", arr[0])
-		return arr[0]
+func OpDecodeJson(i *Interpreter, item interface{}) interface{} {
+	fmt.Println("OpDecodeJson", "input:", item)
+	arr, ok := item.([]interface{})
+	if !ok {
+		return nil
 	}
 
-	return nil
+	str, ok := arr[0].(string)
+	if !ok {
+		return nil
+	}
+
+	var result interface{}
+	err := json.Unmarshal([]byte(str), &result)
+
+	if err != nil {
+		return nil
+	}
+
+	return result
 }
 
 func OpHashLimit(i *Interpreter, vars interface{}) interface{} {
@@ -185,6 +167,7 @@ func OpHashMany(i *Interpreter, vars interface{}) interface{} {
 }
 
 func OpHash(i *Interpreter, vars interface{}) interface{} {
+	// TODO
 	arr, ok := vars.([]interface{})
 	if !ok || len(arr) == 0 {
 		OperatorLog("OpHash", "input:", vars, "result:", "")
