@@ -145,15 +145,15 @@ func (tx *SignedTransaction) GetTxData() *SignedData {
 	return NewSignedDataFromTransaction(tx)
 }
 
-func (tx *SignedTransaction) GetTxHash() (string, error) {
+func (tx *SignedTransaction) GetTxHash() string {
 	transaction, ok := tx.Data.Get("transaction")
 	if !ok || transaction == nil {
-		return "", fmt.Errorf("the signed transaction must contain the transaction parameter")
+		return ""
 	}
 
 	timestamp, ok := transaction.(*S.OrderedMap).Get("timestamp")
 	if !ok {
-		return "", fmt.Errorf("the signed transaction must contain the transaction.timestamp parameter")
+		return ""
 	}
 
 	ser := transaction.(*S.OrderedMap).Ser()
@@ -163,11 +163,11 @@ func (tx *SignedTransaction) GetTxHash() (string, error) {
 		if timestampInt, ok := timestamp.(int); ok {
 			timestampInt64 = int64(timestampInt)
 		} else {
-			return "", fmt.Errorf("timestamp must be int or int64 type")
+			return ""
 		}
 	}
 
-	return util.TimeHash(util.Hash(ser), timestampInt64), nil
+	return util.TimeHash(util.Hash(ser), timestampInt64)
 }
 
 func (tx *SignedTransaction) Validate() error {
@@ -205,13 +205,10 @@ func (tx *SignedTransaction) Validate() error {
 	}
 
 	// Verify signature
-	hash, err := tx.GetTxHash()
-	if err != nil {
-		return err
-	}
+	hash := tx.GetTxHash()
 
 	if !crypto.SignatureValidity(hash, tx.Xpub, tx.Signature) {
-		return fmt.Errorf("invalid signature: %s (transaction hash: %s)", tx.Signature, hash)
+		return fmt.Errorf("invalid signature: %s (transaction hash: %s)", tx.Signature, hash, tx.Xpub)
 	}
 
 	return nil

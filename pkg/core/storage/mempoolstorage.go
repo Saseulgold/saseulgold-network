@@ -53,14 +53,11 @@ func (mp *MempoolStorage) AddTransaction(tx *SignedTransaction) error {
 	mp.mu.Lock()
 	defer mp.mu.Unlock()
 
-	txHash, err := tx.GetTxHash()
-	if err != nil {
-		return err
-	}
+	txHash := tx.GetTxHash()
 
 	// Check if transaction already exists
 	if _, exists := mp.pool[txHash]; exists {
-		return nil
+		return fmt.Errorf("transaction already exists: %s", txHash)
 	}
 
 	// Check transaction size limit
@@ -163,7 +160,7 @@ func (mp *MempoolStorage) FormatTransactions() string {
 
 	var result string
 	for i, tx := range mp.priorityQueue {
-		txHash, _ := tx.Tx.GetTxHash()
+		txHash := tx.Tx.GetTxHash()
 		result += fmt.Sprintf("%d. TxHash: %s, Time: %s, Height: %d, Size: %d bytes\n",
 			i+1,
 			txHash,

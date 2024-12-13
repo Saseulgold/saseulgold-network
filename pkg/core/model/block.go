@@ -73,10 +73,8 @@ func (block *Block) SetTimestamp(timestamp int64) {
 }
 
 func (block *Block) AppendTransaction(tx SignedTransaction) error {
-	txHash, err := tx.GetTxHash()
-	if err != nil {
-		return err
-	}
+	txHash := tx.GetTxHash()
+
 	(*block.Transactions)[txHash] = &tx
 	return nil
 }
@@ -106,11 +104,7 @@ func (block Block) BlockRoot() string {
 func (block Block) THashs() []string {
 	txs := F.SortedValueK(*block.Transactions)
 	return F.Map(txs, func(tx *SignedTransaction) string {
-		hash, err := tx.GetTxHash()
-		if err != nil {
-			return ""
-		}
-		return hash
+		return tx.GetTxHash()
 	})
 }
 

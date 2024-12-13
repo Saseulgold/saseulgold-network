@@ -30,10 +30,7 @@ func NewSignedData() *SignedData {
 
 func NewSignedDataFromTransaction(tx *SignedTransaction) *SignedData {
 
-	hash, err := tx.GetTxHash()
-	if err != nil {
-		return nil
-	}
+	hash := tx.GetTxHash()
 	txData, ok := tx.Data.Get("transaction")
 	if !ok {
 		return nil

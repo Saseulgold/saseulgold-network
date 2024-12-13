@@ -635,3 +635,50 @@ func (sf *StatusFile) CountLocalStatus(prefix string) int {
 func (sf *StatusFile) CountUniversalStatus(prefix string) int {
 	return GetStatusIndexInstance().CountUniversalIndexes(prefix)
 }
+
+// ReadUniversalStatus reads a single status value using the given index cursor
+func (sf *StatusFile) ReadUniversalStatus(index StorageIndexCursor) (interface{}, error) {
+	if index.FileID == "" || index.Seek < 0 || index.Length <= 0 {
+		return nil, fmt.Errorf("invalid index cursor")
+	}
+
+	file, err := os.Open(sf.UniversalFile(index.FileID))
+	if err != nil {
+		return nil, fmt.Errorf("error opening file: %v", err)
+	}
+	defer file.Close()
+
+	_, err = file.Seek(index.Seek, 0)
+	if err != nil {
+		return nil, fmt.Errorf("error seeking file: %v", err)
+	}
+
+	data := make([]byte, index.Length)
+	_, err = file.Read(data)
+	if err != nil {
+		return nil, fmt.Errorf("error reading file: %v", err)
+	}
+
+	var value interface{}
+	if err := json.Unmarshal(data, &value); err != nil {
+		return nil, fmt.Errorf("error unmarshaling data: %v", err)
+	}
+
+	return value, nil
+}
+
+func (sf *StatusFile) ReadUniversalStatuses(indexes map[string]StorageIndexCursor) map[string]interface{} {
+	result := make(map[string]interface{})
+
+	for key, index := range indexes {
+		value, err := sf.ReadUniversalStatus(index)
+		if err != nil {
+			DebugLog(fmt.Sprintf("Failed to read universal status for key %s: %v", key, err))
+			result[key] = nil
+			continue
+		}
+		result[key] = value
+	}
+
+	return result
+}

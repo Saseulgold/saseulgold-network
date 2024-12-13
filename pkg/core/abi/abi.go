@@ -62,10 +62,10 @@ func Or(vars ...interface{}) ABI {
 	}
 }
 
-func Get(obj, key interface{}) ABI {
+func Get(obj, key, defaultVal interface{}) ABI {
 	return ABI{
 		Key:   "$get",
-		Value: []interface{}{obj, key},
+		Value: []interface{}{obj, key, defaultVal},
 	}
 }
 
@@ -158,7 +158,7 @@ func IsInt(vars interface{}) ABI {
 func IsString(vars interface{}) ABI {
 	return ABI{
 		Key:   "$is_string",
-		Value: vars,
+		Value: []interface{}{vars},
 	}
 }
 
@@ -240,11 +240,10 @@ func In(target, cases interface{}) ABI {
 	}
 }
 
-// I/O
-func Param(vars interface{}) ABI {
+func Param(key interface{}) ABI {
 	return ABI{
 		Key:   "$load_param",
-		Value: []interface{}{vars},
+		Value: []interface{}{key},
 	}
 }
 
@@ -340,10 +339,10 @@ func HashMany(vars interface{}) ABI {
 	}
 }
 
-func Hash(target interface{}) ABI {
+func Hash(vars ...interface{}) ABI {
 	return ABI{
 		Key:   "$hash",
-		Value: []interface{}{target},
+		Value: vars,
 	}
 }
 
@@ -354,16 +353,23 @@ func ShortHash(target interface{}) ABI {
 	}
 }
 
-func IDHash(target interface{}) ABI {
+func IDHash(k0 interface{}, k1 interface{}) ABI {
 	return ABI{
 		Key:   "$id_hash",
-		Value: []interface{}{target},
+		Value: []interface{}{k0, k1},
 	}
 }
 
-func SignVerify(obj interface{}, publicKey string, signature string) ABI {
+func SignVerify(obj, publicKey, signature interface{}) ABI {
 	return ABI{
 		Key:   "$sign_verify",
 		Value: []interface{}{obj, publicKey, signature},
+	}
+}
+
+func Check(obj interface{}) ABI {
+	return ABI{
+		Key:   "$check",
+		Value: []interface{}{obj},
 	}
 }
