@@ -14,20 +14,31 @@ type SignedTransaction struct {
 	Signature string        `json:"signature"`
 }
 
+func (tx *SignedTransaction) BaseObj() *S.OrderedMap {
+	return tx.Data
+}
+
+func FromRawData(txData *S.OrderedMap, privateKey string, publicKey string) (SignedTransaction, error) {
+	data := S.NewOrderedMap()
+
+	data.Set("transaction", txData)
+
+	tx := SignedTransaction{
+		Data: data,
+	}
+
+	signature := tx.Sign(privateKey, publicKey)
+	data.Set("signature", signature)
+	data.Set("public_key", publicKey)
+
+	return tx, nil
+}
+
 func NewSignedTransaction(data *S.OrderedMap) (SignedTransaction, error) {
 	txData, ok := data.Get("transaction")
 
 	if !ok || txData == nil {
 		return SignedTransaction{}, fmt.Errorf("the signed transaction must contain the transaction parameter")
-	}
-
-	if txStr, ok := txData.(string); ok {
-		fmt.Printf("txStr: %s\n", txStr)
-		txMap, err := S.ParseOrderedMap(txStr)
-		if err != nil {
-			return SignedTransaction{}, err
-		}
-		data.Set("transaction", txMap)
 	}
 
 	tx := SignedTransaction{Data: data}
@@ -69,9 +80,6 @@ func (tx *SignedTransaction) Ser() (string, error) {
 			copy.Set(key, val)
 		}
 	}
-
-	transactionStr := transaction.(*S.OrderedMap).Ser()
-	copy.Set("transaction", transactionStr)
 
 	return copy.Ser(), nil
 }
@@ -170,7 +178,7 @@ func (tx *SignedTransaction) GetTxHash() string {
 	return util.TimeHash(util.Hash(ser), timestampInt64)
 }
 
-func (tx *SignedTransaction) Validate() error {
+func (tx SignedTransaction) Validate() error {
 	if tx.Xpub == "" {
 		return fmt.Errorf("the signed transaction must contain the xpub parameter")
 	}
@@ -220,4 +228,60 @@ func (tx *SignedTransaction) GetXpub() string {
 
 func (tx *SignedTransaction) GetSignature() string {
 	return tx.Signature
+}
+
+func (tx *SignedTransaction) Sign(privateKey string, publicKey string) string {
+	hash := tx.GetTxHash()
+	signature := crypto.Signature(hash, privateKey)
+	tx.Signature = signature
+	tx.Xpub = publicKey
+	return signature
+}
+
+// Parse creates a SignedTransaction from a serialized string
+func Parse(serialized string) (SignedTransaction, error) {
+	// Comment: First parse the outer OrderedMap
+	data, err := S.ParseOrderedMap(serialized)
+	if err != nil {
+		return SignedTransaction{}, fmt.Errorf("failed to parse serialized data: %v", err)
+	}
+
+	// Comment: Get the transaction string and parse it into an OrderedMap
+	txStr, ok := data.Get("transaction")
+	if !ok || txStr == nil {
+		return SignedTransaction{}, fmt.Errorf("missing transaction in serialized data")
+	}
+
+	// Comment: Parse the inner transaction string into an OrderedMap
+	txMap, err := S.ParseOrderedMap(txStr.(string))
+	if err != nil {
+		return SignedTransaction{}, fmt.Errorf("failed to parse transaction data: %v", err)
+	}
+
+	// Comment: Replace the transaction string with the parsed OrderedMap
+	data.Set("transaction", txMap)
+
+	// Comment: Use existing NewSignedTransaction to create the final object
+	return NewSignedTransaction(data)
+}
+
+// ParseEscaped creates a SignedTransaction from a serialized string with escaped characters
+func ParseEscaped(serialized string) (SignedTransaction, error) {
+	// Comment: First parse the outer OrderedMap with escaped characters
+	data, err := S.ParseOrderedMap(serialized)
+	if err != nil {
+		return SignedTransaction{}, fmt.Errorf("failed to parse serialized data: %v", err)
+	}
+
+	// Comment: Get the transaction string
+	txMap, ok := data.Get("transaction")
+	if !ok || txMap == nil {
+		return SignedTransaction{}, fmt.Errorf("missing transaction in serialized data")
+	}
+
+	// Comment: Replace the transaction string with the parsed OrderedMap
+	data.Set("transaction", txMap)
+
+	// Comment: Use existing NewSignedTransaction to create the final object
+	return NewSignedTransaction(data)
 }

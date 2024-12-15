@@ -28,3 +28,8 @@ func (u Update) SerUpdateLog() string {
 	j, _ := json.Marshal(UpdateLog{Old: u.Old, New: u.New})
 	return string(j)
 }
+
+func (u Update) Ser() string {
+	j, _ := json.Marshal(u)
+	return string(j)
+}

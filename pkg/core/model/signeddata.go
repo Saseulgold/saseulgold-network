@@ -28,6 +28,23 @@ func NewSignedData() *SignedData {
 	}
 }
 
+func NewSignedDataFromRequest(req *SignedRequest) *SignedData {
+	hash := req.GetRequestHash()
+	reqData, ok := req.Data.Get("request")
+	if !ok {
+		return nil
+	}
+	return &SignedData{
+		Data:      reqData.(*S.OrderedMap),
+		PublicKey: req.GetRequestXpub(),
+		Signature: req.GetRequestSignature(),
+		Hash:      hash,
+		Cid:       req.GetRequestCID(),
+		Type:      req.GetRequestType(),
+		Timestamp: req.GetRequestTimestamp(),
+	}
+}
+
 func NewSignedDataFromTransaction(tx *SignedTransaction) *SignedData {
 
 	hash := tx.GetTxHash()

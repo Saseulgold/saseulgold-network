@@ -3,6 +3,7 @@ package model
 import (
 	"encoding/json"
 	"fmt"
+	"hello/pkg/core/structure"
 	F "hello/pkg/util"
 )
 
@@ -139,34 +140,73 @@ func (block Block) BlockHash() string {
 	return F.TimeHash(s, int64(block.Timestamp_s))
 }
 
-func (block Block) BaseObj() map[string]interface{} {
-	return map[string]interface{}{
-		"height":             block.Height,
-		"s_timestamp":        block.Timestamp_s,
-		"previous_blockhash": block.PreviousBlockhash,
-		"blockhash":          block.BlockHash(),
-		"difficulty":         block.Difficulty,
-		"reward_address":     block.RewardAddress,
-		"vout":               block.Vout,
-		"nonce":              block.Nonce,
-	}
+func (block Block) BaseObj() *structure.OrderedMap {
+	om := structure.NewOrderedMap()
+
+	// 순서가 보장되도록 순차적으로 추가
+	om.Set("height", block.Height)
+	om.Set("s_timestamp", block.Timestamp_s)
+	om.Set("previous_blockhash", block.PreviousBlockhash)
+	om.Set("blockhash", block.BlockHash())
+	om.Set("difficulty", block.Difficulty)
+	om.Set("reward_address", block.RewardAddress)
+	om.Set("vout", block.Vout)
+	om.Set("nonce", block.Nonce)
+
+	return om
 }
 
-func (block Block) FullObj() map[string]interface{} {
+func convertUpdates(updates map[string]Update) *structure.OrderedMap {
+	// comment: Convert updates to simplified format with only old and new values
+	result := structure.NewOrderedMap()
+	for key, update := range updates {
+		up := structure.NewOrderedMap()
+		up.Set("old", update.Old)
+		up.Set("new", update.New)
+		result.Set(key, up)
+	}
+	return result
+}
+
+func (block Block) FullObj() *structure.OrderedMap {
 	obj := block.BaseObj()
-	obj["transactions"] = block.Transactions
-	obj["universal_updates"] = block.UniversalUpdates
-	obj["local_updates"] = block.LocalUpdates
+	if block.Transactions != nil {
+		txOrderedMap := structure.NewOrderedMap()
+		txHashes := F.SortedValueK(*block.Transactions)
+
+		for _, tx := range txHashes {
+			txOrderedMap.Set(tx.GetTxHash(), tx.BaseObj())
+		}
+
+		obj.Set("transactions", txOrderedMap)
+	} else {
+		obj.Set("transactions", structure.NewOrderedMap())
+	}
+
+	if block.UniversalUpdates != nil {
+		// comment: Convert UniversalUpdates to simplified format
+		convertedUpdates := convertUpdates(*block.UniversalUpdates)
+		obj.Set("universal_updates", convertedUpdates)
+	} else {
+		obj.Set("universal_updates", structure.NewOrderedMap())
+	}
+
+	if block.LocalUpdates != nil {
+		// comment: Convert LocalUpdates to simplified format
+		convertedUpdates := convertUpdates(*block.LocalUpdates)
+		obj.Set("local_updates", convertedUpdates)
+	} else {
+		obj.Set("local_updates", structure.NewOrderedMap())
+	}
+
 	return obj
 }
 
 func (block Block) Ser(t string) string {
 	if t == "full" {
-		j, _ := json.Marshal(block.FullObj())
-		return string(j)
+		return block.FullObj().Ser()
 	} else {
-		j, _ := json.Marshal(block.BaseObj())
-		return string(j)
+		return block.BaseObj().Ser()
 	}
 }
 func (block *Block) Init() {
@@ -186,4 +226,8 @@ func (block *Block) Init() {
 
 func (block *Block) GetTimestamp() int64 {
 	return block.Timestamp_s
+}
+
+func (block *Block) GetTransactionCount() int {
+	return len(*block.Transactions)
 }
