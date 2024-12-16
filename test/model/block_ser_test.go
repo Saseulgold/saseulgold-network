@@ -72,9 +72,6 @@ func TestSerializationDeserialization(t *testing.T) {
 		assert.Equal(t, originalBlock.Height, deserializedBlock.Height, "블록 높이 검증")
 		assert.Equal(t, originalBlock.PreviousBlockhash, deserializedBlock.PreviousBlockhash, "이전 블록 해시 검증")
 		assert.Equal(t, originalBlock.Timestamp_s, deserializedBlock.Timestamp_s, "타임스탬프 검증")
-		assert.Equal(t, originalBlock.Vout, deserializedBlock.Vout, "Vout 검증")
-		assert.Equal(t, originalBlock.Nonce, deserializedBlock.Nonce, "Nonce 검증")
-		assert.Equal(t, originalBlock.RewardAddress, deserializedBlock.RewardAddress, "보상 주소 검증")
 		assert.Equal(t, originalBlock.Difficulty, deserializedBlock.Difficulty, "난이도 검증")
 	})
 

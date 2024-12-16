@@ -21,14 +21,18 @@ func ForceCommit(txs map[string]*SignedTransaction) error {
 	machine := GetMachineInstance()
 	var previousBlockhash string
 
-	previousBlock := machine.GetPreviousBlock()
+	lastBlockHeight := storage.LastHeight()
+	previousBlock, err := storage.GetChainStorageInstance().GetBlock(lastBlockHeight)
+
+	fmt.Println("previousBlock: ", previousBlock)
+
 	if previousBlock == nil {
 		previousBlockhash = ""
 	} else {
 		previousBlockhash = previousBlock.BlockHash()
 	}
 
-	machine.Init(nil, int64(util.Utime()))
+	machine.Init(previousBlock, int64(util.Utime()))
 	machine.SetTransactions(txs)
 	machine.PreCommit()
 
@@ -41,14 +45,14 @@ func ForceCommit(txs map[string]*SignedTransaction) error {
 	expectedBlock := machine.ExpectedBlock()
 
 	if expectedBlock.GetTransactionCount() == 0 {
-		DebugLog("no transactions to commit. invalid genesis block.")
-		return fmt.Errorf("no transactions to commit. invalid genesis block.")
+		DebugLog("no transactions to commit. invalid block.")
+		return fmt.Errorf("no transactions to commit. invalid block.")
 	}
 
 	DebugLog("unv: %v", expectedBlock.UniversalUpdates)
 	DebugLog("loc: %v", expectedBlock.LocalUpdates)
 
-	err := machine.Commit(expectedBlock)
+	err = machine.Commit(expectedBlock)
 	if err != nil {
 		DebugLog("Commit error: %v", err)
 		return fmt.Errorf("Commit error: %v", err)

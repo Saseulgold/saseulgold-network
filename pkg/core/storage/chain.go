@@ -2,11 +2,11 @@ package storage
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	C "hello/pkg/core/config"
 	. "hello/pkg/core/debug"
 	. "hello/pkg/core/model"
+	"hello/pkg/core/structure"
 	F "hello/pkg/util"
 	"io"
 	"math"
@@ -58,51 +58,82 @@ func ConfirmedHeight() int {
 }
 
 func ParseBlock(data []byte) (*Block, error) {
+	om, err := structure.ParseOrderedMap(string(data))
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println("om: ", om)
+
 	var block Block
-	var rawData map[string]interface{}
+	blockHeight, _ := om.Get("height")
+	fmt.Println("blockHeight: ", blockHeight)
+	block.Height = int(blockHeight.(int64))
 
-	if err := json.Unmarshal(data, &rawData); err != nil {
-		return nil, err
-	}
+	blockTimestamp, _ := om.Get("s_timestamp")
+	block.Timestamp_s = blockTimestamp.(int64)
 
-	if err := json.Unmarshal(data, &block); err != nil {
-		return nil, err
-	}
+	blockPreviousBlockhash, _ := om.Get("previous_blockhash")
+	block.PreviousBlockhash = blockPreviousBlockhash.(string)
 
-	if universalUpdatesRaw, exists := rawData["universal_updates"].(map[string]interface{}); exists {
+	blockDifficulty, _ := om.Get("difficulty")
+	block.Difficulty = int(blockDifficulty.(int64))
+
+	if universalUpdatesRaw, exists := om.Get("universal_updates"); exists {
 		updates := make(map[string]Update)
 		block.UniversalUpdates = &updates
-		for key, value := range universalUpdatesRaw {
-			updateBytes, err := json.Marshal(value)
-			if err != nil {
-				return nil, err
-			}
-			var update Update
-			if err := json.Unmarshal(updateBytes, &update); err != nil {
-				return nil, err
+
+		universalUpdates := universalUpdatesRaw.(*structure.OrderedMap)
+
+		for _, key := range universalUpdates.Keys() {
+			value, _ := universalUpdates.Get(key)
+			valueMap := value.(*structure.OrderedMap)
+			old, _ := valueMap.Get("old")
+			new, _ := valueMap.Get("new")
+			update := Update{
+				Key: key,
+				Old: old,
+				New: new,
 			}
 			updates[key] = update
 		}
 	}
 
-	if localUpdatesRaw, exists := rawData["local_updates"].(map[string]interface{}); exists {
+	if localUpdatesRaw, exists := om.Get("local_updates"); exists {
 		updates := make(map[string]Update)
 		block.LocalUpdates = &updates
-		for key, value := range localUpdatesRaw {
-			updateBytes, err := json.Marshal(value)
-			if err != nil {
-				return nil, err
-			}
-			var update Update
-			if err := json.Unmarshal(updateBytes, &update); err != nil {
-				return nil, err
+		localUpdates := localUpdatesRaw.(*structure.OrderedMap)
+
+		for _, key := range localUpdates.Keys() {
+			value, _ := localUpdates.Get(key)
+			valueMap := value.(*structure.OrderedMap)
+			old, _ := valueMap.Get("old")
+			new, _ := valueMap.Get("new")
+			update := Update{
+				Key: key,
+				Old: old,
+				New: new,
 			}
 			updates[key] = update
 		}
+	}
+
+	if transactionsRaw, exists := om.Get("transactions"); exists {
+		transactions := make(map[string]*SignedTransaction)
+		transactionsRaw := transactionsRaw.(*structure.OrderedMap)
+		for _, key := range transactionsRaw.Keys() {
+			value, _ := transactionsRaw.Get(key)
+			data := value.(*structure.OrderedMap)
+			tx, err := NewSignedTransaction(data)
+			if err != nil {
+				return nil, err
+			}
+			transactions[key] = &tx
+		}
+		block.Transactions = &transactions
 	}
 
 	block.Init()
-
 	return &block, nil
 }
 
@@ -247,6 +278,8 @@ func (c *ChainStorage) LastIndex() (ChainIndexCursor, error) {
 func (c *ChainStorage) Write(block *Block) error {
 	lastHeight := LastHeight()
 	height := lastHeight + 1
+
+	DebugLog(fmt.Sprintf("Write block: %v", block.Ser("full")))
 
 	if err := c.WriteData(height, block.BlockHash(), []byte(block.Ser("full"))); err != nil {
 		return err
@@ -424,4 +457,12 @@ func bytes_less(a, b []byte) bool {
 
 func bytes_less_equal(a, b []byte) bool {
 	return bytes.Compare(a, b) <= 0
+}
+
+func (c *ChainStorage) GetLastHeight() int {
+	return LastHeight()
+}
+
+func (c *ChainStorage) GetLastBlock() (*Block, error) {
+	return c.GetBlock(LastHeight())
 }

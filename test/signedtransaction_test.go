@@ -7,6 +7,8 @@ import (
 	S "hello/pkg/core/structure"
 	. "hello/pkg/crypto"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func aaTestSignedTransaction_WithRealData(t *testing.T) {
@@ -98,4 +100,37 @@ func TestSignedTransaction_WithRealData2(t *testing.T) {
 	if tx.Xpub == "" {
 		t.Error("공개키가 없습니다")
 	}
+}
+
+func TestFromRawData(t *testing.T) {
+	// 테스트 데이터 설정
+	privateKey := "dd97b057aa5d0fcc01acd23bdde9243dc22ec93110440c36800623b70c1c78c3"
+	publicKey := "bdfcefde7c536e8342f1ec65c69373f9ff46f33c18acf0f5848c71e037eca9f2"
+	expectedSignature := "b102bd8eff4b6eb377e843da5b1d335d7a27591972e9d4c88f47f788d87545fa4edc9c823778d6461f98cbf8a9a89892fc172800dab19780ab5cdde7b4050d08"
+
+	txData := S.NewOrderedMap()
+	txData.Set("type", "Send")
+	txData.Set("to", "867b8991f4f2eb94398d4647f5ddc57b30f8cb36acdf")
+	txData.Set("amount", "100000000000")
+	txData.Set("from", "4a8fd2ebb308370a689c3ef47cb83ba182683def3d4f")
+	txData.Set("timestamp", int64(1734143956554000))
+
+	// FromRawData 함수 실행
+	tx, err := FromRawData(txData, privateKey, publicKey)
+
+	// 검증
+	assert.NoError(t, err)
+	assert.NotNil(t, tx)
+	assert.Equal(t, publicKey, tx.GetXpub())
+	assert.NotEmpty(t, tx.GetSignature())
+	assert.Equal(t, expectedSignature, tx.GetSignature(), "Invalid signature")
+
+	// 트랜잭션 데이터 검증
+	transaction, ok := tx.Data.Get("transaction")
+	assert.True(t, ok)
+	assert.NotNil(t, transaction)
+
+	// 서명 유효성 검증
+	err = tx.Validate()
+	assert.NoError(t, err)
 }

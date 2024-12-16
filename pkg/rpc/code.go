@@ -8,7 +8,16 @@ import (
 
 type Code struct{}
 
-var SystemMethods = []string{"Genesis", "Register", "Grant", "Revoke", "Oracle", "Faucet", "Publish", "Send", "Submit"}
+func NativeRequests() map[string]map[string]*Method {
+	requests := make(map[string]map[string]*Method)
+	rootCid := F.RootSpaceId()
+
+	requests[rootCid] = make(map[string]*Method)
+	requests[rootCid]["GetBlock"] = native.GetBlock()
+	requests[rootCid]["ListBlock"] = native.ListBlock()
+	requests[rootCid]["GetBalance"] = native.GetBalance()
+	return requests
+}
 
 func NativeContracts() map[string]map[string]*Method {
 	contracts := make(map[string]map[string]*Method)

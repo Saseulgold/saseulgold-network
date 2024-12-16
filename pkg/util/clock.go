@@ -5,7 +5,7 @@ import (
 	t "time"
 )
 
-func CurrentTime(utime *int64) int64 {
+func currentTime(utime *int64) int64 {
 	if utime != nil {
 		return *utime / 1000000
 	}
@@ -24,7 +24,7 @@ func Uceiltime(utime *int64) int64 {
 }
 
 func Ufloortime(utime *int64) int64 {
-	return CurrentTime(utime) * 1000000
+	return currentTime(utime) * 1000000
 }
 
 func Bytetime(utime *int64) string {

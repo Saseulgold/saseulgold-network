@@ -11,8 +11,8 @@ import (
 	"hello/pkg/core/structure"
 	"hello/pkg/core/vm"
 	"hello/pkg/swift"
+	"hello/pkg/util"
 	"os"
-	"syscall"
 	"time"
 )
 
@@ -130,21 +130,12 @@ func (o *Oracle) createAndBroadcastBlock() error {
 	return nil
 }
 
-func ProcessIsRunning(pid int) bool {
-	process, err := os.FindProcess(pid)
-	if err != nil {
-		return false
-	}
-	// Send signal to process to check if it's running
-	err = process.Signal(syscall.Signal(0))
-	return err == nil
-}
-
-func (o *Oracle) NetworkRunning() bool {
-
-}
-
 func (o *Oracle) OnStartUp(config swift.SecurityConfig, port string) error {
+	isRunning := util.ServiceIsRunning(storage.DataRootDir(), "oracle")
+	if isRunning {
+		return fmt.Errorf("oracle is already running")
+	}
+
 	o.chain.Touch()
 	o.storage.Touch()
 
@@ -156,6 +147,11 @@ func (o *Oracle) OnStartUp(config swift.SecurityConfig, port string) error {
 
 	o.swift = swift.NewServer(C.SWIFT_HOST+":"+port, config)
 	o.registerPacketHandlers()
+	err := util.ProcessStart(storage.DataRootDir(), "oracle", os.Getpid())
+	if err != nil {
+		OracleLog("failed to start oracle: %v", err)
+		return err
+	}
 
 	return nil
 }
@@ -344,6 +340,6 @@ func (o *Oracle) registerPacketHandlers() {
 	})
 }
 
-func GetEpoch() string {
-	return vm.GetMachineInstance().Epoch()
+func (o *Oracle) Shutdown() error {
+	return util.TerminateProcess(storage.DataRootDir(), "oracle")
 }

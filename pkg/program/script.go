@@ -2,7 +2,9 @@ package program
 
 import (
 	"fmt"
+	"hello/pkg/core/model"
 	"hello/pkg/core/storage"
+	"hello/pkg/core/structure"
 	"hello/pkg/service"
 	"hello/pkg/util"
 
@@ -45,6 +47,64 @@ func createGenesisCmd() *cobra.Command {
 	return cmd
 }
 
+func createForceCommitCmd() *cobra.Command {
+	var message string
+
+	cmd := &cobra.Command{
+		Use:   "forcecommit",
+		Short: "force commit transaction to network",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+
+			lastBlockHeight := storage.LastHeight()
+			if lastBlockHeight == 0 {
+				fmt.Println("no genesis block. create genesis block first.")
+				return
+			}
+
+			isRunning := util.ServiceIsRunning(storage.DataRootDir(), "oracle")
+			if isRunning {
+				fmt.Println("oracle is already running. stop it first.")
+				return
+			}
+
+			data, err := structure.ParseOrderedMap(message)
+
+			if err != nil {
+				fmt.Println("failed to parse transaction: ", err)
+				return
+			}
+
+			fmt.Println("parsed transaction: ", data.Ser())
+
+			tx, err := model.NewSignedTransaction(data)
+			if err != nil {
+				fmt.Println("failed to parse transaction: ", err)
+				return
+			}
+
+			txs := make(map[string]*model.SignedTransaction)
+			txs[tx.GetTxHash()] = &tx
+
+			fmt.Println("txs: ", tx.GetTxData().Data.Ser())
+
+			err = service.ForceCommit(txs)
+
+			if err != nil {
+				fmt.Println("failed to force commit: ", err)
+				return
+			}
+
+		},
+	}
+
+	cmd.Flags().StringVarP(&message, "message", "m", "", "Transaction message to broadcast")
+	cmd.Flags().BoolVarP(&C.CORE_TEST_MODE, "debug", "d", false, "Enable test mode")
+	cmd.Flags().StringVarP(&C.DATA_TEST_ROOT_DIR, "rootdir", "r", "", "root dir")
+
+	return cmd
+}
+
 func createScriptCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "script",
@@ -53,6 +113,7 @@ func createScriptCmd() *cobra.Command {
 
 	cmd.AddCommand(
 		createGenesisCmd(),
+		createForceCommitCmd(),
 	)
 
 	return cmd

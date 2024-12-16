@@ -104,6 +104,7 @@ func (block Block) BlockRoot() string {
 
 func (block Block) THashs() []string {
 	txs := F.SortedValueK(*block.Transactions)
+
 	return F.Map(txs, func(tx *SignedTransaction) string {
 		return tx.GetTxHash()
 	})

@@ -8,15 +8,13 @@ import (
 	"hello/pkg/core/storage"
 	"hello/pkg/rpc"
 	"hello/pkg/util"
-	F "hello/pkg/util"
-	"slices"
 )
 
 type Machine struct {
 	interpreter *Interpreter
 
 	contracts           map[string]map[string]*Method
-	requests            map[string]map[string]interface{}
+	requests            map[string]map[string]*Method
 	postProcessContract map[string]interface{}
 
 	previousBlock  *Block
@@ -58,14 +56,11 @@ func (m *Machine) ValidateTxTimestamp(tx *SignedTransaction) bool {
 }
 
 func (m *Machine) Commit(block *Block) error {
-	/**
-	if err := m.ValidateBlockTimestamp(block); err != nil {
-		return err
-	}
-	**/
 
 	chain := storage.GetChainStorageInstance()
 	sf := storage.GetStatusFileInstance()
+
+	DebugLog("Commit block:", block.BlockHash())
 
 	if err := chain.Write(block); err != nil {
 		return err
@@ -131,6 +126,8 @@ func (m *Machine) TxValidity(tx *SignedTransaction) (bool, error) {
 		txHash: tx,
 	})
 
+	fmt.Println("tx: ", tx.GetTxData().Data.Ser())
+
 	if err := m.PreCommit(); err != nil {
 		return false, err
 	}
@@ -149,26 +146,29 @@ func (m *Machine) PreCommit() error {
 
 	for _, tx := range txs {
 		txHash := tx.GetTxHash()
+		DebugLog("read tx:", string(tx.Data.Ser()))
 		DebugLog("preCommitRead	:", txHash)
 
 		if m.ValidateTxTimestamp(tx) && tx.Validate() == nil {
-			if err := m.MountContract(tx); err == nil {
+			if err := m.MountContract(*tx); err == nil {
 				if err := m.interpreter.ParameterValidate(); err == nil {
 					m.interpreter.Read()
+					continue
 				} else {
-					DebugPanic("ParameterValidate error: %v", err)
+					DebugLog("ParameterValidate error: %v", err)
 				}
 			} else {
-				DebugPanic("MountContract error: %v", err)
+				DebugLog("MountContract error: %v", err)
 			}
 		}
 
+		DebugLog("Delete tx: ", txHash)
 		delete(*m.transactions, txHash)
 	}
 
 	for _, transaction := range txs {
 		hash := transaction.GetTxHash()
-		if err := m.MountContract(transaction); err == nil {
+		if err := m.MountContract(*transaction); err == nil {
 			if result, err := m.interpreter.Execute(); err == nil {
 				DebugLog("Execute ", hash, " result:", result)
 				continue
@@ -183,7 +183,7 @@ func (m *Machine) PreCommit() error {
 	return nil
 }
 
-func (m *Machine) MountContract(tx *SignedTransaction) error {
+func (m *Machine) MountContract(tx SignedTransaction) error {
 	txMap := tx.GetTxData()
 	DebugLog("MountContract tx:", string(txMap.Data.Ser()))
 	DebugLog("MountContract tx type:", txMap.Type)
@@ -206,9 +206,7 @@ func (m *Machine) MountContract(tx *SignedTransaction) error {
 		return fmt.Errorf("contract code is nil")
 	}
 
-	if cid == F.RootSpaceId() && slices.Contains(rpc.SystemMethods, name) {
-		m.interpreter.Set(tx.GetTxData(), code, new(Method))
-	}
+	m.interpreter.Set(tx.GetTxData(), code, new(Method))
 
 	return nil
 }
@@ -257,10 +255,9 @@ func (m *Machine) GetPreviousBlock() *Block {
 	return m.previousBlock
 }
 
-// hash := block.BlockHash()
-
 func (m *Machine) ExpectedBlock() *Block {
 	previousBlock := m.GetPreviousBlock()
+
 	var previousBlockhash string
 	var Height int
 
@@ -282,4 +279,48 @@ func (m *Machine) ExpectedBlock() *Block {
 	}
 
 	return expectedBlock
+}
+func (m *Machine) Response(request SignedRequest) (interface{}, error) {
+	if err := request.Validate(); err != nil {
+		return nil, err
+	}
+
+	m.interpreter.Reset()
+	m.interpreter.Init("request")
+
+	m.loadRequests()
+
+	code := m.suitedRequest(request)
+	if code == nil {
+		return nil, fmt.Errorf("request code not found: %s", request.GetRequestType())
+	}
+
+	m.interpreter.Set(request.GetRequestData(), code, new(Method))
+
+	if err := m.interpreter.ParameterValidate(); err != nil {
+		return nil, err
+	}
+
+	m.interpreter.Read()
+
+	result, err := m.interpreter.Execute()
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (m *Machine) loadRequests() {
+	m.requests = rpc.NativeRequests()
+}
+
+func (m *Machine) suitedRequest(request SignedRequest) *Method {
+	requestType := request.GetRequestType()
+	if methods, ok := m.requests[request.GetRequestCID()]; ok {
+		if method, exists := methods[requestType]; exists {
+			return method
+		}
+	}
+	return nil
 }

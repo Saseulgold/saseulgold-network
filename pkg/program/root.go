@@ -85,18 +85,38 @@ func createNetworkStartCmd(useTLS *bool) *cobra.Command {
 	return cmd
 }
 
+func createNetworkStopCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "stop",
+		Short: "network stop",
+		Run: func(cmd *cobra.Command, args []string) {
+			oracle := service.GetOracleService()
+			oracle.Shutdown()
+		},
+	}
+	cmd.Flags().BoolVarP(&C.CORE_TEST_MODE, "debug", "d", false, "Enable test mode")
+	cmd.Flags().StringVarP(&C.DATA_TEST_ROOT_DIR, "rootdir", "r", "", "root dir")
+
+	return cmd
+}
+
 func RunNetworkCMD() *cobra.Command {
 	var useTLS bool
 
 	rootCmd := createRootCmd()
 	networkCmd := createNetworkCmd()
 	networkStartCmd := createNetworkStartCmd(&useTLS)
+	networkStopCmd := createNetworkStopCmd()
 
 	networkCmd.AddCommand(networkStartCmd)
+	networkCmd.AddCommand(networkStopCmd)
 	rootCmd.AddCommand(networkCmd)
+
 	nodeCmd := createNodeCmd()
+	scriptCmd := createScriptCmd()
 
 	rootCmd.AddCommand(nodeCmd)
+	rootCmd.AddCommand(scriptCmd)
 
 	return rootCmd
 }

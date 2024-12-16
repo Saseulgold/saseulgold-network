@@ -36,11 +36,8 @@ func OpGt(i *Interpreter, vars interface{}) interface{} {
 
 	switch {
 	case isNumeric(left).(bool) && isNumeric(right).(bool):
-		DebugLog("OpGt: left =", toFloat64(left))
-		DebugLog("OpGt: right =", toFloat64(right))
 		return toFloat64(left) > toFloat64(right)
 	default:
-		DebugLog("OpGt: left or right is not numeric")
 		return false
 	}
 }

@@ -370,7 +370,7 @@ func (i *Interpreter) AddUniversalLoads(statusHash string) {
 	statusHash = F.FillHash(statusHash)
 
 	if _, ok := i.universals[statusHash]; !ok {
-		i.universals[statusHash] = make([]interface{}, 0)
+		i.universals[statusHash] = nil
 	}
 }
 
@@ -378,7 +378,7 @@ func (i *Interpreter) AddLocalLoads(statusHash string) {
 	statusHash = F.FillHash(statusHash)
 
 	if _, ok := i.locals[statusHash]; !ok {
-		i.locals[statusHash] = make([]interface{}, 0)
+		i.locals[statusHash] = nil
 	}
 }
 
@@ -421,6 +421,7 @@ func (i *Interpreter) SetUniversalStatus(statusHash string, value interface{}) b
 	if updates, ok := (*i.universalUpdates)[statusHash]; ok {
 		updates.New = value
 	} else {
+		OperatorLog("SetUniversalStatus else", "statusHash:", statusHash, "value:", value)
 		(*i.universalUpdates)[statusHash] = Update{
 			Old: i.GetUniversalStatus(statusHash, nil),
 			New: value,
@@ -433,11 +434,17 @@ func (i *Interpreter) SetUniversalStatus(statusHash string, value interface{}) b
 	return true
 }
 
+func (i *Interpreter) GetUniversals() map[string]interface{} {
+	return i.universals
+}
+
 func (i *Interpreter) GetUniversalStatus(statusHash string, defaultVal interface{}) interface{} {
 	statusHash = F.FillHash(statusHash)
 	if val, ok := i.universals[statusHash]; ok {
+		OperatorLog("GetUniversalStatus", "statusHash:", statusHash, "value:", val)
 		return val
 	}
+	OperatorLog("GetUniversalStatus default", "statusHash:", statusHash, "value:", defaultVal)
 	return defaultVal
 }
 
@@ -463,6 +470,7 @@ func (i *Interpreter) LoadUniversalStatus() {
 		}
 	}
 }
+
 
 func (i *Interpreter) LoadLocalStatus() {
 	if len(i.locals) > 0 {

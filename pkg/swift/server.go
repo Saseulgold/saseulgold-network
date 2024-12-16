@@ -15,7 +15,9 @@ import (
 
 	C "hello/pkg/core/config"
 	. "hello/pkg/core/debug"
+	"hello/pkg/core/storage"
 	"hello/pkg/core/vm"
+	"hello/pkg/util"
 )
 
 type PacketHandler func(ctx context.Context, packet *Packet) error
@@ -109,8 +111,10 @@ func (s *Server) Start() error {
 		return err
 	}
 
-	if err = s.writePID(); err != nil {
-		return err
+	isRunning := util.ServiceIsRunning(storage.DataRootDir(), "swift")
+
+	if isRunning {
+		return fmt.Errorf("swift is already running")
 	}
 
 	s.listener = listener
@@ -119,24 +123,12 @@ func (s *Server) Start() error {
 	go s.processJobQueue()
 	go s.collectMetrics()
 
+	err = util.ProcessStart(storage.DataRootDir(), "swift", os.Getpid())
+	if err != nil {
+		return err
+	}
+
 	DebugLog("server started")
-	return nil
-}
-
-func (s *Server) writePID() error {
-	pidFile := SwiftRootDir()
-
-	// Create PID file directory
-	if err := os.MkdirAll(filepath.Dir(pidFile), 0755); err != nil {
-		return fmt.Errorf("PID file directory creation failed: %v", err)
-	}
-
-	// Write the current process's PID to the file
-	pid := os.Getpid()
-	if err := os.WriteFile(pidFile, []byte(fmt.Sprintf("%d", pid)), 0644); err != nil {
-		return fmt.Errorf("failed to write PID file: %v", err)
-	}
-
 	return nil
 }
 
@@ -333,14 +325,12 @@ func (s *Server) GetPeers() []string {
 
 // Shutdown gracefully shuts down the server and cleans up resources
 func (s *Server) Shutdown() error {
-	// 스너 종료
 	if s.listener != nil {
 		if err := s.listener.Close(); err != nil {
 			return fmt.Errorf("failed to close listener: %v", err)
 		}
 	}
 
-	// 모든 연결 종료
 	for id, conn := range s.peers {
 		if err := conn.Close(); err != nil {
 			return fmt.Errorf("failed to close connection (%s): %v", id, err)
@@ -348,10 +338,9 @@ func (s *Server) Shutdown() error {
 		delete(s.peers, id)
 	}
 
-	// PID 파일 제거
-	pidFile := SwiftRootDir()
-	if err := os.Remove(pidFile); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("PID 파일 제거 실패: %v", err)
+	err := util.TerminateProcess(storage.DataRootDir(), "swift")
+	if err != nil {
+		return fmt.Errorf("failed to terminate process: %v", err)
 	}
 
 	return nil

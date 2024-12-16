@@ -1,26 +1,54 @@
 package model
 
 import (
+	"fmt"
 	"hello/pkg/core/storage"
+	"hello/pkg/core/structure"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestBlockDeserialization(t *testing.T) {
-	// 테스트할 블록 JSON 문자열
-	blockJson := `{"height":100,"s_timestamp":1734240706687230,"previous_blockhash":"previous_hash_test","blockhash":"0629486146f0feeac9ca9f9df435954edafc958474f7721d07ee77fb7f6ae3f69ea10ab944f81f","difficulty":4,"reward_address":"reward_address_test","vout":"vout_test","nonce":"nonce_test","transactions":{"0629486146f0cdb9408d4a64f8faee013d5d196b9ef1706354677da8c1b269bc215473cbf586a0":{"transaction":{"type":"Send","to":"50c3a6cd858c90574bcdc35b2da5dbc7225275f50edf","from":"60c3a6cd858c90574bcdc35b2da5dbc7225275f50efd","amount":"1000","timestamp":1734240706687181},"public_key":"test_public_key","signature":"test_signature"}},"universal_updates":{},"local_updates":{"old":null,"new":null}}`
+	// Test block JSON string
+	blockJson := `{"height":1,"s_timestamp":1734319679804410,"previous_blockhash":"","blockhash":"06295ac47113fa512b78ff5782b8a9afaa80ab7ce907b458eb15ce4b9f213c6b9b5ca7dad4562f","difficulty":0,"reward_address":"","vout":"","nonce":"","transactions":{"06295ac47102c0c62f7fd925aca23697532dd27ddb9e30cefa3f15f198a29b906df3bb49434664":{"transaction":{"type":"Genesis","timestamp":1734319679800000},"signature":"3dca866aab17ab9ec55597ce7efe526857a4d8cc3fb23f90014983ee9bbd9c5a76499a858b19b88c84acae4c37fcf31a1c4f786a6863ad2fdeea9098f28d9b07","public_key":"391e87c9ceedb34ecd7f74d4536a33851ce54dbb0c2dfbf1a529816f8ed78afd"}},"universal_updates":{"02a35620a542dd255bc1d258ae935bdd4a05b479001b8a4ca630d214b1dbd21700":{"old":null,"new":true}},"local_updates":{}}`
+	om, err := structure.ParseOrderedMap(blockJson)
+	assert.NoError(t, err)
+	fmt.Println("om: ", om.Ser())
 
-	// 블록 파싱
+	// Parse block
 	block, err := storage.ParseBlock([]byte(blockJson))
 	assert.NoError(t, err)
 
-	// 기본 필드 검증
-	assert.Equal(t, 100, block.Height, "블록 높이 검증")
-	assert.Equal(t, int64(1734240706687230), block.Timestamp_s, "타임스탬프 검증")
-	assert.Equal(t, "previous_hash_test", block.PreviousBlockhash, "이전 블록 해시 검증")
-	assert.Equal(t, 4, block.Difficulty, "난이도 검증")
-	assert.Equal(t, "reward_address_test", block.RewardAddress, "보상 주소 검증")
-	assert.Equal(t, "vout_test", block.Vout, "Vout 검증")
-	assert.Equal(t, "nonce_test", block.Nonce, "Nonce 검증")
+	// Validate basic fields
+	assert.Equal(t, 1, block.Height, "Block height validation")
+	assert.Equal(t, int64(1734319679804410), block.Timestamp_s, "Timestamp validation")
+	assert.Equal(t, "", block.PreviousBlockhash, "Previous block hash validation")
+	assert.Equal(t, 0, block.Difficulty, "Difficulty validation")
+	assert.Equal(t, "", block.RewardAddress, "Reward address validation")
+	assert.Equal(t, "", block.Vout, "Vout validation")
+	assert.Equal(t, "", block.Nonce, "Nonce validation")
+
+	// Validate transactions
+	expectedTxID := "06295ac47102c0c62f7fd925aca23697532dd27ddb9e30cefa3f15f198a29b906df3bb49434664"
+	assert.Equal(t, 1, len(*block.Transactions), "Number of transactions")
+	// assert.Contains((*block.Transactions), expectedTxID, "Transaction ID exists")
+
+	tx := (*block.Transactions)[expectedTxID]
+	assert.Equal(t, "Genesis", tx.GetType(), "Transaction type")
+	assert.Equal(t, int64(1734319679800000), tx.GetTimestamp(), "Transaction timestamp")
+	assert.Equal(t, "3dca866aab17ab9ec55597ce7efe526857a4d8cc3fb23f90014983ee9bbd9c5a76499a858b19b88c84acae4c37fcf31a1c4f786a6863ad2fdeea9098f28d9b07", tx.GetSignature(), "Transaction signature")
+	assert.Equal(t, "391e87c9ceedb34ecd7f74d4536a33851ce54dbb0c2dfbf1a529816f8ed78afd", tx.GetXpub(), "Transaction public key")
+
+	// Validate universal updates
+	expectedUpdateKey := "02a35620a542dd255bc1d258ae935bdd4a05b479001b8a4ca630d214b1dbd21700"
+	assert.Equal(t, 1, len(*block.UniversalUpdates), "Number of universal updates")
+	assert.Contains(t, *block.UniversalUpdates, expectedUpdateKey, "Universal update key exists")
+
+	update := (*block.UniversalUpdates)[expectedUpdateKey]
+	assert.Nil(t, update.Old, "Universal update old value")
+	assert.Equal(t, true, update.New, "Universal update new value")
+
+	// Validate local updates
+	assert.Equal(t, 0, len(*block.LocalUpdates), "Number of local updates")
 }

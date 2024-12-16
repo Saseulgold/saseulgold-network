@@ -16,19 +16,14 @@ func Genesis() *Method {
 		"writer":  ZERO_ADDRESS,
 	})
 
-	method.AddParameter(NewParameter(map[string]interface{}{
-		"name":         "network_address",
-		"type":         "string",
-		"maxlength":    ID_HASH_SIZE,
-		"requirements": true,
-	}))
-
 	genesis := abi.ReadLocal("genesis", "00", nil)
 
 	method.AddExecution(abi.Condition(
 		abi.Ne(genesis, true),
 		"There was already a Genesis.",
 	))
+
+	method.AddExecution(abi.WriteUniversal("genesis", "00", true))
 
 	return method
 }

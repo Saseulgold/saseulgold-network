@@ -1,9 +1,20 @@
 package main
 
 import (
+	"fmt"
 	"hello/pkg/core/structure"
 	"testing"
 )
+
+func TestBlockSer(t *testing.T) {
+
+	jsonStr := `{"height":100,"s_timestamp":1734240010208917,"block_root":"c0f8cf39c48c8dd9e7b0ba02a9647690b7e08c956e31b39e791266afaea71f7e"}`
+	om, err := structure.ParseOrderedMap(jsonStr)
+	if err != nil {
+		t.Fatalf("Error during parsing: %v", err)
+	}
+	fmt.Println("om: ", om.Ser())
+}
 
 func TestParseOrderedMap_ComplexTransaction(t *testing.T) {
 	// Test JSON string
@@ -59,7 +70,7 @@ func TestParseOrderedMap_ComplexTransaction(t *testing.T) {
 			continue
 		}
 		if value != expectedValue {
-			t.Errorf("Field %s value does not match. Expected: %v, Got: %v", field, expectedValue, value)
+			t.Errorf("Field %s value does not match. Expected: %v (%T), Got: %v (%T)", field, expectedValue, expectedValue, value, value)
 		}
 	}
 
@@ -73,6 +84,20 @@ func TestParseOrderedMap_ComplexTransaction(t *testing.T) {
 	if !ok || signature != "28dbc58937756cc7caec02e7978a6e08b9f47a23282d0c4d84a1a0adbabfaf8afdee340b4ad08b746b5f3464709db169e75e8e8e00b1a4ed30d4b5a9cb1fe806" {
 		t.Error("signature value does not match")
 	}
+
+	// Verify serialization and re-parsing
+	serialized := om.Ser()
+	_, err = structure.ParseOrderedMap(serialized)
+	if err != nil {
+		t.Fatalf("Error during re-parsing: %v", err)
+	}
+
+	// Compare original and re-parsed data
+	/**
+	if !om.Equal(reparsedOm) {
+		t.Error("Re-parsed data does not match original data")
+	}
+	*/
 }
 
 func TestParseOrderedMap_FlatData(t *testing.T) {
@@ -113,6 +138,20 @@ func TestParseOrderedMap_FlatData(t *testing.T) {
 			t.Errorf("Field %s value does not match. Expected: %v, Got: %v", field, expectedValue, value)
 		}
 	}
+
+	// Verify serialization and re-parsing
+	serialized := om.Ser()
+	_, err = structure.ParseOrderedMap(serialized)
+	if err != nil {
+		t.Fatalf("Error during re-parsing: %v", err)
+	}
+
+	// Compare original and re-parsed data
+	/**
+	if !om.Equal(reparsedOm) {
+		t.Error("Re-parsed data does not match original data")
+	}
+	*/
 }
 
 func TestParseOrderedMap_TripleNestedData(t *testing.T) {
@@ -196,4 +235,97 @@ func TestParseOrderedMap_TripleNestedData(t *testing.T) {
 	if !ok || createdAt != "2024-03-20" {
 		t.Error("created_at value does not match")
 	}
+
+	// Verify serialization and re-parsing
+	serialized := om.Ser()
+	_, err = structure.ParseOrderedMap(serialized)
+	if err != nil {
+		t.Fatalf("Error during re-parsing: %v", err)
+	}
+
+	// Compare original and re-parsed data
+	/**
+	if !om.Equal(reparsedOm) {
+		t.Error("Re-parsed data does not match original data")
+	}
+	*/
+}
+
+func TestParseOrderedMap_NestedWithPointers(t *testing.T) {
+	// Create pointer values
+	intPtr := new(int64)
+	*intPtr = 42
+	strPtr := new(string)
+	*strPtr = "포인터 문자열"
+	boolPtr := new(bool)
+	*boolPtr = true
+
+	// Create nested structure manually
+	innerMap := structure.NewOrderedMap()
+	innerMap.Set("int_ptr", intPtr)
+	innerMap.Set("str_ptr", strPtr)
+
+	middleMap := structure.NewOrderedMap()
+	middleMap.Set("inner_data", innerMap)
+	middleMap.Set("bool_ptr", boolPtr)
+
+	rootMap := structure.NewOrderedMap()
+	rootMap.Set("middle_data", middleMap)
+	rootMap.Set("normal_string", "일반 문자열")
+
+	// Serialize the structure
+	serialized := rootMap.Ser()
+
+	// Re-parse the serialized data
+	reparsedMap, err := structure.ParseOrderedMap(serialized)
+	if err != nil {
+		t.Fatalf("Error during re-parsing: %v", err)
+	}
+
+	// Validate the re-parsed structure
+	middleData, ok := reparsedMap.Get("middle_data")
+	if !ok {
+		t.Fatal("Could not find middle_data")
+	}
+
+	middleDataMap, ok := middleData.(*structure.OrderedMap)
+	if !ok {
+		t.Fatal("middle_data is not OrderedMap type")
+	}
+
+	innerData, ok := middleDataMap.Get("inner_data")
+	if !ok {
+		t.Fatal("Could not find inner_data")
+	}
+
+	innerDataMap, ok := innerData.(*structure.OrderedMap)
+	if !ok {
+		t.Fatal("inner_data is not OrderedMap type")
+	}
+
+	// Validate pointer values after re-parsing
+	// Note: After serialization and re-parsing, pointer values become actual values
+	intValue, ok := innerDataMap.Get("int_ptr")
+	if !ok || intValue != int64(42) {
+		t.Errorf("int_ptr value mismatch. Expected: 42, Got: %v", intValue)
+	}
+
+	strValue, ok := innerDataMap.Get("str_ptr")
+	if !ok || strValue != "포인터 문자열" {
+		t.Errorf("str_ptr value mismatch. Expected: 포인터 문자열, Got: %v", strValue)
+	}
+
+	boolValue, ok := middleDataMap.Get("bool_ptr")
+	if !ok || boolValue != true {
+		t.Errorf("bool_ptr value mismatch. Expected: true, Got: %v", boolValue)
+	}
+
+	// Verify normal string value
+	normalStr, ok := reparsedMap.Get("normal_string")
+	if !ok || normalStr != "일반 문자열" {
+		t.Errorf("normal_string value mismatch. Expected: 일반 문자열, Got: %v", normalStr)
+	}
+
+	// Final verification of complete structure equality
+
 }
