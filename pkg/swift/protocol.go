@@ -25,6 +25,8 @@ const (
 
 	PacketTypeBroadcastBlockRequest  // Block transmission
 	PacketTypeBroadcastBlockResponse // Block transmission
+	PacketTypeRawRequest             // Raw request
+	PacketTypeRawResponse            // Raw response
 
 	PacketTypeErrorResponse // Error
 
@@ -39,3 +41,5 @@ type Packet struct {
 	Type    PacketType      `json:"type"`
 	Payload json.RawMessage `json:"payload"`
 }
+
+// CallRawRequest sends a raw RPC request to the node
