@@ -89,9 +89,11 @@ func (s *StatusIndex) LocalIndexes(keys []string) map[string]StorageIndexCursor 
 	for _, key := range keys {
 		key = F.FillHash(key)
 		prefix, suffix := s.Split(key)
+		suffix = F.FillHashSuffix(suffix)
 
-		if prefixMap, ok := s.localIndexes[prefix]; ok {
-			if cursor, exists := prefixMap[suffix]; exists {
+		if _, ok := s.localIndexes[prefix]; ok {
+			if cursor, ok := s.localIndexes[prefix][suffix]; ok {
+				fmt.Println("cursor", cursor)
 				indexes[key] = cursor
 			}
 		}
@@ -102,13 +104,19 @@ func (s *StatusIndex) LocalIndexes(keys []string) map[string]StorageIndexCursor 
 
 func (s *StatusIndex) UniversalIndexes(keys []string) map[string]StorageIndexCursor {
 	indexes := make(map[string]StorageIndexCursor)
+	fmt.Println("universalIndexes", s.universalIndexes)
 
 	for _, key := range keys {
 		key = F.FillHash(key)
 		prefix, suffix := s.Split(key)
+		suffix = F.FillHashSuffix(suffix)
+		fmt.Println("prefix", prefix)
+		fmt.Println("suffix", suffix)
 
-		if prefixMap, ok := s.universalIndexes[prefix]; ok {
-			if cursor, exists := prefixMap[suffix]; exists {
+		// Get the inner map once
+		if innerMap, ok := s.universalIndexes[prefix]; ok {
+			if cursor, ok := innerMap[suffix]; ok {
+				fmt.Println("cursor", cursor)
 				indexes[key] = cursor
 			}
 		}
@@ -128,7 +136,6 @@ func (s *StatusIndex) AddLocalIndexes(indexes map[string]StorageIndexCursor) boo
 
 		cursor := StorageIndexCursor{
 			Key: key,
-			// 다른 필드들도 필요에 따라 설정
 		}
 		s.localIndexes[prefix][suffix] = cursor
 	}

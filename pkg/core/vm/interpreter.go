@@ -5,6 +5,7 @@ import (
 	. "hello/pkg/core/abi"
 	C "hello/pkg/core/config"
 	. "hello/pkg/core/model"
+	"hello/pkg/core/storage"
 
 	. "hello/pkg/crypto"
 	F "hello/pkg/util"
@@ -456,21 +457,19 @@ func (i *Interpreter) GetLocalUpdates() UpdateMap {
 	return i.localUpdates
 }
 
-/**
 func (i *Interpreter) LoadUniversalStatus() {
 
 	if len(i.universals) > 0 {
-		statusFile := S.GetStatusFileInstance()
-		// keys := make([]string, 0, len(i.universals))
+		statusFile := storage.GetStatusFileInstance()
 
 		for k := range i.universals {
 			value := statusFile.GetUniversalStatus(k)
 			i.universals[k] = value
-			// keys = append(keys, k)
 		}
 	}
 }
 
+/**
 
 func (i *Interpreter) LoadLocalStatus() {
 	if len(i.locals) > 0 {

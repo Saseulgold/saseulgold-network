@@ -18,6 +18,13 @@ func Hash(data string) string {
 	return hex.EncodeToString(hashBytes)
 }
 
+func FillHashSuffix(suffix string) string {
+	if len(suffix) < 64 {
+		return PadRight(suffix, "0", 64)
+	}
+	return suffix
+}
+
 func FillHash(hash string) string {
 	if len(hash) < C.STATUS_HASH_BYTES {
 		return PadRight(hash, "0", C.STATUS_HASH_BYTES)

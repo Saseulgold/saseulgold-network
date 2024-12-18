@@ -11,12 +11,20 @@ import (
 
 func ForceCommit(txs map[string]*SignedTransaction) error {
 	oracle := GetOracleService()
+	si := storage.GetStatusIndexInstance()
 
 	sf := oracle.storage
 	ci := oracle.chain
 
 	sf.Touch()
 	ci.Touch()
+	si.Load()
+
+	err := sf.Cache()
+
+	if err != nil {
+		return fmt.Errorf("status storage cache error: %v", err)
+	}
 
 	machine := GetMachineInstance()
 	var previousBlockhash string

@@ -93,7 +93,7 @@ func (sf *StatusFile) Cache() error {
 			return err
 		}
 
-		// 임시 파일이 비어있는 경우 Commit() 호출을 건너뜁니다
+		// TOCO Check
 		tmpData, err := os.ReadFile(sf.TempFile())
 		if err != nil || len(tmpData) == 0 {
 			sf.CachedUniversalIndexes = ReadStatusStorageIndex(sf.UniversalBundleIndex(), true)
@@ -428,7 +428,7 @@ func (sf *StatusFile) GetLocalIndexes(keys []string) map[string]StorageIndexCurs
 }
 
 func (sf *StatusFile) BundleHeight() int {
-	data, err := ioutil.ReadFile(sf.InfoFile())
+	data, err := os.ReadFile(sf.InfoFile())
 	if err != nil {
 		return 0
 	}
@@ -485,6 +485,7 @@ func (sf *StatusFile) UpdateUniversal(indexes map[string]StorageIndexCursor, uni
 	for key, update := range *universalUpdates {
 		key = F.FillHash(key)
 		index, exists := indexes[key]
+
 		data, _ := json.Marshal(update.New)
 		length := int64(len(data))
 		var storedLength int64
@@ -530,6 +531,7 @@ func (sf *StatusFile) UpdateLocal(indexes map[string]StorageIndexCursor, localUp
 	for key, update := range *localUpdates {
 		key = F.FillHash(key)
 		index, exists := indexes[key]
+
 		data, _ := json.Marshal(update.New)
 		length := int64(len(data))
 		var storedLength int64
@@ -681,4 +683,25 @@ func (sf *StatusFile) ReadUniversalStatuses(indexes map[string]StorageIndexCurso
 	}
 
 	return result
+}
+
+func (sf *StatusFile) GetUniversalStatus(key string) interface{} {
+	key = F.FillHash(key)
+	fmt.Println("sf.CachedUniversalIndexes: ", sf.CachedUniversalIndexes)
+
+	indexes := sf.GetUniversalIndexes([]string{key})
+	DebugLog(fmt.Sprintf("GetUniversalStatus - indexes: %v", indexes))
+
+	index, exists := indexes[key]
+
+	if !exists {
+		DebugLog(fmt.Sprintf("GetUniversalStatus - key for storage index not found: %s", key))
+		return nil
+	}
+
+	value, err := sf.ReadUniversalStatus(index)
+	if err != nil {
+		return nil
+	}
+	return value
 }

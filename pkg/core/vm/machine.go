@@ -8,6 +8,7 @@ import (
 	"hello/pkg/core/storage"
 	"hello/pkg/rpc"
 	"hello/pkg/util"
+	"os"
 )
 
 type Machine struct {
@@ -165,6 +166,15 @@ func (m *Machine) PreCommit() error {
 		DebugLog("Delete tx: ", txHash)
 		delete(*m.transactions, txHash)
 	}
+
+	m.interpreter.LoadUniversalStatus()
+
+	uvs := m.interpreter.GetUniversals()
+	for key, value := range uvs {
+		fmt.Println(key, value)
+	}
+
+	os.Exit(0)
 
 	for _, transaction := range txs {
 		hash := transaction.GetTxHash()
