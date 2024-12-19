@@ -15,16 +15,19 @@ func ForceCommit(txs map[string]*SignedTransaction) error {
 
 	sf := oracle.storage
 	ci := oracle.chain
-
+	
+	sf.Reset()
 	sf.Touch()
 	ci.Touch()
 	si.Load()
 
+	/**
 	err := sf.Cache()
 
 	if err != nil {
 		return fmt.Errorf("status storage cache error: %v", err)
 	}
+	**/
 
 	machine := GetMachineInstance()
 	var previousBlockhash string
@@ -42,7 +45,9 @@ func ForceCommit(txs map[string]*SignedTransaction) error {
 
 	machine.Init(previousBlock, int64(util.Utime()))
 	machine.SetTransactions(txs)
-	machine.PreCommit()
+	if err = machine.PreCommit(); err != nil {
+		return err
+	}
 
 	universals := machine.GetInterpreter().GetUniversals()
 	DebugLog("universals: %v", universals)

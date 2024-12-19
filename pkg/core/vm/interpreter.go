@@ -370,6 +370,8 @@ func (i *Interpreter) GetResult() interface{} {
 func (i *Interpreter) AddUniversalLoads(statusHash string) {
 	statusHash = F.FillHash(statusHash)
 
+	OperatorLog("add universal load: ", statusHash)
+
 	if _, ok := i.universals[statusHash]; !ok {
 		i.universals[statusHash] = nil
 	}
@@ -441,6 +443,9 @@ func (i *Interpreter) GetUniversals() map[string]interface{} {
 
 func (i *Interpreter) GetUniversalStatus(statusHash string, defaultVal interface{}) interface{} {
 	statusHash = F.FillHash(statusHash)
+
+	OperatorLog("interpreter uviversals:", i.universals)
+
 	if val, ok := i.universals[statusHash]; ok {
 		OperatorLog("GetUniversalStatus", "statusHash:", statusHash, "value:", val)
 		return val

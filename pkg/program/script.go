@@ -105,6 +105,32 @@ func createForceCommitCmd() *cobra.Command {
 	return cmd
 }
 
+func createGetStatusCmd() *cobra.Command {
+	var key string
+
+	cmd := &cobra.Command{
+		Use:   "getstatus",
+		Short: "check value for status key in network storage.",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			err := service.GetStatus(key)
+
+			if err != nil {
+				fmt.Println("failed to read status: ", err)
+				return
+			}
+
+		},
+	}
+
+	cmd.Flags().StringVarP(&key, "hashkey", "k", "", "status hash key")
+	cmd.Flags().BoolVarP(&C.CORE_TEST_MODE, "debug", "d", false, "Enable test mode")
+	cmd.Flags().StringVarP(&C.DATA_TEST_ROOT_DIR, "rootdir", "r", "", "root dir")
+
+	return cmd
+}
+
+
 func createScriptCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "script",
@@ -114,6 +140,7 @@ func createScriptCmd() *cobra.Command {
 	cmd.AddCommand(
 		createGenesisCmd(),
 		createForceCommitCmd(),
+		createGetStatusCmd(),
 	)
 
 	return cmd

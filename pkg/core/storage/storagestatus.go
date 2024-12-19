@@ -55,11 +55,11 @@ func (sf *StatusFile) Touch() error {
 	files := []string{
 		sf.TempFile(),
 		sf.InfoFile(),
-		sf.LocalFile(),
-		sf.LocalBundle(),
-		sf.UniversalBundle("0000"),
-		sf.LocalBundleIndex(),
-		sf.UniversalBundleIndex(),
+		// sf.LocalFile(),
+		// sf.LocalBundle(),
+		// sf.UniversalBundle("0000"),
+		// sf.LocalBundleIndex(),
+		// sf.UniversalBundleIndex(),
 	}
 
 	for _, file := range files {
@@ -88,6 +88,7 @@ func (sf *StatusFile) Reset() error {
 
 // Cache loads indexes into memory
 func (sf *StatusFile) Cache() error {
+	return nil
 	if len(sf.CachedLocalIndexes) == 0 && len(sf.CachedUniversalIndexes) == 0 {
 		if err := sf.Touch(); err != nil {
 			return err
@@ -182,7 +183,7 @@ func (sf *StatusFile) maxFileId(prefix string) string {
 		return maxId
 	}
 
-	return fmt.Sprintf("%02x", 0)
+	return fmt.Sprintf("%04x", 0)
 }
 
 func (sf *StatusFile) WriteLocal(localUpdates UpdateMap) error {
@@ -212,6 +213,7 @@ func (sf *StatusFile) WriteLocal(localUpdates UpdateMap) error {
 		index, exists := sf.CachedLocalIndexes[key]
 		data, err := json.Marshal(update.New)
 		if err != nil {
+			panic(fmt.Sprintf("error unmarshaling data: %v", err))
 			return err
 		}
 		length := int64(len(data))
@@ -261,15 +263,16 @@ func (sf *StatusFile) WriteLocal(localUpdates UpdateMap) error {
 }
 
 func (sf *StatusFile) WriteUniversal(blockUpdates UpdateMap) error {
+	si := GetStatusIndexInstance()
+
 	for key, index := range sf.CachedUniversalIndexes {
 		DebugLog(fmt.Sprintf("Cached Universal Index - Key: %s, FileID: %s, Seek: %d, Length: %d, Iseek: %d",
 			key, index.FileID, index.Seek, index.Length, index.Iseek))
 	}
 
 	null := byte(0)
-	latestFileID := sf.maxFileId("ubundle-")
-	latestFile := sf.UniversalBundle(latestFileID)
-	indexFile := sf.UniversalBundleIndex()
+	latestFileID := sf.maxFileId("universals-")
+	latestFile := sf.UniversalFile(latestFileID)
 
 	if err := AppendFile(latestFile, ""); err != nil {
 		return err
@@ -279,24 +282,26 @@ func (sf *StatusFile) WriteUniversal(blockUpdates UpdateMap) error {
 	if err != nil {
 		return err
 	}
+
 	seek := int64(latestFileInfo.Size())
 
-	indexFileInfo, err := os.Stat(indexFile)
-	if err != nil {
-		return err
-	}
-
-	iseek := int64(indexFileInfo.Size())
+	DebugLog(fmt.Sprintf("Write Universal seek=%s latestFile=%s", seek, latestFile))
 
 	for key, update := range *blockUpdates {
 		key = F.FillHash(key)
 		index, exists := sf.CachedUniversalIndexes[key]
 
 		data, err := json.Marshal(update.New)
+
+		if len(data) == 0 {
+			panic(fmt.Sprintf("Data len is zero: %s", key))
+		}
+
 		DebugLog(fmt.Sprintf("WriteUniversal - Data: %s", data))
 		DebugLog(fmt.Sprintf("Index: %v", index))
 
 		if err != nil {
+			panic(fmt.Sprintf("error unmarshaling data: %v", err))
 			return err
 		}
 
@@ -317,6 +322,7 @@ func (sf *StatusFile) WriteUniversal(blockUpdates UpdateMap) error {
 			fileID = latestFileID
 			currSeek = seek
 			seek += length
+			DebugLog(fmt.Sprintf("New data: Key=%s, FileID=%s, Seek=%d, Length=%d, oldLength=%d, exists=%t\n", key, fileID, currSeek, length, oldLength, exists))
 
 			if C.LEDGER_FILESIZE_LIMIT < currSeek+length {
 				fileID = sf.NextFileID(fileID)
@@ -327,8 +333,8 @@ func (sf *StatusFile) WriteUniversal(blockUpdates UpdateMap) error {
 			if oldLength == 0 {
 				// New data
 				DebugLog(fmt.Sprintf("New data: Key=%s, FileID=%s, Seek=%d, Length=%d, exists=%t\n", key, fileID, currSeek, length, exists))
-				currIseek = iseek
-				iseek += C.STATUS_HEAP_BYTES
+				currIseek = 0
+				// iseek += C.STATUS_HEAP_BYTES
 			} else {
 				// Update existing data
 				currIseek = index.Iseek
@@ -352,13 +358,16 @@ func (sf *StatusFile) WriteUniversal(blockUpdates UpdateMap) error {
 			Iseek:  currIseek,
 		}
 
-		indexData := IndexRaw(key, fileID, currSeek, length)
-		DebugAssert(len(indexData) == C.STATUS_HEAP_BYTES, "invalid index data length: %d, expected: %d", len(indexData), C.STATUS_HEAP_BYTES)
+		// indexData := IndexRaw(key, fileID, currSeek, length)
+		// DebugAssert(len(indexData) == C.STATUS_HEAP_BYTES, "invalid index data length: %d, expected: %d", len(indexData), C.STATUS_HEAP_BYTES)
 
 		sf.CachedUniversalIndexes[key] = newIndex
+		si.SetUniversalIndex(key, newIndex)
+
 		sf.Tasks = append(sf.Tasks,
-			StorageTask{FilePath: sf.UniversalBundle(fileID), Seek: currSeek, Data: data},
-			StorageTask{FilePath: sf.UniversalBundleIndex(), Seek: currIseek, Data: indexData})
+			StorageTask{FilePath: sf.UniversalFile(fileID), Seek: currSeek, Data: data},
+			// StorageTask{FilePath: sf.UniversalBundleIndex(), Seek: currIseek, Data: indexData},
+		)
 		fmt.Println("sf.a", currIseek)
 	}
 	return nil
@@ -367,6 +376,7 @@ func (sf *StatusFile) WriteUniversal(blockUpdates UpdateMap) error {
 func (sf *StatusFile) WriteTasks() error {
 	tasksData, err := json.Marshal(sf.Tasks)
 	if err != nil {
+		panic(fmt.Sprintf("error unmarshaling data: %v", err))
 		return fmt.Errorf("Failed to serialize tasks: %v", err)
 	}
 
@@ -387,6 +397,7 @@ func (sf *StatusFile) Commit() error {
 
 	var tasks []StorageTask
 	if err := json.Unmarshal(raw, &tasks); err != nil {
+		panic(fmt.Sprintf("error unmarshaling data: %v", err))
 		return fmt.Errorf("failed to unmarshal tasks: %v", err)
 	}
 
@@ -449,10 +460,13 @@ func (sf *StatusFile) Write(block *Block) error {
 	if err != nil {
 		return err
 	}
+
+	/**
 	err = sf.WriteLocal(block.LocalUpdates)
 	if err != nil {
 		return err
 	}
+	**/
 
 	// make function for making height to byte
 	heightData := []byte(strconv.FormatInt(int64(block.Height), 10))
@@ -486,7 +500,10 @@ func (sf *StatusFile) UpdateUniversal(indexes map[string]StorageIndexCursor, uni
 		key = F.FillHash(key)
 		index, exists := indexes[key]
 
-		data, _ := json.Marshal(update.New)
+		data, err := json.Marshal(update.New)
+		if err != nil {
+			panic(fmt.Sprintf("error unmarshaling data: %v", err))
+		}
 		length := int64(len(data))
 		var storedLength int64
 		if exists {
@@ -512,10 +529,12 @@ func (sf *StatusFile) UpdateUniversal(indexes map[string]StorageIndexCursor, uni
 				padding[i] = null[0]
 			}
 			data = append(data, padding...)
+			fmt.Println(fmt.Sprintf("updateuniversal overwrite: fileID=%s, seek=%s, length=%s, storedLength=%s, padding=%s key=%s", fileID, index.Seek, length, storedLength, len(data), key))
 		}
 
 		indexes[key] = NewStorageCursor(key, fileID, seek, length)
 		AppendFileBytes(sf.UniversalBundle(fileID), data)
+		fmt.Println(fmt.Sprintf("updateuniversal: fileID=%s, seek=%s, length=%s, storedLength=%s, padding=%s key=%s", fileID, index.Seek, length, storedLength, len(data), key))
 	}
 
 	return indexes
@@ -532,7 +551,10 @@ func (sf *StatusFile) UpdateLocal(indexes map[string]StorageIndexCursor, localUp
 		key = F.FillHash(key)
 		index, exists := indexes[key]
 
-		data, _ := json.Marshal(update.New)
+		data, err := json.Marshal(update.New)
+		if err != nil {
+			panic(fmt.Sprintf("error unmarshaling data: %v", err))
+		}
 		length := int64(len(data))
 		var storedLength int64
 		if exists {
@@ -641,7 +663,7 @@ func (sf *StatusFile) CountUniversalStatus(prefix string) int {
 // ReadUniversalStatus reads a single status value using the given index cursor
 func (sf *StatusFile) ReadUniversalStatus(index StorageIndexCursor) (interface{}, error) {
 	if index.FileID == "" || index.Seek < 0 || index.Length <= 0 {
-		return nil, fmt.Errorf("invalid index cursor")
+		return nil, fmt.Errorf("invalid index cursor: %s %s %s", index.FileID, index.Seek, index.Length)
 	}
 
 	file, err := os.Open(sf.UniversalFile(index.FileID))
@@ -662,7 +684,10 @@ func (sf *StatusFile) ReadUniversalStatus(index StorageIndexCursor) (interface{}
 	}
 
 	var value interface{}
-	if err := json.Unmarshal(data, &value); err != nil {
+	trimmedData := bytes.TrimRight(data, "\x00")
+
+	if err := json.Unmarshal(trimmedData, &value); err != nil {
+		panic(fmt.Sprintf("error unmarshaling data: %v", err))
 		return nil, fmt.Errorf("error unmarshaling data: %v", err)
 	}
 
@@ -700,8 +725,11 @@ func (sf *StatusFile) GetUniversalStatus(key string) interface{} {
 	}
 
 	value, err := sf.ReadUniversalStatus(index)
+	
 	if err != nil {
+		DebugLog(fmt.Sprintf("GetUniversalStatus - err: %s", err))
 		return nil
 	}
+
 	return value
 }

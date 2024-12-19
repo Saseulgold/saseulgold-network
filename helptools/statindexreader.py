@@ -1,7 +1,17 @@
+
+
+
+
 import os
 
 STATUS_KEY_BYTES = 64
 STATUS_HEAP_BYTES = STATUS_KEY_BYTES + 10
+
+DATA_ID_BYTES = 2
+SEEK_BYTES = 4
+LENGTH_BYTES = 4
+
+DATA_DIR = "/home/ec2-user/qcn/data/status_bundle"
 
 def bin2hex(bytes):
     return bytes.hex()
@@ -17,7 +27,7 @@ class StatIndexReader:
     def __init__(self):
         self.idx = 0
 
-        with open("../data/status_bundle/lbundle_index", "rb") as f:
+        with open( os.path.join(DATA_DIR, "ubundle_index"), "rb") as f:
             self.data = f.read()
 
     @staticmethod
@@ -26,7 +36,7 @@ class StatIndexReader:
         length = int(length, 16)
         seek = int(seek, 16)
 
-        with open(f"../data/main_chain/{file_id.zfill(4)}", "rb") as f:
+        with open( os.path.join(DATA_DIR, f"universals-{file_id}"), "rb") as f:
             raw = f.read()
             return raw[seek: seek+length]
 
@@ -35,19 +45,38 @@ class StatIndexReader:
 
     def at(self, idx):
         raw = self.data[idx * STATUS_HEAP_BYTES: (idx + 1) * STATUS_HEAP_BYTES]
-        return self.parseRaw(raw)
+        return raw
 
     @classmethod
     def parseRaw(cls, raw):
         k = raw[: STATUS_KEY_BYTES]
-        return k
+        k = bin2hex(k)
+
+        offset = STATUS_KEY_BYTES
+        file_id = raw[offset: offset+DATA_ID_BYTES]
+
+        offset += DATA_ID_BYTES
+        seek = raw[offset:offset+SEEK_BYTES] 
+        print(seek)
+        seek = int.from_bytes(seek, byteorder='little')
+
+        offset += SEEK_BYTES
+        length = raw[offset: offset+LENGTH_BYTES]
+        print(length)
+        length = int.from_bytes(length, byteorder='little')
+        return k, file_id, seek, length
 
 if __name__ == "__main__":
     reader = StatIndexReader()
+   
+    j = 0
 
-    for j in range(3):
+    while True:
         raw = reader.at(j)
-        k = reader.parseRaw(raw)
+        k, _, seek, length = reader.parseRaw(raw)
         #data = reader.readPart(*k)
-        print(k)
-        break
+
+        if k == "":
+            break
+        print(k, seek, length)
+        j += 1

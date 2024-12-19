@@ -81,6 +81,7 @@ func JoinDataRootPath(path string) string {
 }
 
 func ReadStatusStorageIndex(indexFile string, bundling bool) map[string]StorageIndexCursor {
+	panic("ReadStatusStorageIndex is deprecated")
 	indexes := make(map[string]StorageIndexCursor)
 	data, _ := os.ReadFile(indexFile)
 

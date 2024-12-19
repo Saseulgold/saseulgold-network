@@ -26,8 +26,8 @@ func FillHashSuffix(suffix string) string {
 }
 
 func FillHash(hash string) string {
-	if len(hash) < C.STATUS_HASH_BYTES {
-		return PadRight(hash, "0", C.STATUS_HASH_BYTES)
+	if len(hash) < C.STATUS_HASH_BYTES * 2 {
+		return PadRight(hash, "0", C.STATUS_HASH_BYTES * 2)
 	}
 	return hash
 }

@@ -8,7 +8,6 @@ import (
 	"hello/pkg/core/storage"
 	"hello/pkg/rpc"
 	"hello/pkg/util"
-	"os"
 )
 
 type Machine struct {
@@ -49,6 +48,10 @@ func (m *Machine) Init(previousBlock *Block, roundTimestamp int64) {
 }
 
 func (m *Machine) ValidateTxTimestamp(tx *SignedTransaction) bool {
+	if m.previousBlock != nil && tx.GetTimestamp() < m.previousBlock.GetTimestamp() + C.TIME_STAMP_ERROR_LIMIT  {
+		return false
+	}
+
 	if tx.GetTimestamp() > int64(util.Utime())+C.TIME_STAMP_ERROR_LIMIT {
 		return false
 	}
@@ -66,14 +69,16 @@ func (m *Machine) Commit(block *Block) error {
 	if err := chain.Write(block); err != nil {
 		return err
 	}
-	if err := sf.Write(block); err != nil {
-		return err
-	}
+
 	/**
 	if err := sf.Update(block); err != nil {
 		return err
 	}
 	**/
+
+	if err := sf.Write(block); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -142,7 +147,7 @@ func (m *Machine) loadContracts() {
 
 func (m *Machine) PreCommit() error {
 	m.loadContracts()
-
+	var err error
 	txs := util.SortedValueK[*SignedTransaction](*m.transactions)
 
 	for _, tx := range txs {
@@ -150,31 +155,33 @@ func (m *Machine) PreCommit() error {
 		DebugLog("read tx:", string(tx.Data.Ser()))
 		DebugLog("preCommitRead	:", txHash)
 
-		if m.ValidateTxTimestamp(tx) && tx.Validate() == nil {
-			if err := m.MountContract(*tx); err == nil {
-				if err := m.interpreter.ParameterValidate(); err == nil {
-					m.interpreter.Read()
-					continue
-				} else {
-					DebugLog("ParameterValidate error: %v", err)
-				}
-			} else {
-				DebugLog("MountContract error: %v", err)
-			}
+		if !(m.ValidateTxTimestamp(tx)) {
+			err = fmt.Errorf("tx timestamp error: %s", txHash)
+			delete(*m.transactions, txHash)
+			continue
 		}
 
-		DebugLog("Delete tx: ", txHash)
-		delete(*m.transactions, txHash)
+		if err = tx.Validate(); err != nil {
+			delete(*m.transactions, txHash)
+			continue
+		}
+
+		if err = m.MountContract(*tx); err != nil {
+			delete(*m.transactions, txHash)
+			continue
+		}
+
+		if err := m.interpreter.ParameterValidate(); err != nil {
+			delete(*m.transactions, txHash)
+			continue
+		}
+
+		m.interpreter.Read()
 	}
 
 	m.interpreter.LoadUniversalStatus()
-
-	uvs := m.interpreter.GetUniversals()
-	for key, value := range uvs {
-		fmt.Println(key, value)
-	}
-
-	os.Exit(0)
+	//m.interpreter.LoadLocalStatus()
+	txs = util.SortedValueK[*SignedTransaction](*m.transactions)
 
 	for _, transaction := range txs {
 		hash := transaction.GetTxHash()
@@ -190,7 +197,7 @@ func (m *Machine) PreCommit() error {
 		delete(*m.transactions, hash)
 	}
 
-	return nil
+	return err
 }
 
 func (m *Machine) MountContract(tx SignedTransaction) error {
