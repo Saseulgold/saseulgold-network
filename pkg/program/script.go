@@ -130,6 +130,39 @@ func createGetStatusCmd() *cobra.Command {
 	return cmd
 }
 
+func createStaticRequestCmd() *cobra.Command {
+	var message string
+
+	cmd := &cobra.Command{
+		Use:   "staticrequest",
+		Short: "static request to network",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			data, err := structure.ParseOrderedMap(message)
+			request := model.NewSignedRequest(data)
+
+			if err != nil {
+				fmt.Println("failed to parse request: ", err)
+				return
+			}
+
+			response, err := service.StaticRequest(&request)
+			if err != nil {
+				fmt.Println("failed to static request: ", err, response)
+				return
+			}
+
+			fmt.Println("response: ", response)
+
+		},
+	}
+
+	cmd.Flags().StringVarP(&message, "message", "m", "", "request message to broadcast")
+	cmd.Flags().BoolVarP(&C.CORE_TEST_MODE, "debug", "d", false, "Enable test mode")
+	cmd.Flags().StringVarP(&C.DATA_TEST_ROOT_DIR, "rootdir", "r", "", "root dir")
+
+	return cmd
+}
 
 func createScriptCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -141,6 +174,7 @@ func createScriptCmd() *cobra.Command {
 		createGenesisCmd(),
 		createForceCommitCmd(),
 		createGetStatusCmd(),
+		createStaticRequestCmd(),
 	)
 
 	return cmd

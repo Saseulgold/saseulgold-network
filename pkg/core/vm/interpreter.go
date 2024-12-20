@@ -448,6 +448,9 @@ func (i *Interpreter) GetUniversalStatus(statusHash string, defaultVal interface
 
 	if val, ok := i.universals[statusHash]; ok {
 		OperatorLog("GetUniversalStatus", "statusHash:", statusHash, "value:", val)
+		if val == nil {
+			return defaultVal
+		}
 		return val
 	}
 	OperatorLog("GetUniversalStatus default", "statusHash:", statusHash, "value:", defaultVal)

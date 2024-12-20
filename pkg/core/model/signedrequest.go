@@ -5,6 +5,7 @@ import (
 	S "hello/pkg/core/structure"
 	"hello/pkg/crypto"
 	. "hello/pkg/util"
+	F "hello/pkg/util"
 )
 
 type SignedRequest struct {
@@ -20,19 +21,34 @@ type SignedRequest struct {
 func NewSignedRequest(data *S.OrderedMap) SignedRequest {
 	req := SignedRequest{Data: data}
 
-	if v, ok := data.Get("cid"); ok {
+	requestData, ok := req.Data.Get("request")
+	if !ok {
+		return req
+	}
+
+	if v, ok := requestData.(*S.OrderedMap).Get("cid"); ok {
 		req.Cid = v.(string)
 	}
-	if v, ok := data.Get("type"); ok {
+
+	if v, ok := requestData.(*S.OrderedMap).Get("type"); ok {
 		req.Type = v.(string)
 	}
-	if v, ok := data.Get("timestamp"); ok {
+
+	if v, ok := requestData.(*S.OrderedMap).Get("timestamp"); ok {
 		req.Timestamp = v.(int64)
 	} else {
 		req.Timestamp = Utime()
 	}
 
 	req.Hash = req.GetRequestHash()
+
+	if v, ok := data.Get("public_key"); ok {
+		req.Xpub = v.(string)
+	}
+	if v, ok := data.Get("signature"); ok {
+		req.Signature = v.(string)
+	}
+
 	return req
 }
 
@@ -44,8 +60,29 @@ func (req SignedRequest) GetSize() int {
 	return len(req.Ser())
 }
 
-func (req SignedRequest) GetRequestHash() string {
-	return TimeHash(Hash(req.Ser()), req.Timestamp)
+func (req *SignedRequest) GetRequestHash() string {
+	request, ok := req.Data.Get("request")
+	if !ok || request == nil {
+		return ""
+	}
+
+	timestamp, ok := request.(*S.OrderedMap).Get("timestamp")
+	if !ok {
+		return ""
+	}
+
+	ser := request.(*S.OrderedMap).Ser()
+
+	timestampInt64, ok := timestamp.(int64)
+	if !ok {
+		if timestampInt, ok := timestamp.(int); ok {
+			timestampInt64 = int64(timestampInt)
+		} else {
+			return ""
+		}
+	}
+
+	return TimeHash(Hash(ser), timestampInt64)
 }
 
 func (req *SignedRequest) Sign(privateKey string) string {
@@ -76,43 +113,43 @@ func (req SignedRequest) ToMap() map[string]interface{} {
 
 func (req SignedRequest) Validate() error {
 	if req.Xpub == "" {
-		return fmt.Errorf("the signed transaction must contain the xpub parameter")
+		return fmt.Errorf("the signed request must contain the xpub parameter")
 	}
 
 	request, ok := req.Data.Get("request")
 	if !ok || request == nil {
-		return fmt.Errorf("the signed transaction must contain the transaction parameter")
+		return fmt.Errorf("the signed request must contain the transaction parameter")
 	}
 
 	txType, ok := request.(*S.OrderedMap).Get("type")
 	if !ok || txType == nil {
-		return fmt.Errorf("the signed transaction must contain the transaction.type parameter")
+		return fmt.Errorf("the signed request must contain the request.type parameter")
 	}
 
 	if _, ok := txType.(string); !ok {
-		return fmt.Errorf("Parameter transaction.type must be of string type")
+		return fmt.Errorf("Parameter request.type must be of string type")
 	}
 
 	timestamp, ok := request.(*S.OrderedMap).Get("timestamp")
 	if !ok || timestamp == nil {
-		return fmt.Errorf("the signed transaction must contain the transaction.timestamp parameter")
+		return fmt.Errorf("the signed request must contain the request.timestamp parameter")
 	}
 
 	if _, ok := timestamp.(int64); !ok {
 		if _, ok := timestamp.(int); !ok {
-			return fmt.Errorf("parameter transaction.timestamp must be of integer type")
+			return fmt.Errorf("parameter request.timestamp must be of integer type")
 		}
 	}
 
 	if req.Signature == "" {
-		return fmt.Errorf("the signed transaction must contain the signature parameter")
+		return fmt.Errorf("the signed request must contain the signature parameter")
 	}
 
 	// Verify signature
 	hash := req.GetRequestHash()
 
 	if !crypto.SignatureValidity(hash, req.Xpub, req.Signature) {
-		return fmt.Errorf("invalid signature: %s (transaction hash: %s)", req.Signature, hash, req.Xpub)
+		return fmt.Errorf("invalid signature: %s (request hash: %s)", req.Signature, hash)
 	}
 
 	return nil
@@ -127,7 +164,12 @@ func (req SignedRequest) GetRequestTimestamp() int64 {
 }
 
 func (req SignedRequest) GetRequestData() *SignedData {
-	return NewSignedDataFromRequest(&req)
+	request, ok := req.Data.Get("request")
+	if !ok || request == nil {
+		return nil
+	}
+
+	return NewSignedDataFromRequestData(&req)
 }
 
 func (req SignedRequest) GetRequestXpub() string {
@@ -139,5 +181,8 @@ func (req SignedRequest) GetRequestSignature() string {
 }
 
 func (req SignedRequest) GetRequestCID() string {
+	if req.Cid == "" {
+		return F.RootSpaceId()
+	}
 	return req.Cid
 }

@@ -15,7 +15,7 @@ func ForceCommit(txs map[string]*SignedTransaction) error {
 
 	sf := oracle.storage
 	ci := oracle.chain
-	
+
 	sf.Reset()
 	sf.Touch()
 	ci.Touch()

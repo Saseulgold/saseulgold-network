@@ -48,7 +48,7 @@ func (m *Machine) Init(previousBlock *Block, roundTimestamp int64) {
 }
 
 func (m *Machine) ValidateTxTimestamp(tx *SignedTransaction) bool {
-	if m.previousBlock != nil && tx.GetTimestamp() < m.previousBlock.GetTimestamp() + C.TIME_STAMP_ERROR_LIMIT  {
+	if m.previousBlock != nil && tx.GetTimestamp() < m.previousBlock.GetTimestamp()+C.TIME_STAMP_ERROR_LIMIT {
 		return false
 	}
 
@@ -320,10 +320,7 @@ func (m *Machine) Response(request SignedRequest) (interface{}, error) {
 
 	m.interpreter.Read()
 
-	result, err := m.interpreter.Execute()
-	if err != nil {
-		return nil, err
-	}
+	_, result := m.interpreter.Execute()
 
 	return result, nil
 }
@@ -334,6 +331,8 @@ func (m *Machine) loadRequests() {
 
 func (m *Machine) suitedRequest(request SignedRequest) *Method {
 	requestType := request.GetRequestType()
+	fmt.Println("requestType %s %s", requestType, request.GetRequestCID())
+
 	if methods, ok := m.requests[request.GetRequestCID()]; ok {
 		if method, exists := methods[requestType]; exists {
 			return method
