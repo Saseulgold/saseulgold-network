@@ -35,6 +35,7 @@ var OperatorFunctions = map[string]map[string]MethodFunc{
 		"$array_push":  OpArrayPush,
 		"$concat":      OpConcat,
 		"$count":       OpCount,
+		"$len":       	OpLen,
 		"$strlen":      OpStrlen,
 		"$encode_json": OpEncodeJson,
 		"$reg_match":   OpRegMatch,
@@ -45,6 +46,7 @@ var OperatorFunctions = map[string]map[string]MethodFunc{
 		"$short_hash":  OpShortHash,
 		"$id_hash":     OpIdHash,
 		"$sign_verify": OpSignVerify,
+		"$set": OpSet,
 	},
 	"CastOperator": {
 		"$get_type":   OpGetType,

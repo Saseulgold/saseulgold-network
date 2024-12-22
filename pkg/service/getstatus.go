@@ -13,6 +13,7 @@ func GetStatus(key string) error {
 	sf := oracle.storage
 	ci := oracle.chain
 
+	sf.Reset()
 	sf.Touch()
 	ci.Touch()
 	si.Load()

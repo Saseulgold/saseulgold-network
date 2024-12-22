@@ -79,6 +79,7 @@ func TestDeploy(t *testing.T) {
 	data.Set("signature", "1493bd19ea174751810b3fece0f23fa24c9e6d884118624e863b8fc3892f5604dba420407e2a833440d58a2e3c3e1048109f4f14f5f9fd3c9788a86e0bc5f400")
 
 	tx, err := NewSignedTransaction(data)
+
 	if err != nil {
 		t.Errorf("NewSignedTransaction(): %s", err)
 	}

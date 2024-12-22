@@ -62,6 +62,13 @@ func Or(vars ...interface{}) ABI {
 	}
 }
 
+func Len(obj interface{}) ABI {
+	return ABI{
+		Key:   "$len",
+		Value: []interface{}{obj},
+	}
+}
+
 func Get(obj, key, defaultVal interface{}) ABI {
 	return ABI{
 		Key:   "$get",
@@ -290,6 +297,15 @@ func ArrayPush(obj, key, value interface{}) ABI {
 	}
 }
 
+func Set(obj, key, value interface{}) ABI {
+
+	return ABI{
+		Key:   "$set",
+		Value: []interface{}{obj, key, value},
+	}
+
+}
+
 func Concat(vars interface{}) ABI {
 	return ABI{
 		Key:   "$concat",
@@ -373,3 +389,4 @@ func Check(obj interface{}) ABI {
 		Value: []interface{}{obj},
 	}
 }
+

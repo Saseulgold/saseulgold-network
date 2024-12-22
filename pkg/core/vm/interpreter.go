@@ -224,10 +224,12 @@ func (i *Interpreter) ParameterValidate() error {
 		}
 
 		if err := param.StructureValidity(value); err != nil {
+			fmt.Println(fmt.Sprintf("Invalid parameter %s: %s", param.GetName(), err.Error()))
 			return fmt.Errorf("Invalid parameter %s: %s", param.GetName(), err.Error())
 		}
 
 		if err := param.TypeValidity(value); err != nil {
+			fmt.Println(fmt.Sprintf("Invalid parameter %s: %s", param.GetName(), err.Error()))
 			return fmt.Errorf("Invalid parameter %s: %s", param.GetName(), err.Error())
 		}
 	}

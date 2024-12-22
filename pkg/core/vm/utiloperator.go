@@ -8,6 +8,35 @@ import (
 	"strings"
 )
 
+func OpSet(i *Interpreter, vars interface{}) interface{} {
+	origin, key, value := Unpack3(vars)
+	var originObj map[string]interface{}
+	var ok bool
+
+	if origin == nil {
+		originObj = make(map[string]interface{})
+		ok = true
+	} else {
+		originObj, ok = origin.(map[string]interface{})
+	}
+
+	if !ok {
+			OperatorLog("OpObjectSet", "input:", vars, "result:", map[string]interface{}{})
+			return map[string]interface{}{}
+	}
+
+	keyStr, ok := key.(string)
+	if !ok {
+			OperatorLog("OpObjectSet", "input:", vars, "result:", originObj)
+			return originObj
+	}
+
+	originObj[keyStr] = value
+	OperatorLog("OpObjectSet", "input:", vars, "result:", originObj)
+
+	return originObj
+}
+
 func OpArrayPush(i *Interpreter, vars interface{}) interface{} {
 	origin, key, value := Unpack3(vars)
 
@@ -236,4 +265,17 @@ func OpSignVerify(i *Interpreter, vars interface{}) interface{} {
 	// return crypto.VerifySignature(obj, publicKey, signature)
 	OperatorLog("OpSignVerify", "input:", vars, "result:", true)
 	return true
+}
+
+func OpLen(i *Interpreter, vars interface{}) interface{} {
+	arr := Unpack1(vars)
+
+	switch v := arr.(type) {
+		case string:
+			return len(v)
+		case []interface{}:
+			return len(v)
+		default:
+			return 0
+	}
 }

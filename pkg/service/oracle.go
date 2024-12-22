@@ -139,11 +139,8 @@ func (o *Oracle) OnStartUp(config swift.SecurityConfig, port string) error {
 	o.chain.Touch()
 	o.storage.Touch()
 
+	o.storage.Reset()
 	o.storageIndex.Load()
-
-	if err := o.storage.Cache(); err != nil {
-		return err
-	}
 
 	o.swift = swift.NewServer(C.SWIFT_HOST+":"+port, config)
 	o.registerPacketHandlers()

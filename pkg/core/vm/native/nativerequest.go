@@ -106,3 +106,49 @@ func GetBalance() *Method {
 
 	return method
 }
+
+func GetTokenInfo() *Method {
+	method := NewMethod(map[string]interface{}{
+		"type":    "request",
+		"name":    "GetTokenInfo",
+		"version": "1",
+		"space":   RootSpace(),
+		"writer":  ZERO_ADDRESS,
+	})
+
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":      "owner",
+		"type":      "string",
+		"maxlength": 44,
+		"requirements": true,
+	}))
+
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":      "symbol",
+		"type":      "string",
+		"maxlength": 44,
+		"requirements": true,
+	}))
+	
+	owner := abi.Param("owner")
+	symbol := abi.Param("symbol")
+
+	var response interface{}
+
+	token_address := abi.HashMany([]interface{}{"qrc_20", owner, symbol})
+	supply_univ := abi.ReadUniversal(token_address, "supply", nil)
+	owner_univ := abi.ReadUniversal(token_address, "owner", nil)
+	symbol_univ := abi.ReadUniversal(token_address, "symbol", nil)
+
+
+	response = abi.Set(response, "token_address", token_address)
+	response = abi.Set(response, "owner", owner_univ)
+	response = abi.Set(response, "symbol", symbol_univ)
+	response = abi.Set(response, "supply", supply_univ)
+
+	method.AddExecution(abi.Response(response))
+
+	return method
+
+}
+

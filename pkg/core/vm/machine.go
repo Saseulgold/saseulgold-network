@@ -210,16 +210,19 @@ func (m *Machine) MountContract(tx SignedTransaction) error {
 
 	txType, ok := txMap.Data.Get("type")
 	if !ok {
+		fmt.Println("transaction type not found")
 		return fmt.Errorf("transaction type not found")
 	}
 	name := txType.(string)
 
 	code, ok := m.contracts[cid][name]
 	if !ok {
+		fmt.Println(fmt.Sprintf("contract not found for cid %s and method %s", cid, name))
 		return fmt.Errorf("contract not found for cid %s and method %s", cid, name)
 	}
 
 	if code == nil {
+		fmt.Println("contract code is nil")
 		return fmt.Errorf("contract code is nil")
 	}
 
@@ -319,6 +322,7 @@ func (m *Machine) Response(request SignedRequest) (interface{}, error) {
 	}
 
 	m.interpreter.Read()
+	m.interpreter.LoadUniversalStatus()
 
 	_, result := m.interpreter.Execute()
 
