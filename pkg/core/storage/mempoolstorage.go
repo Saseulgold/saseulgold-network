@@ -132,6 +132,20 @@ func (mp *MempoolStorage) GetTransactions(limit int) []*SignedTransaction {
 	return result
 }
 
+func (mp *MempoolStorage) GetTransactionsHashMap() map[string]*SignedTransaction {
+	mp.mu.RLock()
+	defer mp.mu.RUnlock()
+
+	txs := mp.GetTransactions(C.BLOCK_TX_COUNT_LIMIT)
+
+	txHashMap := make(map[string]*SignedTransaction)
+	for _, tx := range txs {
+		txHashMap[tx.GetTxHash()] = tx
+	}
+
+	return txHashMap
+}
+
 // Helper methods for priority queue
 func (mp *MempoolStorage) addToPriorityQueue(tx *MempoolTx) {
 	mp.priorityQueue = append(mp.priorityQueue, tx)

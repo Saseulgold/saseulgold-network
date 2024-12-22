@@ -30,6 +30,11 @@ const (
 
 	PacketTypeErrorResponse // Error
 
+	// Consensus
+	PacketTypeRaftRequestVote  // Raft request vote
+	PacketTypeRaftResponseVote // Raft response vote
+	PacketTypeRaftHeartbeat    // Raft heartbeat
+
 	// FOR DEV
 	PacketTypeGetStatusBundleRequest  // Get status bundle
 	PacketTypeGetStatusBundleResponse // Get status bundle

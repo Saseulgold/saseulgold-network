@@ -46,30 +46,96 @@ func GetOracleService() *Oracle {
 	return oracleInstance
 }
 
+func (o *Oracle) RemoveCommittedTransactions(txs map[string]*model.SignedTransaction) {
+	for _, tx := range txs {
+		o.mempool.RemoveTransaction(tx.GetTxHash())
+	}
+}
+
+func (o *Oracle) Consensus(txs map[string]*model.SignedTransaction) {
+
+}
+
+func (o *Oracle) Commit(txs map[string]*model.SignedTransaction) error {
+	var previousBlockhash string
+
+	lastBlockHeight := storage.LastHeight()
+	previousBlock, err := storage.GetChainStorageInstance().GetBlock(lastBlockHeight)
+
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("previousBlock: ", previousBlock)
+
+	if previousBlock == nil {
+		previousBlockhash = ""
+	} else {
+		previousBlockhash = previousBlock.BlockHash()
+	}
+
+	o.machine.Init(previousBlock, int64(util.Utime()))
+	o.machine.SetTransactions(txs)
+	o.machine.PreCommit()
+
+	universals := o.machine.GetInterpreter().GetUniversals()
+	DebugLog("universals: %v", universals)
+
+	block := model.NewBlock(storage.LastHeight()+1, previousBlockhash)
+	block.SetTimestamp(int64(util.Utime()))
+
+	expectedBlock := o.machine.ExpectedBlock()
+
+	if expectedBlock.GetTransactionCount() == 0 {
+		DebugLog("no transactions to commit. invalid block.")
+		return fmt.Errorf("no transactions to commit. invalid block.")
+	}
+
+	DebugLog("unv: %v", expectedBlock.UniversalUpdates)
+	DebugLog("loc: %v", expectedBlock.LocalUpdates)
+
+	err = o.machine.Commit(expectedBlock)
+
+	if err != nil {
+		DebugLog("Commit error: %v", err)
+		return fmt.Errorf("Commit error: %v", err)
+	}
+
+	DebugLog("Commit success")
+	return nil
+
+}
+
 func (o *Oracle) Run() error {
-	ticker := time.NewTicker(1000 * time.Millisecond)
+	ticker := time.NewTicker(250 * time.Millisecond)
 	defer ticker.Stop()
-	var epoch string = ""
+	var epoch string = o.machine.Epoch()
 
 	for {
 		select {
 		case <-ticker.C:
-			_epoch := o.machine.Epoch()
-
-			switch _epoch {
+			epoch = o.machine.Epoch()
+			fmt.Println("epoch: ", epoch)
+			switch epoch {
 
 			case "txtime":
-				if epoch != _epoch {
-					OracleLog("Validating transactions in mempool during transaction time")
-				}
+				OracleLog("Validating transactions in mempool during transaction time")
 
 			case "blocktime":
-				if epoch != _epoch {
-					OracleLog("Validating transactions in mempool during block time")
+				transactions := o.mempool.GetTransactionsHashMap()
+				if len(transactions) == 0 {
+					OracleLog("No transactions to commit, skipping")
+					continue
 				}
-			}
 
-			epoch = _epoch
+				err := o.Commit(transactions)
+
+				if err != nil {
+					o.RemoveCommittedTransactions(transactions)
+					OracleLog("failed to commit transactions: %v", err)
+				}
+
+			}
 		}
 	}
 }

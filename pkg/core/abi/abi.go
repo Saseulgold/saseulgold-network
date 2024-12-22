@@ -133,6 +133,13 @@ func PreciseMul(a1, b interface{}, scale interface{}) ABI {
 	}
 }
 
+func PreciseSqrt(a interface{}, scale interface{}) ABI {
+	return ABI{
+		Key:   "$precise_sqrt",
+		Value: []interface{}{a, scale},
+	}
+}
+
 func Scale(value interface{}) ABI {
 	return ABI{
 		Key:   "$scale",
@@ -389,4 +396,3 @@ func Check(obj interface{}) ABI {
 		Value: []interface{}{obj},
 	}
 }
-

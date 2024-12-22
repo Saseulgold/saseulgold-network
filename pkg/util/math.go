@@ -192,6 +192,26 @@ func Round(a string, scale int) string {
 	return FormatFloat(result, scale)
 }
 
+// Sqrt returns the square root of a with optional scale
+func Sqrt(a string, scale *int) *string {
+	if !IsNumeric(a) || Lt(a, "0") {
+		return nil
+	}
+
+	s := GetScale(a)
+	if scale != nil {
+		s = *scale
+	}
+
+	af := new(big.Float)
+	af.SetString(a)
+
+	afloat, _ := af.Float64()
+	result := new(big.Float).SetFloat64(math.Sqrt(afloat))
+	str := FormatFloat(result, s)
+	return &str
+}
+
 // Helper functions
 
 func GetScale(a string) int {

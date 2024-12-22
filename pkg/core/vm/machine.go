@@ -251,10 +251,10 @@ func (m *Machine) TimeValidity(tx *SignedTransaction, timestamp int64) (bool, er
 }
 
 func (m *Machine) Epoch() string {
-	currentTime := util.Utime()
-	timeInEpoch := currentTime % 5000
+	currentTime := util.Utime() / 1000
+	timeInEpoch := currentTime % 3000
 
-	if timeInEpoch < 3000 {
+	if timeInEpoch < 2000 {
 		return "txtime"
 	}
 	return "blocktime"

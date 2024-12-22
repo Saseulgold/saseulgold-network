@@ -194,6 +194,30 @@ func OpPreciseMul(i *Interpreter, vars interface{}) interface{} {
 	return result
 }
 
+func OpPreciseSqrt(i *Interpreter, vars interface{}) interface{} {
+	a, scaleVal := Unpack1Or2(vars)
+
+	aStr := "0"
+	scale := 0
+
+	if str, ok := a.(string); ok && util.IsNumeric(str) {
+		aStr = str
+	}
+	if scaleVal != nil {
+		if val, ok := scaleVal.(int); ok {
+			scale = val
+		}
+	}
+
+	if scale < 0 || scale > 10 {
+		scale = 0
+	}
+
+	result := util.Sqrt(aStr, &scale)
+	OperatorLog("OpPreciseSqrt", "input:", vars, "result:", result)
+	return result
+}
+
 func OpPreciseDiv(i *Interpreter, vars interface{}) interface{} {
 	a, b, scaleVal := Unpack2Or3(vars)
 
