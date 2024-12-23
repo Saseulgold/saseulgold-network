@@ -3,7 +3,6 @@ package storage
 import (
 	"fmt"
 	C "hello/pkg/core/config"
-	. "hello/pkg/core/debug"
 	F "hello/pkg/util"
 	"sort"
 	"sync"
@@ -36,18 +35,19 @@ func (s *StatusIndex) Load() {
 
 	fixedHeight := LastHeight()
 	// bundleHeight := statusFile.BundleHeight()
-	bundleHeight := 0
+	bundleHeight := C.SG_HARDFORK_START_HEIGHT
 
-	for i := bundleHeight + 1; i <= fixedHeight; i++ {
+	for i := bundleHeight; i <= fixedHeight; i++ {
+
+		if i % 256 == 0 {
+			fmt.Println(fmt.Sprintf("Commit block: %v", i))
+		}
+
 		block, err := chainStorage.GetBlock(i)
 		if err != nil {
 			panic(err)
 		}
 		statusFile.Write(block)
-
-		if i%256 == 0 || i == fixedHeight {
-			DebugLog(fmt.Sprintf("Commit Bundle: Bundling.. %d", i))
-		}
 	}
 
 	/**

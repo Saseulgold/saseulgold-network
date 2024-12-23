@@ -63,11 +63,9 @@ func ParseBlock(data []byte) (*Block, error) {
 		return nil, err
 	}
 
-	fmt.Println("om: ", om)
-
 	var block Block
 	blockHeight, _ := om.Get("height")
-	fmt.Println("blockHeight: ", blockHeight)
+
 	block.Height = int(blockHeight.(int64))
 
 	blockTimestamp, _ := om.Get("s_timestamp")
@@ -77,25 +75,31 @@ func ParseBlock(data []byte) (*Block, error) {
 	block.PreviousBlockhash = blockPreviousBlockhash.(string)
 
 	blockDifficulty, _ := om.Get("difficulty")
-	block.Difficulty = int(blockDifficulty.(int64))
+	if blockDifficulty == nil {
+		block.Difficulty = 0
+	} else {
+		block.Difficulty = int(blockDifficulty.(int64))
+	}
+
 
 	if universalUpdatesRaw, exists := om.Get("universal_updates"); exists {
 		updates := make(map[string]Update)
 		block.UniversalUpdates = &updates
 
-		universalUpdates := universalUpdatesRaw.(*structure.OrderedMap)
-
-		for _, key := range universalUpdates.Keys() {
-			value, _ := universalUpdates.Get(key)
-			valueMap := value.(*structure.OrderedMap)
-			old, _ := valueMap.Get("old")
-			new, _ := valueMap.Get("new")
-			update := Update{
-				Key: key,
-				Old: old,
-				New: new,
+		universalUpdates, ok := universalUpdatesRaw.(*structure.OrderedMap)
+		if ok {
+			for _, key := range universalUpdates.Keys() {
+				value, _ := universalUpdates.Get(key)
+				valueMap := value.(*structure.OrderedMap)
+				old, _ := valueMap.Get("old")
+				new, _ := valueMap.Get("new")
+				update := Update{
+					Key: key,
+					Old: old,
+					New: new,
+				}
+				updates[key] = update
 			}
-			updates[key] = update
 		}
 	}
 
@@ -120,15 +124,18 @@ func ParseBlock(data []byte) (*Block, error) {
 
 	if transactionsRaw, exists := om.Get("transactions"); exists {
 		transactions := make(map[string]*SignedTransaction)
-		transactionsRaw := transactionsRaw.(*structure.OrderedMap)
-		for _, key := range transactionsRaw.Keys() {
-			value, _ := transactionsRaw.Get(key)
-			data := value.(*structure.OrderedMap)
-			tx, err := NewSignedTransaction(data)
-			if err != nil {
-				return nil, err
+
+		transactionsRaw, ok := transactionsRaw.(*structure.OrderedMap)
+		if ok {
+			for _, key := range transactionsRaw.Keys() {
+				value, _ := transactionsRaw.Get(key)
+				data := value.(*structure.OrderedMap)
+				tx, err := NewSignedTransaction(data)
+				if err != nil {
+					return nil, err
+				}
+				transactions[key] = &tx
 			}
-			transactions[key] = &tx
 		}
 		block.Transactions = &transactions
 	}
@@ -139,7 +146,7 @@ func ParseBlock(data []byte) (*Block, error) {
 
 func (c *ChainStorage) Block(needle interface{}) (*Block, error) {
 	if height, ok := needle.(int); ok {
-		DebugLog(fmt.Sprintf("Block height: %d", height))
+
 		idx := c.ReadIdx(height)
 		index, err := c.ReadIndex(idx)
 		if err != nil {
@@ -224,7 +231,7 @@ func (c *ChainStorage) Index(needle interface{}) (ChainIndexCursor, error) {
 func (c *ChainStorage) ReadIdx(height int) int {
 	idx := 0
 	lastIdx := c.LastIdx()
-	println("Last index:", lastIdx)
+
 	lastIndex, _ := c.ReadIndex(lastIdx)
 	lastHeight := 0
 	if lastIndex.Height > 0 {

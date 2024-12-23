@@ -45,8 +45,9 @@ func ParseOrderedMap(jsonStr string) (*OrderedMap, error) {
 // parseObject parses a JSON object into an OrderedMap
 func parseObject(i *int, jsonStr string) (*OrderedMap, error) {
 	skipWhitespace(i, jsonStr)
+
 	if *i >= len(jsonStr) || jsonStr[*i] != '{' {
-		return nil, errors.New("expected '{' at start of object")
+		return nil, errors.New(fmt.Sprintf("expected '{' at start of object,  %s", jsonStr))
 	}
 	*i++ // Skip '{'
 
@@ -101,6 +102,8 @@ func parseValue(i *int, jsonStr string) (interface{}, error) {
 		return readString(i, jsonStr)
 	case '{':
 		return parseObject(i, jsonStr)
+	case '[':
+        	return parseArray(i, jsonStr) // array
 	case 't': // true
 		if strings.HasPrefix(jsonStr[*i:], "true") {
 			*i += 4
@@ -121,10 +124,10 @@ func parseValue(i *int, jsonStr string) (interface{}, error) {
 			return readNumber(i, jsonStr)
 		}
 	}
-	return nil, errors.New("unexpected value type in JSON")
+
+	return nil, errors.New(fmt.Sprintf("unexpected value type in JSON %s", jsonStr[*i]))
 }
 
-// readString parses a JSON string
 func readString(i *int, jsonStr string) (string, error) {
 	if *i >= len(jsonStr) || jsonStr[*i] != '"' {
 		return "", errors.New("expected '\"' at start of string")
@@ -158,7 +161,7 @@ func readString(i *int, jsonStr string) (string, error) {
 			case 't':
 				result.WriteByte('\t')
 			default:
-				return "", errors.New("invalid escape character in string")
+				return "", errors.New(fmt.Sprintf("invalid escape character in string %s", jsonStr))
 			}
 		} else {
 			result.WriteByte(ch)
@@ -280,4 +283,34 @@ func serialize(builder *strings.Builder, value interface{}) error {
 		return fmt.Errorf("unsupported value type for serialization: %T", v)
 	}
 	return nil
+}
+
+func parseArray(i *int, jsonStr string) (interface{}, error) {
+    if jsonStr[*i] != '[' {
+        return nil, errors.New("expected '[' at the beginning of array")
+    }
+    *i++ // '[' skipping character.
+    var array []interface{}
+
+    for *i < len(jsonStr) {
+        skipWhitespace(i, jsonStr)
+        if jsonStr[*i] == ']' {
+            *i++ // ']' skipping character.
+            return array, nil
+        }
+
+        value, err := parseValue(i, jsonStr)
+        if err != nil {
+            return nil, err
+        }
+        array = append(array, value)
+
+        skipWhitespace(i, jsonStr)
+        if jsonStr[*i] == ',' {
+            *i++ // ',' skipping character.
+        } else if jsonStr[*i] != ']' {
+            return nil, errors.New("expected ',' or ']' in array")
+        }
+    }
+    return nil, errors.New("unexpected end of JSON while parsing array")
 }

@@ -7,7 +7,6 @@ import (
 
 	"hello/pkg/core/model"
 	"hello/pkg/swift"
-	"hello/pkg/util"
 )
 
 type Raft struct {
@@ -72,7 +71,8 @@ func (r *Raft) runFollower() {
 func (r *Raft) runCandidate() {
 	r.mu.Lock()
 	r.currentTerm++
-	r.votedFor = util.GetNodeID()
+	//r.votedFor = util.GetNodeID()
+	r.votedFor = "0"
 	r.mu.Unlock()
 
 	timer := time.NewTimer(150 * time.Millisecond)

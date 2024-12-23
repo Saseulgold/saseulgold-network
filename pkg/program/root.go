@@ -103,6 +103,7 @@ func createNetworkStopCmd() *cobra.Command {
 func RunNetworkCMD() *cobra.Command {
 	var useTLS bool
 
+
 	rootCmd := createRootCmd()
 	networkCmd := createNetworkCmd()
 	networkStartCmd := createNetworkStartCmd(&useTLS)
@@ -114,9 +115,11 @@ func RunNetworkCMD() *cobra.Command {
 
 	nodeCmd := createNodeCmd()
 	scriptCmd := createScriptCmd()
+	walletCmd := CreateWalletCmd()
 
 	rootCmd.AddCommand(nodeCmd)
 	rootCmd.AddCommand(scriptCmd)
+	rootCmd.AddCommand(walletCmd)
 
 	return rootCmd
 }

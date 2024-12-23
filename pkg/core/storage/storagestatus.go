@@ -265,11 +265,6 @@ func (sf *StatusFile) WriteLocal(localUpdates UpdateMap) error {
 func (sf *StatusFile) WriteUniversal(blockUpdates UpdateMap) error {
 	si := GetStatusIndexInstance()
 
-	for key, index := range sf.CachedUniversalIndexes {
-		DebugLog(fmt.Sprintf("Cached Universal Index - Key: %s, FileID: %s, Seek: %d, Length: %d, Iseek: %d",
-			key, index.FileID, index.Seek, index.Length, index.Iseek))
-	}
-
 	null := byte(0)
 	latestFileID := sf.maxFileId("universals-")
 	latestFile := sf.UniversalFile(latestFileID)
@@ -285,8 +280,6 @@ func (sf *StatusFile) WriteUniversal(blockUpdates UpdateMap) error {
 
 	seek := int64(latestFileInfo.Size())
 
-	DebugLog(fmt.Sprintf("Write Universal seek=%s latestFile=%s", seek, latestFile))
-
 	for key, update := range *blockUpdates {
 		key = F.FillHash(key)
 		index, exists := sf.CachedUniversalIndexes[key]
@@ -296,9 +289,6 @@ func (sf *StatusFile) WriteUniversal(blockUpdates UpdateMap) error {
 		if len(data) == 0 {
 			panic(fmt.Sprintf("Data len is zero: %s", key))
 		}
-
-		DebugLog(fmt.Sprintf("WriteUniversal - Data: %s", data))
-		DebugLog(fmt.Sprintf("Index: %v", index))
 
 		if err != nil {
 			panic(fmt.Sprintf("error unmarshaling data: %v", err))
@@ -322,7 +312,6 @@ func (sf *StatusFile) WriteUniversal(blockUpdates UpdateMap) error {
 			fileID = latestFileID
 			currSeek = seek
 			seek += length
-			DebugLog(fmt.Sprintf("New data: Key=%s, FileID=%s, Seek=%d, Length=%d, oldLength=%d, exists=%t\n", key, fileID, currSeek, length, oldLength, exists))
 
 			if C.LEDGER_FILESIZE_LIMIT < currSeek+length {
 				fileID = sf.NextFileID(fileID)
@@ -332,7 +321,6 @@ func (sf *StatusFile) WriteUniversal(blockUpdates UpdateMap) error {
 
 			if oldLength == 0 {
 				// New data
-				DebugLog(fmt.Sprintf("New data: Key=%s, FileID=%s, Seek=%d, Length=%d, exists=%t\n", key, fileID, currSeek, length, exists))
 				currIseek = 0
 				// iseek += C.STATUS_HEAP_BYTES
 			} else {
@@ -368,7 +356,6 @@ func (sf *StatusFile) WriteUniversal(blockUpdates UpdateMap) error {
 			StorageTask{FilePath: sf.UniversalFile(fileID), Seek: currSeek, Data: data},
 			// StorageTask{FilePath: sf.UniversalBundleIndex(), Seek: currIseek, Data: indexData},
 		)
-		fmt.Println("sf.a", currIseek)
 	}
 	return nil
 }
@@ -415,7 +402,6 @@ func (sf *StatusFile) Commit() error {
 				return fmt.Errorf("failed to open file: %v", err)
 			}
 			defer f.Close()
-			DebugLog(fmt.Sprintf("write data at %s, seek: %d, data length: %d", task.FilePath, task.Seek, len(task.Data)))
 
 			if _, err := f.WriteAt(task.Data, task.Seek); err != nil {
 				return fmt.Errorf("failed to write data: %v", err)
@@ -700,7 +686,6 @@ func (sf *StatusFile) ReadUniversalStatuses(indexes map[string]StorageIndexCurso
 	for key, index := range indexes {
 		value, err := sf.ReadUniversalStatus(index)
 		if err != nil {
-			DebugLog(fmt.Sprintf("Failed to read universal status for key %s: %v", key, err))
 			result[key] = nil
 			continue
 		}
