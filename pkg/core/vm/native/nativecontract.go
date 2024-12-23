@@ -333,7 +333,7 @@ func Mint() *Method {
 	supply := abi.Param("supply")
 	symbol := abi.Param("symbol")
 
-	token_address := abi.HashMany([]interface{}{"qrc_20", abi.Param("from"), abi.Param("symbol"),})
+	token_address := abi.HashMany([]interface{}{"qrc_20", abi.Param("from"), abi.Param("symbol")})
 
 	method.AddExecution(abi.Condition(
 		abi.Eq(abi.ReadUniversal(token_address, "owner", nil), nil),
@@ -356,13 +356,13 @@ func Mint() *Method {
 	))
 
 	cond1 := abi.Condition(
-		abi.Gte( abi.Len(symbol), 3),
+		abi.Gte(abi.Len(symbol), 3),
 		"The symbol string`s length must be greater than 2",
 	)
 
 	method.AddExecution(cond1)
 
-	update_owner  := abi.WriteUniversal(token_address, "owner", from)
+	update_owner := abi.WriteUniversal(token_address, "owner", from)
 	method.AddExecution(update_owner)
 
 	update_supply := abi.WriteUniversal(token_address, "supply", supply)
@@ -376,4 +376,3 @@ func Mint() *Method {
 
 	return method
 }
-
