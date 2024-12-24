@@ -2,35 +2,56 @@ package program
 
 import (
 	"fmt"
+	"hello/pkg/core/model"
 	"hello/pkg/core/network"
+	"hello/pkg/core/structure"
+	"hello/pkg/crypto"
 	"hello/pkg/rpc"
 	"log"
 
 	"github.com/spf13/cobra"
 )
 
-func CreateRawRequestCmd() *cobra.Command {
+func CreateRequestCmd() *cobra.Command {
 	var requestType string
 	var peer string
-
-	payload := rpc.CreateRawRequest(requestType, peer)
-	response, err := network.CallRawRequest(payload)
-	if err != nil {
-		log.Fatalf("Failed to call raw request: %v", err)
-	}
-
-	fmt.Println(response)
+	var privateKey string
+	var payload string
+	var pubKey string
 
 	cmd := &cobra.Command{
 		Use:   "rawrequest",
 		Short: "get raw request",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
+
+			signature := crypto.Signature(payload, privateKey)
+			data, err := structure.ParseOrderedMap(payload)
+
+			if err != nil {
+				log.Fatalf("Failed to parse payload: %v", err)
+			}
+
+			signedRequest := model.NewSignedRequestFromData(data, signature, pubKey)
+			payload = signedRequest.Obj()
+			fmt.Println(payload)
+
+			req := rpc.CreateRequest(payload, peer)
+			response, err := network.CallRawRequest(req)
+
+			if err != nil {
+				log.Fatalf("Failed to call raw request: %v", err)
+			}
+
+			fmt.Println(response)
 		},
 	}
 
 	cmd.Flags().StringVarP(&requestType, "type", "t", "", "type of raw request")
 	cmd.Flags().StringVarP(&peer, "peer", "p", "", "peer to get balance")
+	cmd.Flags().StringVarP(&privateKey, "privatekey", "k", "", "private key to sign the request")
+	cmd.Flags().StringVarP(&payload, "payload", "l", "", "payload to sign")
+	cmd.Flags().StringVarP(&pubKey, "pubkey", "u", "", "public key to sign the request")
 	cmd.MarkFlagRequired("peer")
 
 	return cmd
@@ -43,7 +64,7 @@ func CreateApiCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(
-		CreateRawRequestCmd(),
+		CreateRequestCmd(),
 	)
 
 	return cmd

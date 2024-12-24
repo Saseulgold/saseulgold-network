@@ -18,6 +18,11 @@ type SignedRequest struct {
 	Hash      string        `json:"-"`
 }
 
+func NewSignedRequestFromData(data *S.OrderedMap, signature string, pubKey string) SignedRequest {
+	req := SignedRequest{Data: data, Signature: signature, Xpub: pubKey}
+	return req
+}
+
 func NewSignedRequest(data *S.OrderedMap) SignedRequest {
 	req := SignedRequest{Data: data}
 
@@ -54,6 +59,14 @@ func NewSignedRequest(data *S.OrderedMap) SignedRequest {
 
 func (req SignedRequest) Ser() string {
 	return req.Data.Ser()
+}
+
+func (req SignedRequest) Obj() string {
+	data := S.NewOrderedMap()
+	data.Set("request", req.Data)
+	data.Set("public_key", req.Xpub)
+	data.Set("signature", req.Signature)
+	return data.Ser()
 }
 
 func (req SignedRequest) GetSize() int {

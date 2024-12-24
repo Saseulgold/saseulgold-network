@@ -56,6 +56,7 @@ func LiquidityProvider() *Method {
 		abi.Eq(abi.ReadUniversal(pairAddress, "exists", nil), nil),
 		"Liquidity pair does not exist.",
 	))
+
 	method.AddExecution(abi.WriteUniversal(pairAddress, "exists", true))
 
 	currentReserveA := abi.ReadUniversal(pairAddress, "reserveA", "0")

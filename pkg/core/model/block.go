@@ -232,3 +232,7 @@ func (block *Block) GetTimestamp() int64 {
 func (block *Block) GetTransactionCount() int {
 	return len(*block.Transactions)
 }
+
+func (block *Block) GetTransactions() map[string]*SignedTransaction {
+	return *block.Transactions
+}

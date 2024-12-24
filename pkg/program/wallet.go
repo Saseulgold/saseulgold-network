@@ -1,11 +1,92 @@
 package program
 
 import (
+	"fmt"
+	"hello/pkg/core/config"
+	"hello/pkg/core/model"
+	"hello/pkg/core/network"
+	"hello/pkg/crypto"
+	"hello/pkg/rpc"
+	"hello/pkg/util"
+	"log"
+	"os"
+	"path/filepath"
+
+	"hello/pkg/core/structure"
+
 	"github.com/spf13/cobra"
 )
 
+func CreateWalletRequest(peer string, payload string) *rpc.RawRequest {
+	privateKey, err := GetPrivateKey()
+	pubKey := crypto.GetXpub(privateKey)
+
+	if err != nil {
+		log.Fatalf("Failed to get private key: %v", err)
+	}
+
+	signature := crypto.Signature(payload, privateKey)
+	data, err := structure.ParseOrderedMap(payload)
+
+	if err != nil {
+		log.Fatalf("Failed to parse payload: %v", err)
+	}
+
+	signedRequest := model.NewSignedRequestFromData(data, signature, pubKey)
+	payload = signedRequest.Obj()
+	fmt.Println(payload)
+
+	return rpc.CreateRequest(payload, peer)
+}
+
+func GetPrivateKey() (string, error) {
+	walletPath := filepath.Join(config.DATA_ROOT_DIR, ".wallet")
+
+	// Check if wallet file exists
+	if _, err := os.Stat(walletPath); os.IsNotExist(err) {
+		return "", fmt.Errorf("wallet file not found: %v", err)
+	}
+
+	// Read private key from wallet file
+	privateKey, err := os.ReadFile(walletPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read wallet file: %v", err)
+	}
+
+	return string(privateKey), nil
+}
+
+func CreateSetWalletCmd() *cobra.Command {
+	var privateKey string
+
+	cmd := &cobra.Command{
+		Use:   "set",
+		Short: "Set default wallet private key",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			walletPath := filepath.Join(config.DATA_ROOT_DIR, ".wallet")
+
+			// Create data directory if it doesn't exist
+			if err := os.MkdirAll(config.DATA_ROOT_DIR, 0755); err != nil {
+				log.Fatalf("Failed to create data directory: %v", err)
+			}
+
+			// Write private key to .wallet file
+			if err := os.WriteFile(walletPath, []byte(privateKey), 0600); err != nil {
+				log.Fatalf("Failed to save wallet file: %v", err)
+			}
+
+			fmt.Println("Default wallet has been set successfully")
+		},
+	}
+
+	cmd.Flags().StringVarP(&privateKey, "privatekey", "k", "", "private key for default wallet")
+	cmd.MarkFlagRequired("privatekey")
+
+	return cmd
+}
+
 func CreateGetBalanceCmd() *cobra.Command {
-	var requestType string
 	var peer string
 
 	cmd := &cobra.Command{
@@ -13,10 +94,23 @@ func CreateGetBalanceCmd() *cobra.Command {
 		Short: "get wallet balance",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
+			payload := structure.NewOrderedMap()
+			address := "f43808a3998233c4336d873880fe4a22fdd7eafdd90e"
+
+			payload.Set("type", "GetBalance")
+			payload.Set("address", address)
+			payload.Set("timestamp", util.Utime())
+
+			req := CreateWalletRequest(peer, payload.Ser())
+
+			response, err := network.CallRawRequest(req)
+			if err != nil {
+				log.Fatalf("Failed to send request: %v", err)
+			}
+			fmt.Println(response)
 		},
 	}
 
-	cmd.Flags().StringVarP(&requestType, "type", "t", "", "type of wallet interface")
 	cmd.Flags().StringVarP(&peer, "peer", "p", "", "peer to get balance")
 	cmd.MarkFlagRequired("peer")
 
@@ -31,6 +125,7 @@ func CreateWalletCmd() *cobra.Command {
 
 	cmd.AddCommand(
 		CreateGetBalanceCmd(),
+		CreateSetWalletCmd(),
 	)
 
 	return cmd

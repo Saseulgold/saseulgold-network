@@ -117,19 +117,19 @@ func GetTokenInfo() *Method {
 	})
 
 	method.AddParameter(NewParameter(map[string]interface{}{
-		"name":      "owner",
-		"type":      "string",
-		"maxlength": 44,
+		"name":         "owner",
+		"type":         "string",
+		"maxlength":    44,
 		"requirements": true,
 	}))
 
 	method.AddParameter(NewParameter(map[string]interface{}{
-		"name":      "symbol",
-		"type":      "string",
-		"maxlength": 44,
+		"name":         "symbol",
+		"type":         "string",
+		"maxlength":    44,
 		"requirements": true,
 	}))
-	
+
 	owner := abi.Param("owner")
 	symbol := abi.Param("symbol")
 
@@ -139,7 +139,6 @@ func GetTokenInfo() *Method {
 	supply_univ := abi.ReadUniversal(token_address, "supply", nil)
 	owner_univ := abi.ReadUniversal(token_address, "owner", nil)
 	symbol_univ := abi.ReadUniversal(token_address, "symbol", nil)
-
 
 	response = abi.Set(response, "token_address", token_address)
 	response = abi.Set(response, "owner", owner_univ)
@@ -151,4 +150,3 @@ func GetTokenInfo() *Method {
 	return method
 
 }
-

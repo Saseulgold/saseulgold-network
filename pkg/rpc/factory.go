@@ -5,7 +5,7 @@ type RawRequest struct {
 	Peer    string
 }
 
-func CreateRawRequest(payload string, peer string) *RawRequest {
+func CreateRequest(payload string, peer string) *RawRequest {
 	req := RawRequest{
 		Payload: payload,
 		Peer:    peer,
