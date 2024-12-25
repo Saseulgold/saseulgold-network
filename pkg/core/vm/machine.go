@@ -48,7 +48,8 @@ func (m *Machine) Init(previousBlock *Block, roundTimestamp int64) {
 }
 
 func (m *Machine) ValidateTxTimestamp(tx *SignedTransaction) bool {
-	if m.previousBlock != nil && tx.GetTimestamp() < m.previousBlock.GetTimestamp()+C.TIME_STAMP_ERROR_LIMIT {
+
+	if m.previousBlock != nil && tx.GetTimestamp() < m.previousBlock.GetTimestamp()-C.TIME_STAMP_ERROR_LIMIT {
 		return false
 	}
 
@@ -79,6 +80,10 @@ func (m *Machine) Commit(block *Block) error {
 	if err := sf.Write(block); err != nil {
 		return err
 	}
+
+	m.previousBlock = block
+	m.roundTimestamp = block.Timestamp_s
+	m.transactions = &map[string]*SignedTransaction{}
 
 	return nil
 }
@@ -136,6 +141,12 @@ func (m *Machine) TxValidity(tx *SignedTransaction) (bool, error) {
 
 	if err := m.PreCommit(); err != nil {
 		return false, err
+	}
+
+	fmt.Println("interpreter result: ", m.interpreter.GetResult())
+
+	if m.interpreter.GetResult() != "" {
+		return false, fmt.Errorf("transaction is not valid: %s", m.interpreter.GetResult())
 	}
 
 	return true, nil

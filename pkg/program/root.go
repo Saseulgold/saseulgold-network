@@ -116,11 +116,13 @@ func RunNetworkCMD() *cobra.Command {
 	scriptCmd := createScriptCmd()
 	walletCmd := CreateWalletCmd()
 	apiCmd := CreateApiCmd()
+	dexCmd := CreateDexCmd()
 
 	rootCmd.AddCommand(nodeCmd)
 	rootCmd.AddCommand(scriptCmd)
 	rootCmd.AddCommand(walletCmd)
 	rootCmd.AddCommand(apiCmd)
+	rootCmd.AddCommand(dexCmd)
 
 	return rootCmd
 }

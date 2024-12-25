@@ -355,10 +355,10 @@ func HashLimit(target interface{}) ABI {
 	}
 }
 
-func HashMany(vars interface{}) ABI {
+func HashMany(vars ...interface{}) ABI {
 	return ABI{
 		Key:   "$hash_many",
-		Value: []interface{}{vars},
+		Value: vars,
 	}
 }
 

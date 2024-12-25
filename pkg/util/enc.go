@@ -9,6 +9,7 @@ import (
 	"golang.org/x/crypto/ripemd160"
 
 	C "hello/pkg/core/config"
+	"strings"
 )
 
 func Hash(data string) string {
@@ -26,8 +27,8 @@ func FillHashSuffix(suffix string) string {
 }
 
 func FillHash(hash string) string {
-	if len(hash) < C.STATUS_HASH_BYTES * 2 {
-		return PadRight(hash, "0", C.STATUS_HASH_BYTES * 2)
+	if len(hash) < C.STATUS_HASH_BYTES*2 {
+		return PadRight(hash, "0", C.STATUS_HASH_BYTES*2)
 	}
 	return hash
 }
@@ -206,4 +207,19 @@ func IsHex(hex string) bool {
 	}
 
 	return true
+}
+
+func HashMany(vars ...interface{}) string {
+	var result strings.Builder
+
+	for _, v := range vars {
+		if str, ok := v.(string); ok {
+			result.WriteString(str)
+			result.WriteString(",")
+		} else {
+			panic("HashMany: input is not a string")
+		}
+	}
+
+	return Hash(result.String())
 }

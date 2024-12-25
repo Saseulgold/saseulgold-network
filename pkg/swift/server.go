@@ -270,10 +270,6 @@ func (s *Server) Broadcast(ctx context.Context, packet *Packet) error {
 	}
 	s.mu.RUnlock()
 
-	if len(peers) == 0 {
-		return fmt.Errorf("no active connections")
-	}
-
 	for _, conn := range peers {
 		connCtx := context.WithValue(ctx, "connection", conn)
 		if err := s.Send(connCtx, packet); err != nil {

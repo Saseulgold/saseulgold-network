@@ -87,17 +87,14 @@ func (o *Oracle) Commit(txs map[string]*model.SignedTransaction) ([]string, erro
 	expectedBlock := o.machine.ExpectedBlock()
 
 	if expectedBlock.GetTransactionCount() == 0 {
-		DebugLog("no transactions to commit. invalid block.")
+		OracleLog("no transactions to commit. invalid block.")
 		return nil, fmt.Errorf("no transactions to commit. invalid block.")
 	}
-
-	DebugLog("unv: %v", expectedBlock.UniversalUpdates)
-	DebugLog("loc: %v", expectedBlock.LocalUpdates)
 
 	err = o.machine.Commit(expectedBlock)
 
 	if err != nil {
-		DebugLog("Commit error: %v", err)
+		OracleLog("Commit error: %v", err)
 		return nil, fmt.Errorf("Commit error: %v", err)
 	}
 
@@ -107,7 +104,7 @@ func (o *Oracle) Commit(txs map[string]*model.SignedTransaction) ([]string, erro
 		txHashes = append(txHashes, txHash)
 	}
 
-	DebugLog("Commit success")
+	OracleLog("Commit success %v", len(txHashes))
 	return txHashes, nil
 
 }
@@ -123,11 +120,12 @@ func (o *Oracle) Run() error {
 			epoch = o.machine.Epoch()
 			switch epoch {
 
-			// case "txtime":
-			//	OracleLog("Validating transactions in mempool during transaction time")
+			case "txtime":
+				OracleLog("Validating transactions in mempool during transaction time")
 
 			case "blocktime":
-				transactions := o.mempool.GetTransactionsHashMap()
+				OracleLog("Committing transactions in block time")
+				transactions := o.mempool.PopTransactionsHashMap()
 				fmt.Println("transactions: ", transactions, len(transactions))
 
 				if len(transactions) == 0 {
@@ -141,67 +139,11 @@ func (o *Oracle) Run() error {
 					OracleLog("failed to commit transactions: %v", err)
 				}
 
-				o.RemoveCommittedTransactions(transactions)
+				// o.RemoveCommittedTransactions(transactions)
 
 			}
 		}
 	}
-}
-
-func (o *Oracle) validatePendingTransactions() error {
-	transactions := o.mempool.GetTransactions(20)
-
-	for _, tx := range transactions {
-		valid, err := o.machine.TxValidity(tx)
-		if err != nil {
-			OracleLog("Transaction validation failed (%s): %v\n", tx.GetTxHash(), err)
-			o.mempool.RemoveTransaction(tx.GetTxHash())
-			continue
-		}
-
-		if !valid {
-			OracleLog("Removing invalid transaction: %s\n", tx.GetTxHash())
-			o.mempool.RemoveTransaction(tx.GetTxHash())
-		}
-	}
-
-	return nil
-}
-
-func (o *Oracle) createAndBroadcastBlock() error {
-	if !o.machine.IsInBlockTime() {
-		return nil
-	}
-
-	// Create new block
-	expectedBlock := o.machine.ExpectedBlock()
-	if expectedBlock == nil {
-		return fmt.Errorf("failed to create block")
-	}
-
-	// Commit block
-	if err := o.machine.Commit(expectedBlock); err != nil {
-		return fmt.Errorf("failed to commit block: %v", err)
-	}
-
-	// Serialize block to JSON
-	blockData, err := json.Marshal(expectedBlock)
-	if err != nil {
-		return fmt.Errorf("failed to serialize block: %v", err)
-	}
-
-	// Broadcast block to network
-	packet := &swift.Packet{
-		Type:    swift.PacketTypeBroadcastBlockRequest,
-		Payload: blockData,
-	}
-
-	if err := o.swift.Broadcast(context.Background(), packet); err != nil {
-		return fmt.Errorf("failed to broadcast block: %v", err)
-	}
-
-	OracleLog("Successfully created and broadcast new block (height: %d)\n", expectedBlock.Height)
-	return nil
 }
 
 func (o *Oracle) OnStartUp(config swift.SecurityConfig, port string) error {
@@ -305,12 +247,12 @@ func (o *Oracle) registerPacketHandlers() {
 		}
 
 		if !valid {
-			return fmt.Errorf("transaction is not valid")
+			return o.swift.SendErrorResponse(ctx, "transaction is not valid")
 		}
 
 		err = o.mempool.AddTransaction(&tx)
 		if err != nil {
-			return err
+			return o.swift.SendErrorResponse(ctx, err.Error())
 		}
 
 		txHash := tx.GetTxHash()
@@ -390,12 +332,13 @@ func (o *Oracle) registerPacketHandlers() {
 			return o.swift.SendErrorResponse(ctx, err.Error())
 		}
 
-		fmt.Println("res: ", fmt.Sprintf("%v", res))
+		DebugLog("raw request response type: %T", res)
 
 		response := &swift.Packet{
 			Type:    swift.PacketTypeRawResponse,
-			Payload: json.RawMessage(`{"result":` + fmt.Sprintf("%v", res) + `}`),
+			Payload: json.RawMessage(fmt.Sprintf(`"%v"`, res)),
 		}
+
 		return o.swift.Send(ctx, response)
 	})
 

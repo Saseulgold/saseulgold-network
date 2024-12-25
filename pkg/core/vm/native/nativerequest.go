@@ -117,25 +117,16 @@ func GetTokenInfo() *Method {
 	})
 
 	method.AddParameter(NewParameter(map[string]interface{}{
-		"name":         "owner",
+		"name":         "token_address",
 		"type":         "string",
-		"maxlength":    44,
+		"maxlength":    64,
 		"requirements": true,
 	}))
 
-	method.AddParameter(NewParameter(map[string]interface{}{
-		"name":         "symbol",
-		"type":         "string",
-		"maxlength":    44,
-		"requirements": true,
-	}))
-
-	owner := abi.Param("owner")
-	symbol := abi.Param("symbol")
+	token_address := abi.Param("token_address")
 
 	var response interface{}
 
-	token_address := abi.HashMany([]interface{}{"qrc_20", owner, symbol})
 	supply_univ := abi.ReadUniversal(token_address, "supply", nil)
 	owner_univ := abi.ReadUniversal(token_address, "owner", nil)
 	symbol_univ := abi.ReadUniversal(token_address, "symbol", nil)

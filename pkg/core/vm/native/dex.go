@@ -41,14 +41,18 @@ func Mint() *Method {
 	from := abi.Param("from")
 	supply := abi.Param("supply")
 	symbol := abi.Param("symbol")
+	name := abi.Param("name")
 
-	// Add fee check condition
+	/**
+	owner_balance_sg := abi.ReadUniversal("balance", from, "0")
+
 	method.AddExecution(abi.Condition(
-		abi.Gte(supply, MINT_FEE),
-		"Supply amount must be greater than mint fee",
+		abi.Gte(owner_balance_sg, MINT_FEE),
+		"Balance is not enough for mint fee",
 	))
+	*/
 
-	token_address := abi.HashMany([]interface{}{"qrc_20", abi.Param("from"), abi.Param("symbol")})
+	token_address := abi.HashMany("qrc_20", abi.Param("from"), abi.Param("symbol"))
 
 	method.AddExecution(abi.Condition(
 		abi.Eq(abi.ReadUniversal(token_address, "owner", nil), nil),
@@ -80,13 +84,16 @@ func Mint() *Method {
 	update_owner := abi.WriteUniversal(token_address, "owner", from)
 	method.AddExecution(update_owner)
 
+	update_name := abi.WriteUniversal(token_address, "name", name)
+	method.AddExecution(update_name)
+
 	update_supply := abi.WriteUniversal(token_address, "supply", supply)
 	method.AddExecution(update_supply)
 
 	update_symbol := abi.WriteUniversal(token_address, "symbol", symbol)
 	method.AddExecution(update_symbol)
 
-	owner_address := abi.HashMany([]interface{}{token_address, from})
+	owner_address := abi.HashMany(token_address, from)
 	update_owner_balance := abi.WriteUniversal(owner_address, "balance", supply)
 
 	method.AddExecution(update_owner_balance)
@@ -153,8 +160,8 @@ func LiquidityProvider() *Method {
 	))
 
 	// Check user's token balances
-	fromBalanceA := abi.HashMany([]interface{}{tokenA, from})
-	fromBalanceB := abi.HashMany([]interface{}{tokenB, from})
+	fromBalanceA := abi.HashMany(tokenA, from)
+	fromBalanceB := abi.HashMany(tokenB, from)
 
 	userBalanceA := abi.ReadUniversal(fromBalanceA, "balance", "0")
 	userBalanceB := abi.ReadUniversal(fromBalanceB, "balance", "0")
@@ -175,7 +182,7 @@ func LiquidityProvider() *Method {
 	method.AddExecution(abi.WriteUniversal(fromBalanceB, "balance",
 		abi.PreciseSub(userBalanceB, amountB, "0")))
 
-	pairAddress := abi.HashMany([]interface{}{"pair", tokenA, tokenB})
+	pairAddress := abi.HashMany("pair", tokenA, tokenB)
 
 	method.AddExecution(abi.Condition(
 		abi.Eq(abi.ReadUniversal(pairAddress, "exists", nil), nil),
@@ -195,7 +202,7 @@ func LiquidityProvider() *Method {
 
 	liquidity := abi.PreciseSqrt(abi.PreciseMul(amountA, amountB, "0"), "0")
 
-	liquidityToken := abi.HashMany([]interface{}{"liquidity", pairAddress, from})
+	liquidityToken := abi.HashMany("liquidity", pairAddress, from)
 	currentLiquidity := abi.ReadUniversal(liquidityToken, "balance", "0")
 	newLiquidity := abi.PreciseAdd(currentLiquidity, liquidity, "0")
 
@@ -267,7 +274,7 @@ func Transfer() *Method {
 	))
 
 	// Check if sender has enough balance
-	fromAddressBalance := abi.HashMany([]interface{}{token_address, from})
+	fromAddressBalance := abi.HashMany(token_address, from)
 	fromBalance := abi.ReadUniversal(fromAddressBalance, "balance", "0")
 	method.AddExecution(abi.Condition(
 		abi.Gte(fromBalance, amount),
@@ -278,7 +285,7 @@ func Transfer() *Method {
 	newFromBalance := abi.PreciseSub(fromBalance, amount, "0")
 	method.AddExecution(abi.WriteUniversal(fromAddressBalance, "balance", newFromBalance))
 
-	toAddressBalance := abi.HashMany([]interface{}{token_address, to})
+	toAddressBalance := abi.HashMany(token_address, to)
 	toBalance := abi.ReadUniversal(toAddressBalance, "balance", "0")
 	newToBalance := abi.PreciseAdd(toBalance, amount, "0")
 	method.AddExecution(abi.WriteUniversal(toAddressBalance, "balance", newToBalance))
@@ -290,6 +297,50 @@ func Transfer() *Method {
 	// Add transfer fee to network fee reserve
 	network_fee_reserve := abi.ReadUniversal("network_fee_reserve", ZERO_ADDRESS, "0")
 	method.AddExecution(abi.WriteUniversal("network_fee_reserve", ZERO_ADDRESS, abi.PreciseAdd(network_fee_reserve, TRNF_FEE, "0")))
+
+	return method
+}
+
+func BalanceOf() *Method {
+	method := NewMethod(map[string]interface{}{
+		"type":    "contract",
+		"name":    "BalanceOf",
+		"version": "1",
+		"space":   RootSpace(),
+		"writer":  ZERO_ADDRESS,
+	})
+
+	// Add token_address parameter
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "token_address",
+		"type":         "string",
+		"maxlength":    128,
+		"requirements": true,
+	}))
+
+	// Add account parameter
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "address",
+		"type":         "string",
+		"maxlength":    128,
+		"requirements": true,
+	}))
+
+	token_address := abi.Param("token_address")
+	address := abi.Param("address")
+
+	// Check if token exists
+	method.AddExecution(abi.Condition(
+		abi.Ne(abi.ReadUniversal(token_address, "supply", nil), nil),
+		"Token does not exist",
+	))
+
+	// Get balance address
+	balance_address := abi.HashMany(token_address, address)
+
+	// Read and return balance
+	balance := abi.ReadUniversal(balance_address, "balance", "0")
+	method.AddExecution(abi.Response(balance))
 
 	return method
 }

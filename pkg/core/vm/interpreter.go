@@ -114,7 +114,7 @@ func (i *Interpreter) Set(data *SignedData, code *Method, postProcess *Method) {
 	i.postProcess = postProcess
 	i.breakFlag = false
 	i.weight = 0
-	i.result = "Conditional Error"
+	i.result = ""
 	i.setDefaultValue()
 }
 

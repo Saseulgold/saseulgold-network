@@ -19,6 +19,8 @@ func NativeRequests() map[string]map[string]*Method {
 	requests[rootCid]["GetBalance"] = native.GetBalance()
 	requests[rootCid]["GetTokenInfo"] = native.GetTokenInfo()
 
+	requests[rootCid]["BalanceOf"] = native.BalanceOf()
+
 	return requests
 }
 
@@ -34,7 +36,7 @@ func NativeContracts() map[string]map[string]*Method {
 	contracts[rootCid]["Publish"] = native.Publish()
 	contracts[rootCid]["Send"] = native.Send()
 	contracts[rootCid]["Mint"] = native.Mint()
+	contracts[rootCid]["Transfer"] = native.Transfer()
 
 	return contracts
 }
-

@@ -21,14 +21,14 @@ func OpSet(i *Interpreter, vars interface{}) interface{} {
 	}
 
 	if !ok {
-			OperatorLog("OpObjectSet", "input:", vars, "result:", map[string]interface{}{})
-			return map[string]interface{}{}
+		OperatorLog("OpObjectSet", "input:", vars, "result:", map[string]interface{}{})
+		return map[string]interface{}{}
 	}
 
 	keyStr, ok := key.(string)
 	if !ok {
-			OperatorLog("OpObjectSet", "input:", vars, "result:", originObj)
-			return originObj
+		OperatorLog("OpObjectSet", "input:", vars, "result:", originObj)
+		return originObj
 	}
 
 	originObj[keyStr] = value
@@ -186,12 +186,15 @@ func OpHashMany(i *Interpreter, vars interface{}) interface{} {
 		for _, v := range arr {
 			if str, ok := v.(string); ok {
 				result.WriteString(str)
+				result.WriteString(",")
 			}
 		}
+	} else {
+		panic("OpHashMany: input is not an array")
 	}
 
 	hashResult := util.Hash(result.String())
-	OperatorLog("OpHashMany", "input:", vars, "result:", hashResult)
+	OperatorLog("OpHashMany", "input:", vars, "string: ", result.String(), "result:", hashResult)
 	return hashResult
 }
 
@@ -271,11 +274,11 @@ func OpLen(i *Interpreter, vars interface{}) interface{} {
 	arr := Unpack1(vars)
 
 	switch v := arr.(type) {
-		case string:
-			return len(v)
-		case []interface{}:
-			return len(v)
-		default:
-			return 0
+	case string:
+		return len(v)
+	case []interface{}:
+		return len(v)
+	default:
+		return 0
 	}
 }
