@@ -115,16 +115,15 @@ func (o *Oracle) Run() error {
 		select {
 		case <-ticker.C:
 			epoch = o.machine.Epoch()
-			fmt.Println("epoch: ", epoch)
 			switch epoch {
 
-			case "txtime":
-				OracleLog("Validating transactions in mempool during transaction time")
+			// case "txtime":
+			//	OracleLog("Validating transactions in mempool during transaction time")
 
 			case "blocktime":
 				transactions := o.mempool.GetTransactionsHashMap()
 				if len(transactions) == 0 {
-					OracleLog("No transactions to commit, skipping")
+					// OracleLog("No transactions to commit, skipping")
 					continue
 				}
 
@@ -368,6 +367,24 @@ func (o *Oracle) registerPacketHandlers() {
 		response := &swift.Packet{
 			Type:    swift.PacketTypeGetStatusBundleResponse,
 			Payload: json.RawMessage(fmt.Sprintf("%v", data)),
+		}
+		return o.swift.Send(ctx, response)
+	})
+
+	o.swift.RegisterHandler(swift.PacketTypeRawRequest, func(ctx context.Context, packet *swift.Packet) error {
+		
+		data, _ := structure.ParseOrderedMap(string(packet.Payload))
+		signedRequest := model.NewSignedRequest(data)
+		
+		res, err := o.machine.Response(signedRequest)
+		if err != nil {
+			return o.swift.SendErrorResponse(ctx, err.Error())
+		}
+
+		fmt.Println(res)
+		response := &swift.Packet{
+			Type:    swift.PacketTypeRawResponse,
+			Payload: json.RawMessage("{}"),
 		}
 		return o.swift.Send(ctx, response)
 	})

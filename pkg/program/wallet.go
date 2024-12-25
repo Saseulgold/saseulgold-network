@@ -1,6 +1,7 @@
 package program
 
 import (
+	"bytes"
 	"fmt"
 	"hello/pkg/core/config"
 	"hello/pkg/core/model"
@@ -15,7 +16,18 @@ import (
 	"hello/pkg/core/structure"
 
 	"github.com/spf13/cobra"
+	"encoding/json"
 )
+
+func FormatResponse(payload *json.RawMessage) string {
+	var prettyJSON bytes.Buffer
+
+	if err := json.Indent(&prettyJSON, *payload, "", "    "); err != nil {
+		log.Fatalf("JSON formatting failed: %v", err)
+		return ""
+	}
+	return prettyJSON.String()
+}
 
 func CreateWalletRequest(peer string, payload string) *rpc.RawRequest {
 	privateKey, err := GetPrivateKey()
@@ -34,6 +46,7 @@ func CreateWalletRequest(peer string, payload string) *rpc.RawRequest {
 
 	signedRequest := model.NewSignedRequestFromData(data, signature, pubKey)
 	payload = signedRequest.Obj()
+
 	fmt.Println(payload)
 
 	return rpc.CreateRequest(payload, peer)
@@ -102,12 +115,15 @@ func CreateGetBalanceCmd() *cobra.Command {
 			payload.Set("timestamp", util.Utime())
 
 			req := CreateWalletRequest(peer, payload.Ser())
+			fmt.Println(req.Peer, req.Payload)
 
 			response, err := network.CallRawRequest(req)
 			if err != nil {
 				log.Fatalf("Failed to send request: %v", err)
 			}
-			fmt.Println(response)
+
+			rstr := FormatResponse(&response.Payload)
+			fmt.Println(rstr)
 		},
 	}
 
