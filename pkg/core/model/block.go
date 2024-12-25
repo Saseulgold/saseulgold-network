@@ -176,7 +176,7 @@ func (block Block) FullObj() *structure.OrderedMap {
 		txHashes := F.SortedValueK(*block.Transactions)
 
 		for _, tx := range txHashes {
-			txOrderedMap.Set(tx.GetTxHash(), tx.BaseObj())
+			txOrderedMap.Set(tx.GetTxHash(), tx.Obj())
 		}
 
 		obj.Set("transactions", txOrderedMap)

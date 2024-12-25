@@ -35,11 +35,12 @@ func (s *StatusIndex) Load() {
 
 	fixedHeight := LastHeight()
 	// bundleHeight := statusFile.BundleHeight()
-	bundleHeight := C.SG_HARDFORK_START_HEIGHT
+	// bundleHeight := C.SG_HARDFORK_START_HEIGHT
+	bundleHeight := 1
 
 	for i := bundleHeight; i <= fixedHeight; i++ {
 
-		if i % 256 == 0 {
+		if i%256 == 0 {
 			fmt.Println(fmt.Sprintf("Commit block: %v", i))
 		}
 
@@ -270,6 +271,3 @@ func (s *StatusIndex) SetUniversalIndex(statuskey string, cursor StorageIndexCur
 
 	s.universalIndexes[prefix][suffix] = cursor
 }
-
-
-

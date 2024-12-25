@@ -56,14 +56,14 @@ func (o *Oracle) Consensus(txs map[string]*model.SignedTransaction) {
 
 }
 
-func (o *Oracle) Commit(txs map[string]*model.SignedTransaction) error {
+func (o *Oracle) Commit(txs map[string]*model.SignedTransaction) ([]string, error) {
 	var previousBlockhash string
 
 	lastBlockHeight := storage.LastHeight()
 	previousBlock, err := storage.GetChainStorageInstance().GetBlock(lastBlockHeight)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	fmt.Println("previousBlock: ", previousBlock)
@@ -88,7 +88,7 @@ func (o *Oracle) Commit(txs map[string]*model.SignedTransaction) error {
 
 	if expectedBlock.GetTransactionCount() == 0 {
 		DebugLog("no transactions to commit. invalid block.")
-		return fmt.Errorf("no transactions to commit. invalid block.")
+		return nil, fmt.Errorf("no transactions to commit. invalid block.")
 	}
 
 	DebugLog("unv: %v", expectedBlock.UniversalUpdates)
@@ -98,11 +98,17 @@ func (o *Oracle) Commit(txs map[string]*model.SignedTransaction) error {
 
 	if err != nil {
 		DebugLog("Commit error: %v", err)
-		return fmt.Errorf("Commit error: %v", err)
+		return nil, fmt.Errorf("Commit error: %v", err)
+	}
+
+	transactions := expectedBlock.GetTransactions()
+	txHashes := make([]string, 0, len(transactions))
+	for txHash := range transactions {
+		txHashes = append(txHashes, txHash)
 	}
 
 	DebugLog("Commit success")
-	return nil
+	return txHashes, nil
 
 }
 
@@ -122,17 +128,20 @@ func (o *Oracle) Run() error {
 
 			case "blocktime":
 				transactions := o.mempool.GetTransactionsHashMap()
+				fmt.Println("transactions: ", transactions, len(transactions))
+
 				if len(transactions) == 0 {
-					// OracleLog("No transactions to commit, skipping")
+					OracleLog("No transactions to commit, skipping")
 					continue
 				}
 
-				err := o.Commit(transactions)
+				_, err := o.Commit(transactions)
 
 				if err != nil {
-					o.RemoveCommittedTransactions(transactions)
 					OracleLog("failed to commit transactions: %v", err)
 				}
+
+				o.RemoveCommittedTransactions(transactions)
 
 			}
 		}
@@ -372,19 +381,20 @@ func (o *Oracle) registerPacketHandlers() {
 	})
 
 	o.swift.RegisterHandler(swift.PacketTypeRawRequest, func(ctx context.Context, packet *swift.Packet) error {
-		
+
 		data, _ := structure.ParseOrderedMap(string(packet.Payload))
 		signedRequest := model.NewSignedRequest(data)
-		
+
 		res, err := o.machine.Response(signedRequest)
 		if err != nil {
 			return o.swift.SendErrorResponse(ctx, err.Error())
 		}
 
-		fmt.Println(res)
+		fmt.Println("res: ", fmt.Sprintf("%v", res))
+
 		response := &swift.Packet{
 			Type:    swift.PacketTypeRawResponse,
-			Payload: json.RawMessage("{}"),
+			Payload: json.RawMessage(`{"result":` + fmt.Sprintf("%v", res) + `}`),
 		}
 		return o.swift.Send(ctx, response)
 	})

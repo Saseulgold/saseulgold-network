@@ -13,3 +13,17 @@ func CreateRequest(payload string, peer string) *RawRequest {
 
 	return &req
 }
+
+type TransactionRequest struct {
+	Payload string
+	Peer    string
+}
+
+func CreateTransactionRequest(payload string, peer string) *TransactionRequest {
+	req := TransactionRequest{
+		Payload: payload,
+		Peer:    peer,
+	}
+
+	return &req
+}

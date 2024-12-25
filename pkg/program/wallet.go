@@ -15,8 +15,9 @@ import (
 
 	"hello/pkg/core/structure"
 
-	"github.com/spf13/cobra"
 	"encoding/json"
+
+	"github.com/spf13/cobra"
 )
 
 func FormatResponse(payload *json.RawMessage) string {
@@ -29,25 +30,62 @@ func FormatResponse(payload *json.RawMessage) string {
 	return prettyJSON.String()
 }
 
-func CreateWalletRequest(peer string, payload string) *rpc.RawRequest {
+func CreateWalletTransaction(peer string, payload string) *rpc.TransactionRequest {
 	privateKey, err := GetPrivateKey()
-	pubKey := crypto.GetXpub(privateKey)
 
 	if err != nil {
 		log.Fatalf("Failed to get private key: %v", err)
 	}
 
-	signature := crypto.Signature(payload, privateKey)
 	data, err := structure.ParseOrderedMap(payload)
 
 	if err != nil {
 		log.Fatalf("Failed to parse payload: %v", err)
 	}
 
-	signedRequest := model.NewSignedRequestFromData(data, signature, pubKey)
-	payload = signedRequest.Obj()
+	signedTx, err := model.FromRawData(data, privateKey, crypto.GetXpub(privateKey))
 
-	fmt.Println(payload)
+	if err != nil {
+		log.Fatalf("Failed to create signed transaction: %v", err)
+	}
+
+	err = signedTx.Validate()
+	if err != nil {
+		log.Fatalf("Failed to validate signed transaction: %v", err)
+	}
+
+	payload, err = signedTx.Ser()
+
+	if err != nil {
+		log.Fatalf("Failed to serialize signed transaction: %v", err)
+	}
+
+	return rpc.CreateTransactionRequest(payload, peer)
+}
+
+func CreateWalletRequest(peer string, payload string) *rpc.RawRequest {
+	privateKey, err := GetPrivateKey()
+
+	if err != nil {
+		log.Fatalf("Failed to get private key: %v", err)
+	}
+
+	data, err := structure.ParseOrderedMap(payload)
+
+	if err != nil {
+		log.Fatalf("Failed to parse payload: %v", err)
+	}
+
+	signedRequest := model.NewSignedRequestFromRawData(data, privateKey)
+	err = signedRequest.Validate()
+	if err != nil {
+		log.Fatalf("Failed to validate signed request: %v", err)
+	}
+	payload, err = signedRequest.Ser()
+
+	if err != nil {
+		log.Fatalf("Failed to serialize signed request: %v", err)
+	}
 
 	return rpc.CreateRequest(payload, peer)
 }
@@ -108,16 +146,111 @@ func CreateGetBalanceCmd() *cobra.Command {
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			payload := structure.NewOrderedMap()
-			address := "f43808a3998233c4336d873880fe4a22fdd7eafdd90e"
+			privateKey, err := GetPrivateKey()
+
+			if err != nil {
+				log.Fatalf("Failed to get private key: %v", err)
+			}
+
+			address := crypto.GetAddress(crypto.GetXpub(privateKey))
 
 			payload.Set("type", "GetBalance")
 			payload.Set("address", address)
 			payload.Set("timestamp", util.Utime())
+			payload.Set("from", address)
 
 			req := CreateWalletRequest(peer, payload.Ser())
-			fmt.Println(req.Peer, req.Payload)
 
 			response, err := network.CallRawRequest(req)
+			if err != nil {
+				log.Fatalf("Failed to send request: %v", err)
+			}
+
+			rstr := FormatResponse(&response.Payload)
+			fmt.Println(rstr)
+		},
+	}
+
+	cmd.Flags().StringVarP(&peer, "peer", "p", "", "peer to get balance")
+	cmd.MarkFlagRequired("peer")
+
+	return cmd
+}
+
+func CreateSendTransactionCmd() *cobra.Command {
+	var peer string
+	var toaddress string
+	var amount string
+
+	cmd := &cobra.Command{
+		Use:   "send",
+		Short: "send transaction",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			payload := structure.NewOrderedMap()
+			privateKey, err := GetPrivateKey()
+
+			if err != nil {
+				log.Fatalf("Failed to get private key: %v", err)
+			}
+
+			address := crypto.GetAddress(crypto.GetXpub(privateKey))
+
+			payload.Set("type", "Send")
+			payload.Set("amount", amount)
+			payload.Set("to", toaddress)
+			payload.Set("from", address)
+			payload.Set("timestamp", util.Utime())
+
+			req := CreateWalletTransaction(peer, payload.Ser())
+			fmt.Println(req.Payload)
+
+			response, err := network.CallTransactionRequest(req)
+			if err != nil {
+				log.Fatalf("Failed to send request: %v", err)
+			}
+
+			rstr := FormatResponse(&response.Payload)
+			fmt.Println(rstr)
+		},
+	}
+
+	cmd.Flags().StringVarP(&peer, "peer", "p", "", "peer to get balance")
+	cmd.MarkFlagRequired("peer")
+	cmd.Flags().StringVarP(&toaddress, "toaddress", "t", "", "to address")
+	cmd.MarkFlagRequired("toaddress")
+	cmd.Flags().StringVarP(&amount, "amount", "a", "", "amount")
+	cmd.MarkFlagRequired("amount")
+
+	return cmd
+}
+
+func CreateFaucetTransactionCmd() *cobra.Command {
+	var peer string
+
+	cmd := &cobra.Command{
+		Use:   "faucet",
+		Short: "send faucet transaction",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			payload := structure.NewOrderedMap()
+			privateKey, err := GetPrivateKey()
+
+			if err != nil {
+				log.Fatalf("Failed to get private key: %v", err)
+			}
+
+			address := crypto.GetAddress(crypto.GetXpub(privateKey))
+
+			payload.Set("type", "Faucet")
+			payload.Set("address", address)
+			payload.Set("timestamp", util.Utime())
+			payload.Set("from", address)
+
+			req := CreateWalletTransaction(peer, payload.Ser())
+			fmt.Println(req.Payload)
+
+			response, err := network.CallTransactionRequest(req)
 			if err != nil {
 				log.Fatalf("Failed to send request: %v", err)
 			}
@@ -142,6 +275,8 @@ func CreateWalletCmd() *cobra.Command {
 	cmd.AddCommand(
 		CreateGetBalanceCmd(),
 		CreateSetWalletCmd(),
+		CreateFaucetTransactionCmd(),
+		CreateSendTransactionCmd(),
 	)
 
 	return cmd

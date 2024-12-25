@@ -71,3 +71,12 @@ func CallRawRequest(reqeust *rpc.RawRequest) (swift.Packet, error) {
 
 	return CallRPC(reqeust.Peer, packet)
 }
+
+func CallTransactionRequest(reqeust *rpc.TransactionRequest) (swift.Packet, error) {
+	packet := swift.Packet{
+		Type:    swift.PacketTypeBroadcastTransactionRequest,
+		Payload: json.RawMessage(reqeust.Payload),
+	}
+
+	return CallRPC(reqeust.Peer, packet)
+}

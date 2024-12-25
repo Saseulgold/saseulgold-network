@@ -31,8 +31,8 @@ type MempoolStorage struct {
 	// Map using transaction hash as key
 	pool map[string]*MempoolTx
 
-	// Transaction priority queue (ordered by ts)
-	priorityQueue []*MempoolTx
+	// Transaction priority queue (ordered by ts) - stores only tx hashes
+	priorityQueue []string
 }
 
 var mempoolInstance *MempoolStorage
@@ -42,7 +42,7 @@ func GetMempoolInstance() *MempoolStorage {
 	if mempoolInstance == nil {
 		mempoolInstance = &MempoolStorage{
 			pool:          make(map[string]*MempoolTx),
-			priorityQueue: make([]*MempoolTx, 0),
+			priorityQueue: make([]string, 0),
 		}
 	}
 	return mempoolInstance
@@ -99,7 +99,10 @@ func (mp *MempoolStorage) RemoveTransaction(txHash string) {
 	if tx, exists := mp.pool[txHash]; exists {
 		delete(mp.pool, txHash)
 		mp.removeFromPriorityQueue(tx)
+	} else {
+		panic(fmt.Sprintf("transaction not found: %s", txHash))
 	}
+
 }
 
 // GetTransaction retrieves a transaction from the mempool by its hash
@@ -116,7 +119,7 @@ func (mp *MempoolStorage) Clear() {
 	defer mp.mu.Unlock()
 
 	mp.pool = make(map[string]*MempoolTx)
-	mp.priorityQueue = make([]*MempoolTx, 0)
+	mp.priorityQueue = make([]string, 0)
 }
 
 // GetTransactions returns a list of transactions sorted by priority
@@ -126,7 +129,9 @@ func (mp *MempoolStorage) GetTransactions(limit int) []*SignedTransaction {
 
 	result := make([]*SignedTransaction, 0, limit)
 	for i := 0; i < limit && i < len(mp.priorityQueue); i++ {
-		result = append(result, mp.priorityQueue[i].Tx)
+		if tx, exists := mp.pool[mp.priorityQueue[i]]; exists {
+			result = append(result, tx.Tx)
+		}
 	}
 
 	return result
@@ -148,22 +153,28 @@ func (mp *MempoolStorage) GetTransactionsHashMap() map[string]*SignedTransaction
 
 // Helper methods for priority queue
 func (mp *MempoolStorage) addToPriorityQueue(tx *MempoolTx) {
-	mp.priorityQueue = append(mp.priorityQueue, tx)
+	txHash := tx.Tx.GetTxHash()
+	mp.priorityQueue = append(mp.priorityQueue, txHash)
 	mp.sortPriorityQueue()
 }
 
 func (mp *MempoolStorage) removeFromPriorityQueue(tx *MempoolTx) {
-	for i, item := range mp.priorityQueue {
-		if item == tx {
+	txHash := tx.Tx.GetTxHash()
+	for i, hash := range mp.priorityQueue {
+		if hash == txHash {
 			mp.priorityQueue = append(mp.priorityQueue[:i], mp.priorityQueue[i+1:]...)
-			break
+			return
 		}
 	}
+	panic(fmt.Sprintf("transaction not found from queue: %s", txHash))
 }
 
 func (mp *MempoolStorage) sortPriorityQueue() {
 	sort.Slice(mp.priorityQueue, func(i, j int) bool {
-		return mp.priorityQueue[i].Tx.GetTimestamp() > mp.priorityQueue[j].Tx.GetTimestamp()
+		// Get MempoolTx from pool using hash
+		iTx := mp.pool[mp.priorityQueue[i]]
+		jTx := mp.pool[mp.priorityQueue[j]]
+		return iTx.Tx.GetTimestamp() > jTx.Tx.GetTimestamp()
 	})
 }
 
@@ -173,15 +184,16 @@ func (mp *MempoolStorage) FormatTransactions() string {
 	defer mp.mu.RUnlock()
 
 	var result string
-	for i, tx := range mp.priorityQueue {
-		txHash := tx.Tx.GetTxHash()
-		result += fmt.Sprintf("%d. TxHash: %s, Time: %s, Height: %d, Size: %d bytes\n",
-			i+1,
-			txHash,
-			time.Unix(0, tx.Time).Format(time.RFC3339),
-			tx.Height,
-			tx.TxSize,
-		)
+	for i, hash := range mp.priorityQueue {
+		if tx, exists := mp.pool[hash]; exists {
+			result += fmt.Sprintf("%d. TxHash: %s, Time: %s, Height: %d, Size: %d bytes\n",
+				i+1,
+				hash,
+				time.Unix(0, tx.Time).Format(time.RFC3339),
+				tx.Height,
+				tx.TxSize,
+			)
+		}
 	}
 
 	if result == "" {

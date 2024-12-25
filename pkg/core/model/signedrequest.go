@@ -18,9 +18,26 @@ type SignedRequest struct {
 	Hash      string        `json:"-"`
 }
 
-func NewSignedRequestFromData(data *S.OrderedMap, signature string, pubKey string) SignedRequest {
-	req := SignedRequest{Data: data, Signature: signature, Xpub: pubKey}
+func NewSignedRequestFromRawData(data *S.OrderedMap, privateKey string) SignedRequest {
+	requestData := S.NewOrderedMap()
+	requestData.Set("request", data)
+
+	req := SignedRequest{Data: requestData}
+	signature := req.Sign(privateKey)
+
+	requestData.Set("public_key", crypto.GetXpub(privateKey))
+	requestData.Set("signature", signature)
+
 	return req
+}
+
+func (req *SignedRequest) Sign(privateKey string) string {
+	reqHash := req.GetRequestHash()
+	signature := crypto.Signature(reqHash, privateKey)
+	req.Signature = signature
+	req.Xpub = crypto.GetXpub(privateKey)
+
+	return signature
 }
 
 func NewSignedRequest(data *S.OrderedMap) SignedRequest {
@@ -57,20 +74,8 @@ func NewSignedRequest(data *S.OrderedMap) SignedRequest {
 	return req
 }
 
-func (req SignedRequest) Ser() string {
-	return req.Data.Ser()
-}
-
-func (req SignedRequest) Obj() string {
-	data := S.NewOrderedMap()
-	data.Set("request", req.Data)
-	data.Set("public_key", req.Xpub)
-	data.Set("signature", req.Signature)
-	return data.Ser()
-}
-
-func (req SignedRequest) GetSize() int {
-	return len(req.Ser())
+func (req SignedRequest) Obj() *S.OrderedMap {
+	return req.Data
 }
 
 func (req *SignedRequest) GetRequestHash() string {
@@ -98,10 +103,28 @@ func (req *SignedRequest) GetRequestHash() string {
 	return TimeHash(Hash(ser), timestampInt64)
 }
 
-func (req *SignedRequest) Sign(privateKey string) string {
-	requestHash := req.GetRequestHash()
-	req.Signature = crypto.Sign(requestHash, privateKey)
-	return req.Signature
+func (req *SignedRequest) Ser() (string, error) {
+	if req.Xpub == "" {
+		return "", fmt.Errorf("The signed transaction must contain the public_key parameter")
+	}
+
+	if req.Signature == "" {
+		return "", fmt.Errorf("The signed transaction must contain the signature parameter")
+	}
+
+	request, ok := req.Data.Get("request")
+	if !ok || request == nil {
+		return "", fmt.Errorf("the signed transaction must contain the transaction parameter")
+	}
+
+	copy := S.NewOrderedMap()
+	for _, key := range req.Data.Keys() {
+		if val, ok := req.Data.Get(key); ok {
+			copy.Set(key, val)
+		}
+	}
+
+	return copy.Ser(), nil
 }
 
 func (req SignedRequest) IsValid() (bool, string) {
@@ -124,7 +147,7 @@ func (req SignedRequest) ToMap() map[string]interface{} {
 	}
 }
 
-func (req SignedRequest) Validate() error {
+func (req *SignedRequest) Validate() error {
 	if req.Xpub == "" {
 		return fmt.Errorf("the signed request must contain the xpub parameter")
 	}

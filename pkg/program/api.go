@@ -5,7 +5,6 @@ import (
 	"hello/pkg/core/model"
 	"hello/pkg/core/network"
 	"hello/pkg/core/structure"
-	"hello/pkg/crypto"
 	"hello/pkg/rpc"
 	"log"
 
@@ -25,15 +24,17 @@ func CreateRequestCmd() *cobra.Command {
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 
-			signature := crypto.Signature(payload, privateKey)
 			data, err := structure.ParseOrderedMap(payload)
 
 			if err != nil {
 				log.Fatalf("Failed to parse payload: %v", err)
 			}
 
-			signedRequest := model.NewSignedRequestFromData(data, signature, pubKey)
-			payload = signedRequest.Obj()
+			signedRequest := model.NewSignedRequestFromRawData(data, privateKey)
+			payload, err = signedRequest.Ser()
+			if err != nil {
+				log.Fatalf("Failed to serialize signed request: %v", err)
+			}
 			fmt.Println(payload)
 
 			req := rpc.CreateRequest(payload, peer)

@@ -16,7 +16,9 @@ func ForceCommit(txs map[string]*SignedTransaction) error {
 	sf.Touch()
 	ci.Touch()
 	si.Load()
-	err := oracle.Commit(txs)
+
+	_, err := oracle.Commit(txs)
+
 	if err != nil {
 		return err
 	}

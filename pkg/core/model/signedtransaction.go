@@ -14,7 +14,7 @@ type SignedTransaction struct {
 	Signature string        `json:"signature"`
 }
 
-func (tx *SignedTransaction) BaseObj() *S.OrderedMap {
+func (tx *SignedTransaction) Obj() *S.OrderedMap {
 	return tx.Data
 }
 
@@ -28,8 +28,8 @@ func FromRawData(txData *S.OrderedMap, privateKey string, publicKey string) (Sig
 	}
 
 	signature := tx.Sign(privateKey, publicKey)
-	data.Set("signature", signature)
 	data.Set("public_key", publicKey)
+	data.Set("signature", signature)
 
 	return tx, nil
 }
