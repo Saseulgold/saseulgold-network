@@ -1,17 +1,47 @@
 package util
 
 import (
-	"log"
-	"os"
+    "sync"
+
+    "go.uber.org/zap"
+    "go.uber.org/zap/zapcore"
+    "gopkg.in/natefinch/lumberjack.v2"
 )
 
-var appLogger *log.Logger
+var (
+    loggerInstance *zap.Logger
+    once           sync.Once
+)
 
-func GetLogger() *log.Logger{
-	if(appLogger== nil) {
-			appLogger = log.New(os.Stdout, "INFO: ", log.LstdFlags)
-	}
+func GetLogger() *zap.Logger {
+    once.Do(func() {
+        lumberjackLogger := &lumberjack.Logger{
+            Filename:   "debug.log", 
+            MaxSize:    256,                       
+            MaxBackups: 1,                         
+            MaxAge:     28,                        
+            Compress:   true,                      
+        }
 
-	return appLogger
+        encoderConfig := zap.NewProductionEncoderConfig()
+        encoderConfig.TimeKey = "time"
+        encoderConfig.LevelKey = "level"
+        encoderConfig.NameKey = "logger"
+        encoderConfig.CallerKey = "caller"
+        encoderConfig.MessageKey = "msg"
+        encoderConfig.StacktraceKey = "stacktrace"
+        encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+        encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+
+        core := zapcore.NewCore(
+            zapcore.NewJSONEncoder(encoderConfig),                  
+            zapcore.AddSync(lumberjackLogger),                      
+            zap.InfoLevel,                                          
+        )
+
+        loggerInstance = zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
+    })
+
+    return loggerInstance
 }
 
