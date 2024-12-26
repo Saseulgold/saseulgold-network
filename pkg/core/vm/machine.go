@@ -138,7 +138,6 @@ func (m *Machine) TxValidity(tx *SignedTransaction) (bool, error) {
 
 	m.Init(lastBlock, roundTimestamp)
 
-
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -332,6 +331,8 @@ func (m *Machine) Response(request SignedRequest) (interface{}, error) {
 
 	_, result := m.interpreter.Execute()
 
+	fmt.Println("result:", result)
+
 	return result, nil
 }
 
@@ -341,7 +342,6 @@ func (m *Machine) loadRequests() {
 
 func (m *Machine) suitedRequest(request SignedRequest) *Method {
 	requestType := request.GetRequestType()
-	fmt.Println("requestType %s %s", requestType, request.GetRequestCID())
 
 	if methods, ok := m.requests[request.GetRequestCID()]; ok {
 		if method, exists := methods[requestType]; exists {
@@ -352,36 +352,35 @@ func (m *Machine) suitedRequest(request SignedRequest) *Method {
 }
 
 func (m *Machine) PreCommitOne(tx *SignedTransaction) error {
-        m.loadContracts()
-        var err error
+	m.loadContracts()
+	var err error
 
-        txHash := tx.GetTxHash()
+	txHash := tx.GetTxHash()
 
-        if !(m.ValidateTxTimestamp(tx)) {
-                return fmt.Errorf("tx timestamp error: %s", txHash)
-        }
+	if !(m.ValidateTxTimestamp(tx)) {
+		return fmt.Errorf("tx timestamp error: %s", txHash)
+	}
 
-        if err = tx.Validate(); err != nil {
-                return err
-        }
+	if err = tx.Validate(); err != nil {
+		return err
+	}
 
-        if err = m.MountContract(*tx); err != nil {
-                return err
-        }
+	if err = m.MountContract(*tx); err != nil {
+		return err
+	}
 
-        if err := m.interpreter.ParameterValidate(); err != nil {
-                return err
-        }
+	if err := m.interpreter.ParameterValidate(); err != nil {
+		return err
+	}
 
-        m.interpreter.Read()
-        m.interpreter.LoadUniversalStatus()
+	m.interpreter.Read()
+	m.interpreter.LoadUniversalStatus()
 
-        result, err := m.interpreter.Execute();
-	
+	result, err := m.interpreter.Execute()
+
 	if result != nil && result != "" {
 		return fmt.Errorf("%v", result)
 	}
 
-        return err
+	return err
 }
-

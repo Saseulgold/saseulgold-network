@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	C "hello/pkg/core/config"
-	. "hello/pkg/core/debug"
 	. "hello/pkg/core/model"
 	"hello/pkg/core/structure"
 	F "hello/pkg/util"
@@ -48,7 +47,6 @@ func (c *ChainStorage) LastBlock() (*Block, error) {
 }
 
 func (c *ChainStorage) SetLastHeight(height int) error {
-	DebugLog(fmt.Sprintf("Set last height: %d", height))
 	heightStr := fmt.Sprintf("%d", height)
 	return os.WriteFile(ChainInfo(), []byte(heightStr), 0644)
 }
@@ -80,7 +78,6 @@ func ParseBlock(data []byte) (*Block, error) {
 	} else {
 		block.Difficulty = int(blockDifficulty.(int64))
 	}
-
 
 	if universalUpdatesRaw, exists := om.Get("universal_updates"); exists {
 		updates := make(map[string]Update)

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	C "hello/pkg/core/config"
-	. "hello/pkg/core/debug"
 	"hello/pkg/core/model"
 	"hello/pkg/core/storage"
 	"hello/pkg/core/structure"
@@ -19,10 +18,10 @@ import (
 type OracleState string
 
 const (
-    StateCommitting   OracleState = "committing"
-    StateTransaction  OracleState = "transaction"
-    StateInitializing OracleState = "initializing"
-    StateStopped      OracleState = "stopped"
+	StateCommitting   OracleState = "committing"
+	StateTransaction  OracleState = "transaction"
+	StateInitializing OracleState = "initializing"
+	StateStopped      OracleState = "stopped"
 )
 
 func OracleLog(format string, args ...any) {
@@ -38,7 +37,7 @@ type Oracle struct {
 	chain        *storage.ChainStorage
 	mempool      *storage.MempoolStorage
 
-	State	     OracleState
+	State OracleState
 }
 
 var oracleInstance *Oracle
@@ -52,7 +51,7 @@ func GetOracleService() *Oracle {
 			swift:        nil,
 			storage:      storage.GetStatusFileInstance(),
 			storageIndex: storage.GetStatusIndexInstance(),
-			State:	      StateTransaction,
+			State:        StateTransaction,
 		}
 	}
 	return oracleInstance
@@ -328,11 +327,25 @@ func (o *Oracle) registerPacketHandlers() {
 			return o.swift.SendErrorResponse(ctx, err.Error())
 		}
 
-		DebugLog("raw request response type: %T", res)
+		// Convert response to proper JSON format
+		var jsonBytes []byte
+		switch v := res.(type) {
+		case string:
+			jsonBytes = []byte(fmt.Sprintf(`"%s"`, v))
+		case map[string]interface{}, []interface{}:
+			// Handle nested JSON structures
+			jsonBytes, err = json.Marshal(v)
+			if err != nil {
+				return o.swift.SendErrorResponse(ctx, "JSON marshaling error")
+			}
+		default:
+			// For other types, use standard conversion
+			jsonBytes = []byte(fmt.Sprintf(`%v`, v))
+		}
 
 		response := &swift.Packet{
 			Type:    swift.PacketTypeRawResponse,
-			Payload: json.RawMessage(fmt.Sprintf(`"%v"`, res)),
+			Payload: jsonBytes,
 		}
 
 		return o.swift.Send(ctx, response)

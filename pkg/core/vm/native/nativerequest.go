@@ -70,16 +70,16 @@ func ListBlock() *Method {
 
 	page := abi.Param("page")
 	count := abi.Param("count")
-	sort := abi.Param("sort")
 
 	method.AddExecution(abi.Condition(
 		abi.Lte(count, 100),
 		"The parameter 'count' must be less than or equal to 100.",
 	))
 
-	method.AddExecution(abi.Response(map[string]interface{}{
-		"$list_block": []interface{}{page, count, sort},
-	}))
+	blocks := abi.ListBlock(page, count)
+	response := abi.EncodeJSON(blocks)
+
+	method.AddExecution(abi.Response(response))
 
 	return method
 }
@@ -140,4 +140,35 @@ func GetTokenInfo() *Method {
 
 	return method
 
+}
+
+func ListTransaction() *Method {
+	method := NewMethod(map[string]interface{}{
+		"type":    "request",
+		"name":    "ListTransaction",
+		"version": "1",
+		"space":   RootSpace(),
+		"writer":  ZERO_ADDRESS,
+	})
+
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":      "page",
+		"type":      "int",
+		"maxlength": 16,
+		"default":   1,
+	}))
+
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":      "count",
+		"type":      "int",
+		"maxlength": 4,
+		"default":   20,
+	}))
+
+	count := abi.Param("count")
+	response := abi.ListTransaction(count)
+	response = abi.EncodeJSON(response)
+	method.AddExecution(abi.Response(response))
+
+	return method
 }

@@ -15,6 +15,7 @@ func NativeRequests() map[string]map[string]*Method {
 	requests[rootCid] = make(map[string]*Method)
 	requests[rootCid]["GetBlock"] = native.GetBlock()
 	requests[rootCid]["ListBlock"] = native.ListBlock()
+	requests[rootCid]["ListTransaction"] = native.ListTransaction()
 
 	requests[rootCid]["GetBalance"] = native.GetBalance()
 	requests[rootCid]["GetTokenInfo"] = native.GetTokenInfo()

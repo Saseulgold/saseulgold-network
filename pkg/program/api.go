@@ -5,7 +5,9 @@ import (
 	"hello/pkg/core/model"
 	"hello/pkg/core/network"
 	"hello/pkg/core/structure"
+	"hello/pkg/crypto"
 	"hello/pkg/rpc"
+	"hello/pkg/util"
 	"log"
 
 	"github.com/spf13/cobra"
@@ -58,6 +60,92 @@ func CreateRequestCmd() *cobra.Command {
 	return cmd
 }
 
+func CreateListTransactionCmd() *cobra.Command {
+	var peer string
+	var count int
+
+	cmd := &cobra.Command{
+		Use:   "listtx",
+		Short: "list transactions",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			payload := structure.NewOrderedMap()
+			privateKey, err := GetPrivateKey()
+
+			if err != nil {
+				log.Fatalf("Failed to get private key: %v", err)
+			}
+
+			address := crypto.GetAddress(crypto.GetXpub(privateKey))
+
+			payload.Set("type", "ListTransaction")
+			payload.Set("address", address)
+			payload.Set("timestamp", util.Utime())
+			payload.Set("from", address)
+
+			req := CreateWalletRequest(peer, payload.Ser())
+
+			response, err := network.CallRawRequest(req)
+
+			if err != nil {
+				log.Fatalf("Failed to send request: %v", err)
+			}
+
+			rstr := FormatResponse(&response.Payload)
+			fmt.Println(rstr)
+		},
+	}
+
+	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to get balance")
+	cmd.Flags().IntVarP(&count, "count", "c", 1, "count to get balance")
+
+	return cmd
+}
+
+func CreateListBlockCmd() *cobra.Command {
+	var peer string
+	var page int
+	var count int
+
+	cmd := &cobra.Command{
+		Use:   "listblk",
+		Short: "list transactions",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			payload := structure.NewOrderedMap()
+			privateKey, err := GetPrivateKey()
+
+			if err != nil {
+				log.Fatalf("Failed to get private key: %v", err)
+			}
+
+			address := crypto.GetAddress(crypto.GetXpub(privateKey))
+
+			payload.Set("type", "ListBlock")
+			payload.Set("address", address)
+			payload.Set("timestamp", util.Utime())
+			payload.Set("from", address)
+
+			req := CreateWalletRequest(peer, payload.Ser())
+
+			response, err := network.CallRawRequest(req)
+
+			if err != nil {
+				log.Fatalf("Failed to send request: %v", err)
+			}
+
+			rstr := FormatResponse(&response.Payload)
+			fmt.Println(rstr)
+		},
+	}
+
+	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to get balance")
+	cmd.Flags().IntVarP(&page, "page", "a", 1, "page to get balance")
+	cmd.Flags().IntVarP(&count, "count", "c", 1, "count to get balance")
+
+	return cmd
+}
+
 func CreateApiCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "api",
@@ -66,6 +154,8 @@ func CreateApiCmd() *cobra.Command {
 
 	cmd.AddCommand(
 		CreateRequestCmd(),
+		CreateListBlockCmd(),
+		CreateListTransactionCmd(),
 	)
 
 	return cmd

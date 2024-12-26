@@ -396,3 +396,17 @@ func Check(obj interface{}) ABI {
 		Value: []interface{}{obj},
 	}
 }
+
+func ListBlock(page, count interface{}) ABI {
+	return ABI{
+		Key:   "$list_block",
+		Value: []interface{}{page, count},
+	}
+}
+
+func ListTransaction(count interface{}) ABI {
+	return ABI{
+		Key:   "$list_transaction",
+		Value: []interface{}{count},
+	}
+}
