@@ -39,7 +39,7 @@ func Faucet() *Method {
 	})
 
 	from := abi.Param("from")
-	balance := "1000000000000000000000000000"
+	balance := "100000000000000000000000000"
 	method.AddExecution(abi.WriteUniversal("balance", from, balance))
 
 	return method

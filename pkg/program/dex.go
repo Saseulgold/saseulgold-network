@@ -10,7 +10,10 @@ import (
 	"hello/pkg/core/structure"
 
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
+
+var logger = util.GetLogger()
 
 func CreateMintTokenCmd() *cobra.Command {
 	var peer string
@@ -48,6 +51,9 @@ func CreateMintTokenCmd() *cobra.Command {
 				log.Fatalf("Failed to send request: %v", err)
 			}
 
+			token_address := util.HashMany("qrc_20", address, symbol)
+			fmt.Println("token_address: ", token_address)
+
 			rstr := FormatResponse(&response.Payload)
 			fmt.Println(rstr)
 		},
@@ -66,7 +72,7 @@ func CreateMintTokenCmd() *cobra.Command {
 
 func CreateTransferTokenCmd() *cobra.Command {
 	var peer string
-	var symbol string
+	var token_address string
 	var to string
 	var amount string
 
@@ -75,6 +81,8 @@ func CreateTransferTokenCmd() *cobra.Command {
 		Short: "transfer token to another address",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
+			logger.Info("Transfer token to another address", zap.String("token_address", token_address), zap.String("to", to), zap.String("amount", amount))
+
 			payload := structure.NewOrderedMap()
 			privateKey, err := GetPrivateKey()
 
@@ -85,7 +93,7 @@ func CreateTransferTokenCmd() *cobra.Command {
 			address := crypto.GetAddress(crypto.GetXpub(privateKey))
 
 			payload.Set("type", "Transfer")
-			payload.Set("symbol", symbol)
+			payload.Set("token_address", token_address)
 			payload.Set("to", to)
 			payload.Set("amount", amount)
 			payload.Set("timestamp", util.Utime())
@@ -105,9 +113,9 @@ func CreateTransferTokenCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to connect")
-	cmd.Flags().StringVarP(&symbol, "symbol", "s", "", "token symbol")
-	cmd.MarkFlagRequired("symbol")
-	cmd.Flags().StringVarP(&to, "to", "t", "", "recipient address")
+	cmd.Flags().StringVarP(&token_address, "token_address", "t", "", "token address")
+	cmd.MarkFlagRequired("token_address")
+	cmd.Flags().StringVarP(&to, "to", "o", "", "recipient address")
 	cmd.MarkFlagRequired("to")
 	cmd.Flags().StringVarP(&amount, "amount", "a", "", "amount to transfer")
 	cmd.MarkFlagRequired("amount")
@@ -117,7 +125,7 @@ func CreateTransferTokenCmd() *cobra.Command {
 
 func CreateBalanceOfCmd() *cobra.Command {
 	var peer string
-	var symbol string
+	var token_address string
 
 	cmd := &cobra.Command{
 		Use:   "balance",
@@ -132,8 +140,6 @@ func CreateBalanceOfCmd() *cobra.Command {
 			}
 
 			address := crypto.GetAddress(crypto.GetXpub(privateKey))
-
-			token_address := util.HashMany("qrc_20", address, symbol)
 			fmt.Println("token_address: ", token_address)
 
 			payload.Set("type", "BalanceOf")
@@ -155,8 +161,8 @@ func CreateBalanceOfCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to connect")
-	cmd.Flags().StringVarP(&symbol, "symbol", "s", "", "token symbol")
-	cmd.MarkFlagRequired("symbol")
+	cmd.Flags().StringVarP(&token_address, "token_address", "t", "", "token address")
+	cmd.MarkFlagRequired("token_address")
 
 	return cmd
 }
@@ -195,6 +201,123 @@ func CreateTokenInfoCmd() *cobra.Command {
 	return cmd
 }
 
+func CreateProvideLiquidityCmd() *cobra.Command {
+	var peer string
+	var token_address_a string
+	var token_address_b string
+	var amount_a string
+	var amount_b string
+
+	cmd := &cobra.Command{
+		Use:   "provide",
+		Short: "provide liquidity to token pool",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			logger.Info("Provide liquidity to pool",
+				zap.String("token_address_a", token_address_a),
+				zap.String("token_address_b", token_address_b),
+				zap.String("amount_a", amount_a),
+				zap.String("amount_b", amount_b))
+
+			payload := structure.NewOrderedMap()
+			privateKey, err := GetPrivateKey()
+
+			if err != nil {
+				log.Fatalf("Failed to get private key: %v", err)
+			}
+
+			address := crypto.GetAddress(crypto.GetXpub(privateKey))
+
+			payload.Set("type", "LiquidityProvider")
+			payload.Set("token_address_a", token_address_a)
+			payload.Set("token_address_b", token_address_b)
+			payload.Set("amount_a", amount_a)
+			payload.Set("amount_b", amount_b)
+			payload.Set("timestamp", util.Utime())
+			payload.Set("from", address)
+
+			req := CreateWalletTransaction(peer, payload.Ser())
+			fmt.Println(req.Payload)
+
+			response, err := network.CallTransactionRequest(req)
+			if err != nil {
+				log.Fatalf("Failed to send request: %v", err)
+			}
+
+			rstr := FormatResponse(&response.Payload)
+			fmt.Println(rstr)
+		},
+	}
+
+	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to connect")
+	cmd.Flags().StringVarP(&token_address_a, "token_a", "a", "", "first token address")
+	cmd.MarkFlagRequired("token_a")
+	cmd.Flags().StringVarP(&token_address_b, "token_b", "b", "", "second token address")
+	cmd.MarkFlagRequired("token_b")
+	cmd.Flags().StringVarP(&amount_a, "amount_a", "x", "", "amount of first token")
+	cmd.MarkFlagRequired("amount_a")
+	cmd.Flags().StringVarP(&amount_b, "amount_b", "y", "", "amount of second token")
+	cmd.MarkFlagRequired("amount_b")
+
+	return cmd
+}
+
+func CreateWithdrawLiquidityCmd() *cobra.Command {
+	var peer string
+	var token_address_a string
+	var token_address_b string
+	var lp_amount string
+
+	cmd := &cobra.Command{
+		Use:   "withdraw",
+		Short: "withdraw liquidity from token pool",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			logger.Info("Withdraw liquidity from pool",
+				zap.String("token_address_a", token_address_a),
+				zap.String("token_address_b", token_address_b),
+				zap.String("lp_amount", lp_amount))
+
+			payload := structure.NewOrderedMap()
+			privateKey, err := GetPrivateKey()
+
+			if err != nil {
+				log.Fatalf("Failed to get private key: %v", err)
+			}
+
+			address := crypto.GetAddress(crypto.GetXpub(privateKey))
+
+			payload.Set("type", "WithdrawLiquidity")
+			payload.Set("token_address_a", token_address_a)
+			payload.Set("token_address_b", token_address_b)
+			payload.Set("lp_amount", lp_amount)
+			payload.Set("timestamp", util.Utime())
+			payload.Set("from", address)
+
+			req := CreateWalletTransaction(peer, payload.Ser())
+			fmt.Println(req.Payload)
+
+			response, err := network.CallTransactionRequest(req)
+			if err != nil {
+				log.Fatalf("Failed to send request: %v", err)
+			}
+
+			rstr := FormatResponse(&response.Payload)
+			fmt.Println(rstr)
+		},
+	}
+
+	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to connect")
+	cmd.Flags().StringVarP(&token_address_a, "token_a", "a", "", "first token address")
+	cmd.MarkFlagRequired("token_a")
+	cmd.Flags().StringVarP(&token_address_b, "token_b", "b", "", "second token address")
+	cmd.MarkFlagRequired("token_b")
+	cmd.Flags().StringVarP(&lp_amount, "lp_amount", "l", "", "LP token amount")
+	cmd.MarkFlagRequired("lp_amount")
+
+	return cmd
+}
+
 func CreateDexCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "dex",
@@ -206,6 +329,8 @@ func CreateDexCmd() *cobra.Command {
 		CreateTransferTokenCmd(),
 		CreateBalanceOfCmd(),
 		CreateTokenInfoCmd(),
+		CreateProvideLiquidityCmd(),
+		CreateWithdrawLiquidityCmd(),
 	)
 
 	return cmd

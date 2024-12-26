@@ -48,8 +48,7 @@ func (m *Machine) Init(previousBlock *Block, roundTimestamp int64) {
 }
 
 func (m *Machine) ValidateTxTimestamp(tx *SignedTransaction) bool {
-
-	if m.previousBlock != nil && tx.GetTimestamp() < m.previousBlock.GetTimestamp()-C.TIME_STAMP_ERROR_LIMIT {
+	if m.previousBlock != nil && tx.GetTimestamp() <= m.previousBlock.GetTimestamp() {
 		return false
 	}
 

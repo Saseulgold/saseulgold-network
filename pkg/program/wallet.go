@@ -167,12 +167,12 @@ func CreateGetBalanceCmd() *cobra.Command {
 			}
 
 			rstr := FormatResponse(&response.Payload)
-			fmt.Println(rstr)
+			frstr := util.DivideByE18(rstr)
+			fmt.Println("balance: ", frstr)
 		},
 	}
 
-	cmd.Flags().StringVarP(&peer, "peer", "p", "", "peer to get balance")
-	cmd.MarkFlagRequired("peer")
+	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to get balance")
 
 	return cmd
 }
@@ -215,8 +215,7 @@ func CreateSendTransactionCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&peer, "peer", "p", "", "peer to get balance")
-	cmd.MarkFlagRequired("peer")
+	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to get balance")
 	cmd.Flags().StringVarP(&toaddress, "toaddress", "t", "", "to address")
 	cmd.MarkFlagRequired("toaddress")
 	cmd.Flags().StringVarP(&amount, "amount", "a", "", "amount")
@@ -260,8 +259,7 @@ func CreateFaucetTransactionCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&peer, "peer", "p", "", "peer to get balance")
-	cmd.MarkFlagRequired("peer")
+	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to get balance")
 
 	return cmd
 }

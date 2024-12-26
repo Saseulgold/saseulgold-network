@@ -3,12 +3,12 @@ package util
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	_ "fmt"
 	"strconv"
 
 	"golang.org/x/crypto/ripemd160"
 
 	C "hello/pkg/core/config"
+	"math/big"
 	"strings"
 )
 
@@ -222,4 +222,26 @@ func HashMany(vars ...interface{}) string {
 	}
 
 	return Hash(result.String())
+}
+
+func DivideByE18(amount string) string {
+	// Remove quotes if present
+	amount = strings.Trim(amount, "\"")
+
+	// Convert string to big.Int
+	value := new(big.Int)
+	_, ok := value.SetString(amount, 10)
+	if !ok {
+		return "0"
+	}
+
+	// Create divisor (10^18)
+	divisor := new(big.Int)
+	divisor.Exp(big.NewInt(10), big.NewInt(18), nil)
+
+	// Perform division
+	result := new(big.Int)
+	result.Div(value, divisor)
+
+	return result.String()
 }
