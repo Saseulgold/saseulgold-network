@@ -50,7 +50,6 @@ func (sf *StatusFile) Touch() error {
 		return err
 	}
 
-	fmt.Println("sf.StatusBundle(): ", sf.StatusBundle())
 
 	files := []string{
 		sf.TempFile(),
@@ -515,12 +514,10 @@ func (sf *StatusFile) UpdateUniversal(indexes map[string]StorageIndexCursor, uni
 				padding[i] = null[0]
 			}
 			data = append(data, padding...)
-			fmt.Println(fmt.Sprintf("updateuniversal overwrite: fileID=%s, seek=%s, length=%s, storedLength=%s, padding=%s key=%s", fileID, index.Seek, length, storedLength, len(data), key))
 		}
 
 		indexes[key] = NewStorageCursor(key, fileID, seek, length)
 		AppendFileBytes(sf.UniversalBundle(fileID), data)
-		fmt.Println(fmt.Sprintf("updateuniversal: fileID=%s, seek=%s, length=%s, storedLength=%s, padding=%s key=%s", fileID, index.Seek, length, storedLength, len(data), key))
 	}
 
 	return indexes
@@ -697,7 +694,6 @@ func (sf *StatusFile) ReadUniversalStatuses(indexes map[string]StorageIndexCurso
 
 func (sf *StatusFile) GetUniversalStatus(key string) interface{} {
 	key = F.FillHash(key)
-	fmt.Println("sf.CachedUniversalIndexes: ", sf.CachedUniversalIndexes)
 
 	indexes := sf.GetUniversalIndexes([]string{key})
 	DebugLog(fmt.Sprintf("GetUniversalStatus - indexes: %v", indexes))
@@ -705,14 +701,12 @@ func (sf *StatusFile) GetUniversalStatus(key string) interface{} {
 	index, exists := indexes[key]
 
 	if !exists {
-		DebugLog(fmt.Sprintf("GetUniversalStatus - key for storage index not found: %s", key))
 		return nil
 	}
 
 	value, err := sf.ReadUniversalStatus(index)
 	
 	if err != nil {
-		DebugLog(fmt.Sprintf("GetUniversalStatus - err: %s", err))
 		return nil
 	}
 

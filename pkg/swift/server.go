@@ -202,7 +202,6 @@ func (s *Server) HandleConnection(conn net.Conn) error {
 		if err := json.Unmarshal(packetBytes, &packet); err != nil {
 			return fmt.Errorf("failed to parse packet: %v", err)
 		}
-		SwiftInfoLog("received packet: %v\n", packet)
 
 		// process packet
 		switch packet.Type {
@@ -216,7 +215,6 @@ func (s *Server) HandleConnection(conn net.Conn) error {
 			continue
 		case PacketTypePeerRequest:
 			peerList := s.FormatPeerList()
-			SwiftInfoLog("peer list: %s\n", peerList)
 
 			// server peer list to client
 			peerListJSON, err := json.Marshal(peerList)
@@ -235,7 +233,6 @@ func (s *Server) HandleConnection(conn net.Conn) error {
 			if handler, ok := s.handlers[packet.Type]; ok {
 				err := handler(ctx, &packet)
 				if err != nil {
-					SwiftInfoLog("packet handler error: %v", err)
 					return s.SendErrorResponse(ctx, err.Error())
 				}
 			} else {
@@ -357,7 +354,6 @@ func (s *Server) Connect(targetAddr string) error {
 		return fmt.Errorf("connection failed: %v", err)
 	}
 
-	SwiftInfoLog("peer connection success: %s\n", targetAddr)
 	s.peers[targetAddr] = conn
 	go s.HandleConnection(conn)
 

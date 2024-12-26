@@ -245,3 +245,19 @@ func DivideByE18(amount string) string {
 
 	return result.String()
 }
+
+func MulByE18(amount string) string {
+	amount = strings.Trim(amount, "\"")
+
+	value := new(big.Int)
+	_, ok := value.SetString(amount, 10)
+	if !ok {
+		return "0"
+	}
+
+	multiplier := new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
+
+	result := new(big.Int).Mul(value, multiplier)
+
+	return result.String()
+}

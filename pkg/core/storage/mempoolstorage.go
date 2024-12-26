@@ -97,7 +97,6 @@ func (mp *MempoolStorage) RemoveTransaction(txHash string) {
 	defer mp.mu.Unlock()
 
 	if tx, exists := mp.pool[txHash]; exists {
-		fmt.Println("Removing transaction:", txHash)
 		delete(mp.pool, txHash)
 		mp.removeFromPriorityQueue(tx)
 	} else {
@@ -139,10 +138,8 @@ func (mp *MempoolStorage) GetTransactions(limit int) []*SignedTransaction {
 }
 
 func (mp *MempoolStorage) PopTransactionsHashMap() map[string]*SignedTransaction {
-	fmt.Println("Popping transactions from mempool")
 	mp.mu.Lock()
 	defer mp.mu.Unlock()
-	fmt.Println("Locked mempool")
 
 	// Instead of calling GetTransactions, directly access priorityQueue
 	txHashMap := make(map[string]*SignedTransaction)
@@ -151,7 +148,6 @@ func (mp *MempoolStorage) PopTransactionsHashMap() map[string]*SignedTransaction
 	for i := 0; i < limit && i < len(mp.priorityQueue); i++ {
 		txHash := mp.priorityQueue[i]
 		if tx, exists := mp.pool[txHash]; exists {
-			fmt.Println("Popping transaction: ", txHash)
 			txHashMap[txHash] = tx.Tx
 		}
 	}
@@ -163,7 +159,6 @@ func (mp *MempoolStorage) PopTransactionsHashMap() map[string]*SignedTransaction
 	// Reset priority queue to remaining transactions
 	mp.priorityQueue = mp.priorityQueue[len(txHashMap):]
 
-	fmt.Println("Popped transactions from mempool")
 	return txHashMap
 }
 

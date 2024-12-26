@@ -116,37 +116,37 @@ func LiquidityProvider() *Method {
 	})
 
 	method.AddParameter(NewParameter(map[string]interface{}{
-		"name":         "tokenA",
+		"name":         "token_address_a",
 		"type":         "string",
 		"maxlength":    80,
 		"requirements": true,
 	}))
 
 	method.AddParameter(NewParameter(map[string]interface{}{
-		"name":         "tokenB",
+		"name":         "token_address_b",
 		"type":         "string",
 		"maxlength":    80,
 		"requirements": true,
 	}))
 
 	method.AddParameter(NewParameter(map[string]interface{}{
-		"name":         "amountA",
+		"name":         "amount_a",
 		"type":         "string",
 		"maxlength":    50,
 		"requirements": true,
 	}))
 
 	method.AddParameter(NewParameter(map[string]interface{}{
-		"name":         "amountB",
+		"name":         "amount_b",
 		"type":         "string",
 		"maxlength":    50,
 		"requirements": true,
 	}))
 
-	tokenA := abi.Param("tokenA")
-	tokenB := abi.Param("tokenB")
-	amountA := abi.Param("amountA")
-	amountB := abi.Param("amountB")
+	tokenA := abi.Param("token_address_a")
+	tokenB := abi.Param("token_address_b")
+	amountA := abi.Param("amount_a")
+	amountB := abi.Param("amount_b")
 	from := abi.Param("from")
 
 	// Check if tokens exist

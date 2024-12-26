@@ -16,6 +16,15 @@ import (
 	"time"
 )
 
+type OracleState string
+
+const (
+    StateCommitting   OracleState = "committing"
+    StateTransaction  OracleState = "transaction"
+    StateInitializing OracleState = "initializing"
+    StateStopped      OracleState = "stopped"
+)
+
 func OracleLog(format string, args ...any) {
 	fmt.Printf(format, args...)
 	fmt.Println()
@@ -28,6 +37,8 @@ type Oracle struct {
 	storageIndex *storage.StatusIndex
 	chain        *storage.ChainStorage
 	mempool      *storage.MempoolStorage
+
+	State	     OracleState
 }
 
 var oracleInstance *Oracle
@@ -41,6 +52,7 @@ func GetOracleService() *Oracle {
 			swift:        nil,
 			storage:      storage.GetStatusFileInstance(),
 			storageIndex: storage.GetStatusIndexInstance(),
+			State:	      StateTransaction,
 		}
 	}
 	return oracleInstance
@@ -62,12 +74,6 @@ func (o *Oracle) Commit(txs map[string]*model.SignedTransaction) ([]string, erro
 	lastBlockHeight := storage.LastHeight()
 	previousBlock, err := storage.GetChainStorageInstance().GetBlock(lastBlockHeight)
 
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Println("previousBlock: ", previousBlock)
-
 	if previousBlock == nil {
 		previousBlockhash = ""
 	} else {
@@ -77,9 +83,6 @@ func (o *Oracle) Commit(txs map[string]*model.SignedTransaction) ([]string, erro
 	o.machine.Init(previousBlock, int64(util.Utime()))
 	o.machine.SetTransactions(txs)
 	o.machine.PreCommit()
-
-	universals := o.machine.GetInterpreter().GetUniversals()
-	DebugLog("universals: %v", universals)
 
 	block := model.NewBlock(storage.LastHeight()+1, previousBlockhash)
 	block.SetTimestamp(int64(util.Utime()))
@@ -109,38 +112,39 @@ func (o *Oracle) Commit(txs map[string]*model.SignedTransaction) ([]string, erro
 
 }
 
+func (o *Oracle) OnStartCommit() {
+	o.State = StateCommitting
+}
+
+func (o *Oracle) OnFinishCommit() {
+	o.State = StateTransaction
+}
+
 func (o *Oracle) Run() error {
 	ticker := time.NewTicker(250 * time.Millisecond)
 	defer ticker.Stop()
-	var epoch string = o.machine.Epoch()
-
 	for {
 		select {
 		case <-ticker.C:
-			epoch = o.machine.Epoch()
-			switch epoch {
+			switch o.State {
 
-			case "txtime":
-				OracleLog("Validating transactions in mempool during transaction time")
-
-			case "blocktime":
-				OracleLog("Committing transactions in block time")
+			case StateTransaction:
+				o.OnStartCommit()
 				transactions := o.mempool.PopTransactionsHashMap()
-				fmt.Println("transactions: ", transactions, len(transactions))
 
 				if len(transactions) == 0 {
-					OracleLog("No transactions to commit, skipping")
+					o.OnFinishCommit()
 					continue
 				}
 
+				fmt.Println("transactions: ", transactions, len(transactions))
+
 				_, err := o.Commit(transactions)
+				o.OnFinishCommit()
 
 				if err != nil {
 					OracleLog("failed to commit transactions: %v", err)
 				}
-
-				// o.RemoveCommittedTransactions(transactions)
-
 			}
 		}
 	}
@@ -228,11 +232,6 @@ func (o *Oracle) registerPacketHandlers() {
 		if err != nil {
 			return err
 		}
-		t, ok := data.Get("transaction")
-		if !ok {
-			return fmt.Errorf("transaction data not found")
-		}
-		DebugLog("\n\nparsed data: %s\n\n", t)
 
 		tx, err = model.NewSignedTransaction(data)
 
@@ -259,7 +258,6 @@ func (o *Oracle) registerPacketHandlers() {
 		OracleLog("successfully added transaction to mempool: %s", txHash)
 
 		var responseData []byte
-
 		swift.SwiftInfoLog("broadcasting transaction to peers: %s", o.swift.GetPeers())
 
 		if err := o.swift.Broadcast(ctx, packet); err != nil {
@@ -282,8 +280,6 @@ func (o *Oracle) registerPacketHandlers() {
 
 	// list mempool transaction request
 	o.swift.RegisterHandler(swift.PacketTypeListMempoolTransactionRequest, func(ctx context.Context, packet *swift.Packet) error {
-		DebugLog("list mempool transaction request")
-
 		data, err := json.Marshal(o.mempool.FormatTransactions())
 		if err != nil {
 			return err

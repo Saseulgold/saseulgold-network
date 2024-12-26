@@ -7,7 +7,7 @@ import (
 )
 
 func OperatorLog(args ...interface{}) interface{} {
-	fmt.Println(args...)
+	// fmt.Println(args...)
 	return true
 }
 

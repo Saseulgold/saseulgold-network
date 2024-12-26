@@ -189,6 +189,11 @@ func Send() *Method {
 	))
 
 	method.AddExecution(abi.Condition(
+		abi.Gt(amount, "0"),
+		"Amount must be greater than zero.",
+	))
+
+	method.AddExecution(abi.Condition(
 		abi.Gt(fromBalance, abi.PreciseAdd(amount, SEND_FEE, 0)),
 		"Balance is not enough.",
 	))

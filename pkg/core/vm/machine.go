@@ -8,9 +8,12 @@ import (
 	"hello/pkg/core/storage"
 	"hello/pkg/rpc"
 	"hello/pkg/util"
+	"sync"
 )
 
 type Machine struct {
+	mu sync.RWMutex
+
 	interpreter *Interpreter
 
 	contracts           map[string]map[string]*Method
@@ -60,6 +63,8 @@ func (m *Machine) ValidateTxTimestamp(tx *SignedTransaction) bool {
 }
 
 func (m *Machine) Commit(block *Block) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
 	chain := storage.GetChainStorageInstance()
 	sf := storage.GetStatusFileInstance()
@@ -108,6 +113,7 @@ func (m *Machine) SetTransactions(txs map[string]*SignedTransaction) {
 }
 
 func (m *Machine) TxValidity(tx *SignedTransaction) (bool, error) {
+
 	size, err := tx.GetSize()
 	if err != nil {
 		return false, err
@@ -123,26 +129,25 @@ func (m *Machine) TxValidity(tx *SignedTransaction) (bool, error) {
 
 	chain := storage.GetChainStorageInstance()
 	lastBlock, err := chain.LastBlock()
+
 	if err != nil {
 		return false, err
 	}
+
 	roundTimestamp := util.Utime() + C.TIME_STAMP_ERROR_LIMIT
 
 	m.Init(lastBlock, roundTimestamp)
 
-	txHash := tx.GetTxHash()
 
-	m.SetTransactions(map[string]*SignedTransaction{
-		txHash: tx,
-	})
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
-	fmt.Println("tx: ", tx.GetTxData().Data.Ser())
+	// txHash := tx.GetTxHash()
+	//m.SetTransactions(map[string]*SignedTransaction{ txHash: tx, })
 
-	if err := m.PreCommit(); err != nil {
+	if err := m.PreCommitOne(tx); err != nil {
 		return false, err
 	}
-
-	fmt.Println("interpreter result: ", m.interpreter.GetResult())
 
 	if m.interpreter.GetResult() != "" {
 		return false, fmt.Errorf("transaction is not valid: %s", m.interpreter.GetResult())
@@ -162,8 +167,6 @@ func (m *Machine) PreCommit() error {
 
 	for _, tx := range txs {
 		txHash := tx.GetTxHash()
-		DebugLog("read tx:", string(tx.Data.Ser()))
-		DebugLog("preCommitRead	:", txHash)
 
 		if !(m.ValidateTxTimestamp(tx)) {
 			err = fmt.Errorf("tx timestamp error: %s", txHash)
@@ -212,27 +215,20 @@ func (m *Machine) PreCommit() error {
 
 func (m *Machine) MountContract(tx SignedTransaction) error {
 	txMap := tx.GetTxData()
-	DebugLog("MountContract tx:", string(txMap.Data.Ser()))
-	DebugLog("MountContract tx type:", txMap.Type)
-	DebugLog("MountContract tx cid:", tx.GetCID())
-
 	cid := tx.GetCID()
 
 	txType, ok := txMap.Data.Get("type")
 	if !ok {
-		fmt.Println("transaction type not found")
 		return fmt.Errorf("transaction type not found")
 	}
 	name := txType.(string)
 
 	code, ok := m.contracts[cid][name]
 	if !ok {
-		fmt.Println(fmt.Sprintf("contract not found for cid %s and method %s", cid, name))
 		return fmt.Errorf("contract not found for cid %s and method %s", cid, name)
 	}
 
 	if code == nil {
-		fmt.Println("contract code is nil")
 		return fmt.Errorf("contract code is nil")
 	}
 
@@ -354,3 +350,38 @@ func (m *Machine) suitedRequest(request SignedRequest) *Method {
 	}
 	return nil
 }
+
+func (m *Machine) PreCommitOne(tx *SignedTransaction) error {
+        m.loadContracts()
+        var err error
+
+        txHash := tx.GetTxHash()
+
+        if !(m.ValidateTxTimestamp(tx)) {
+                return fmt.Errorf("tx timestamp error: %s", txHash)
+        }
+
+        if err = tx.Validate(); err != nil {
+                return err
+        }
+
+        if err = m.MountContract(*tx); err != nil {
+                return err
+        }
+
+        if err := m.interpreter.ParameterValidate(); err != nil {
+                return err
+        }
+
+        m.interpreter.Read()
+        m.interpreter.LoadUniversalStatus()
+
+        result, err := m.interpreter.Execute();
+	
+	if result != nil && result != "" {
+		return fmt.Errorf("%v", result)
+	}
+
+        return err
+}
+

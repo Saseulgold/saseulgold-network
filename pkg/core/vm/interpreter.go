@@ -9,7 +9,6 @@ import (
 
 	. "hello/pkg/crypto"
 	F "hello/pkg/util"
-	"reflect"
 )
 
 type State int
@@ -149,7 +148,6 @@ func (i *Interpreter) Init(mode string) {
 func (i *Interpreter) Read() {
 	i.state = StateRead
 	i.process = ProcessMain
-	DebugLog("Read Contract:", i.code.GetName(), "; state:", i.state, "; process:", i.process)
 
 	// common
 	for _, execution := range i.code.GetExecutions() {
@@ -179,10 +177,6 @@ func (i *Interpreter) Process(abi interface{}) interface{} {
 		}
 
 		if arr, ok := op.Value.([]interface{}); ok {
-			for idx, v := range arr {
-				DebugLog("Array item", idx, ":", v, "type:", reflect.TypeOf(v))
-			}
-
 			processedArr := make([]interface{}, len(arr))
 			for index, v := range arr {
 				if abiVal, isABI := v.(ABI); isABI {
@@ -224,12 +218,10 @@ func (i *Interpreter) ParameterValidate() error {
 		}
 
 		if err := param.StructureValidity(value); err != nil {
-			fmt.Println(fmt.Sprintf("Invalid parameter %s: %s", param.GetName(), err.Error()))
 			return fmt.Errorf("Invalid parameter %s: %s", param.GetName(), err.Error())
 		}
 
 		if err := param.TypeValidity(value); err != nil {
-			fmt.Println(fmt.Sprintf("Invalid parameter %s: %s", param.GetName(), err.Error()))
 			return fmt.Errorf("Invalid parameter %s: %s", param.GetName(), err.Error())
 		}
 	}
@@ -262,11 +254,13 @@ func (i *Interpreter) setDefaultValue() {
 			i.SignedData.SetAttribute("hash", i.SignedData.Hash)
 		}
 
+		/**
 		if i.SignedData.GetAttribute("size") == nil {
 			i.SignedData.SetAttribute("size", i.SignedData.Size())
 		}
 
 		i.weight += i.SignedData.GetInt64("size")
+		**/
 	}
 }
 
@@ -277,17 +271,12 @@ func (i *Interpreter) Execute() (interface{}, error) {
 	i.state = StateCondition
 	i.process = ProcessMain
 
-	DebugLog("MainCondition", i.process.String(), i.state.String())
-
 	// main, condition
 	for key, execution := range executions {
 		executions[key] = i.Process(execution)
 
 		if i.breakFlag {
-			OperatorLog("MainCondition breakFlag:", i.breakFlag, i.result)
 			return nil, fmt.Errorf("%v", i.result)
-		} else {
-			OperatorLog("MainCondition ok:", i.result)
 		}
 	}
 
@@ -314,10 +303,7 @@ func (i *Interpreter) Execute() (interface{}, error) {
 		postExecutions[key] = i.Process(execution)
 
 		if i.breakFlag {
-			OperatorLog("PostCondition breakFlag:", i.breakFlag, postExecutions[key])
 			return postExecutions[key], fmt.Errorf("%v", i.result)
-		} else {
-			OperatorLog("PostCondition ok:", postExecutions[key])
 		}
 	}
 
@@ -325,18 +311,11 @@ func (i *Interpreter) Execute() (interface{}, error) {
 	i.state = StateExecution
 	i.process = ProcessMain
 
-	DebugLog("MainExecution", i.process.String(), i.state.String())
-	DebugLog("MainExecution executions:", executions)
-
 	for key, execution := range executions {
-		DebugLog("MainExecution", i.process.String(), i.state.String(), "execution: ", execution)
 		executions[key] = i.Process(execution)
 
 		if i.breakFlag {
-			OperatorLog("MainExecution breakFlag:", i.breakFlag, executions[key])
 			return executions[key], fmt.Errorf("%v", i.result)
-		} else {
-			OperatorLog("MainExecution ok:", executions[key])
 		}
 	}
 
@@ -347,14 +326,11 @@ func (i *Interpreter) Execute() (interface{}, error) {
 		postExecutions[key] = i.Process(execution)
 
 		if i.breakFlag {
-			OperatorLog("PostExecution breakFlag:", i.breakFlag, postExecutions[key])
 			return postExecutions[key], fmt.Errorf("%v", i.result)
-		} else {
-			OperatorLog("PostExecution ok:", postExecutions[key])
-		}
+		} 
 	}
 
-	return executions[len(executions)-1], nil
+	return i.result, nil
 }
 
 func (i *Interpreter) SetCode(code *Method) {
@@ -371,8 +347,6 @@ func (i *Interpreter) GetResult() interface{} {
 
 func (i *Interpreter) AddUniversalLoads(statusHash string) {
 	statusHash = F.FillHash(statusHash)
-
-	OperatorLog("add universal load: ", statusHash)
 
 	if _, ok := i.universals[statusHash]; !ok {
 		i.universals[statusHash] = nil
@@ -422,11 +396,9 @@ func (i *Interpreter) SetLocalStatus(statusHash string, value interface{}) bool 
 }
 
 func (i *Interpreter) SetUniversalStatus(statusHash string, value interface{}) bool {
-	OperatorLog("SetUniversalStatus", "statusHash:", statusHash, "value:", value)
 	if updates, ok := (*i.universalUpdates)[statusHash]; ok {
 		updates.New = value
 	} else {
-		OperatorLog("SetUniversalStatus else", "statusHash:", statusHash, "value:", value)
 		(*i.universalUpdates)[statusHash] = Update{
 			Old: i.GetUniversalStatus(statusHash, nil),
 			New: value,
@@ -446,16 +418,12 @@ func (i *Interpreter) GetUniversals() map[string]interface{} {
 func (i *Interpreter) GetUniversalStatus(statusHash string, defaultVal interface{}) interface{} {
 	statusHash = F.FillHash(statusHash)
 
-	OperatorLog("interpreter uviversals:", i.universals)
-
 	if val, ok := i.universals[statusHash]; ok {
-		OperatorLog("GetUniversalStatus", "statusHash:", statusHash, "value:", val)
 		if val == nil {
 			return defaultVal
 		}
 		return val
 	}
-	OperatorLog("GetUniversalStatus default", "statusHash:", statusHash, "value:", defaultVal)
 	return defaultVal
 }
 

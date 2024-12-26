@@ -195,6 +195,7 @@ func CreateSendTransactionCmd() *cobra.Command {
 			}
 
 			address := crypto.GetAddress(crypto.GetXpub(privateKey))
+			amount = util.MulByE18(amount)
 
 			payload.Set("type", "Send")
 			payload.Set("amount", amount)
@@ -245,15 +246,18 @@ func CreateFaucetTransactionCmd() *cobra.Command {
 			payload.Set("address", address)
 			payload.Set("timestamp", util.Utime())
 			payload.Set("from", address)
+			spayload := payload.Ser()
 
-			req := CreateWalletTransaction(peer, payload.Ser())
+			req := CreateWalletTransaction(peer, spayload)
 			fmt.Println(req.Payload)
+			fmt.Println("calltransactionrequest")
 
 			response, err := network.CallTransactionRequest(req)
 			if err != nil {
 				log.Fatalf("Failed to send request: %v", err)
 			}
-
+		
+			fmt.Println("get response")
 			rstr := FormatResponse(&response.Payload)
 			fmt.Println(rstr)
 		},

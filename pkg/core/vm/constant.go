@@ -29,6 +29,7 @@ var OperatorFunctions = map[string]map[string]MethodFunc{
 		"$precise_sub": OpPreciseSub,
 		"$precise_mul": OpPreciseMul,
 		"$precise_div": OpPreciseDiv,
+		"$precise_sqrt": OpPreciseSqrt,
 		"$scale":       OpScale,
 	},
 	"UtilOperator": {

@@ -219,7 +219,7 @@ func (c *ChainStorage) Index(needle interface{}) (ChainIndexCursor, error) {
 	if height, ok := needle.(int); ok {
 		idx := c.ReadIdx(height)
 		index, err := c.ReadIndex(idx)
-		DebugLog(fmt.Sprintf("index: %v", index))
+
 		if err != nil {
 			return ChainIndexCursor{}, err
 		}
@@ -249,7 +249,7 @@ func (c *ChainStorage) ReadIdx(height int) int {
 func (c *ChainStorage) ReadIndex(idx int) (ChainIndexCursor, error) {
 	if idx > 0 {
 		iseek := C.CHAIN_HEADER_BYTES + (idx-1)*C.CHAIN_HEAP_BYTES
-		DebugLog(fmt.Sprintf("index seek: %d", iseek))
+
 		raw, err := ReadPart(c.IndexFile(), int64(iseek), C.CHAIN_HEAP_BYTES)
 
 		if err != nil {
@@ -285,8 +285,6 @@ func (c *ChainStorage) LastIndex() (ChainIndexCursor, error) {
 func (c *ChainStorage) Write(block *Block) error {
 	lastHeight := LastHeight()
 	height := lastHeight + 1
-
-	DebugLog(fmt.Sprintf("Write block: %v", block.Ser("full")))
 
 	if err := c.WriteData(height, block.BlockHash(), []byte(block.Ser("full"))); err != nil {
 		return err
@@ -343,8 +341,6 @@ func (c *ChainStorage) WriteData(height int, key string, data []byte) error {
 		return err
 	}
 
-	DebugLog(fmt.Sprintf("write block index - key: %s, fileId: %s, height: %d, seek: %d, length: %d, iseek: %d, indexData length: %d", key, fileID, height, seek, length, iseek, len(indexData)))
-	DebugLog(fmt.Sprintf("headerData: %v", headerData))
 	return WriteFile(c.IndexFile(), 0, headerData)
 }
 

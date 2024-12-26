@@ -1,15 +1,12 @@
 package vm
 
 import (
-	. "hello/pkg/core/abi"
 	"strconv"
 )
 
 func OpEq(i *Interpreter, vars interface{}) interface{} {
 	left, right := Unpack2(vars)
 
-	DebugLog("OpEq: left =", left)
-	DebugLog("OpEq: right =", right)
 	switch {
 	case isNumeric(left).(bool) && isNumeric(right).(bool):
 		return toFloat64(left) == toFloat64(right)
@@ -31,8 +28,6 @@ func OpNeq(i *Interpreter, vars interface{}) interface{} {
 
 func OpGt(i *Interpreter, vars interface{}) interface{} {
 	left, right := Unpack2(vars)
-	DebugLog("OpGt: left =", left)
-	DebugLog("OpGt: right =", right)
 
 	switch {
 	case isNumeric(left).(bool) && isNumeric(right).(bool):
