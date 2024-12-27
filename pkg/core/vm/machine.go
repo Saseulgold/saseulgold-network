@@ -9,6 +9,7 @@ import (
 	"hello/pkg/rpc"
 	"hello/pkg/util"
 	"sync"
+	"go.uber.org/zap"
 )
 
 type Machine struct {
@@ -43,7 +44,7 @@ func (m *Machine) GetInterpreter() *Interpreter {
 }
 
 func (m *Machine) Init(previousBlock *Block, roundTimestamp int64) {
-	m.interpreter.Reset()
+	m.interpreter.Reset(true)
 	m.interpreter.Init("transaction")
 
 	m.previousBlock = previousBlock
@@ -92,20 +93,7 @@ func (m *Machine) Commit(block *Block) error {
 	return nil
 }
 
-func (m *Machine) PreLoad(universalUpdates map[string]map[string]interface{}, localUpdates map[string]map[string]interface{}) {
-	for key, update := range universalUpdates {
-		old, exists := update["old"]
-		if exists {
-			m.interpreter.SetUniversalLoads(key, old)
-		}
-	}
-
-	for key, update := range localUpdates {
-		old, exists := update["old"]
-		if exists {
-			m.interpreter.SetLocalLoads(key, old)
-		}
-	}
+func (m *Machine) PreLoad(universalUpdates *map[string]Update) {
 }
 
 func (m *Machine) SetTransactions(txs map[string]*SignedTransaction) {
@@ -113,6 +101,10 @@ func (m *Machine) SetTransactions(txs map[string]*SignedTransaction) {
 }
 
 func (m *Machine) TxValidity(tx *SignedTransaction) (bool, error) {
+	logger.Info(
+		fmt.Sprintf("txvalidity ", tx.GetType()), 
+		zap.String("cid", tx.GetCID()),
+	)
 
 	size, err := tx.GetSize()
 	if err != nil {
@@ -159,32 +151,44 @@ func (m *Machine) loadContracts() {
 	m.contracts = rpc.NativeContracts()
 }
 
+func (m *Machine) deleteTransaction(txHash string, err error) {
+	logger.Info(
+		"delete transaction from precommit", 
+		zap.String("hash", txHash), 
+		zap.String("err", err.Error()),
+	)
+
+	delete(*m.transactions, txHash)
+}
+
 func (m *Machine) PreCommit() error {
 	m.loadContracts()
 	var err error
 	txs := util.SortedValueK[*SignedTransaction](*m.transactions)
+
+	logger.Info("precommit")
 
 	for _, tx := range txs {
 		txHash := tx.GetTxHash()
 
 		if !(m.ValidateTxTimestamp(tx)) {
 			err = fmt.Errorf("tx timestamp error: %s", txHash)
-			delete(*m.transactions, txHash)
+			m.deleteTransaction(txHash, err)
 			continue
 		}
 
 		if err = tx.Validate(); err != nil {
-			delete(*m.transactions, txHash)
+			m.deleteTransaction(txHash, err)
 			continue
 		}
 
 		if err = m.MountContract(*tx); err != nil {
-			delete(*m.transactions, txHash)
+			m.deleteTransaction(txHash, err)
 			continue
 		}
 
 		if err := m.interpreter.ParameterValidate(); err != nil {
-			delete(*m.transactions, txHash)
+			m.deleteTransaction(txHash, err)
 			continue
 		}
 
@@ -202,11 +206,9 @@ func (m *Machine) PreCommit() error {
 				DebugLog("Execute ", hash, " result:", result)
 				continue
 			}
-		} else {
-			DebugPanic("MountContract error: %v", err)
 		}
 
-		delete(*m.transactions, hash)
+		m.deleteTransaction(hash, err)
 	}
 
 	return err
@@ -217,6 +219,7 @@ func (m *Machine) MountContract(tx SignedTransaction) error {
 	cid := tx.GetCID()
 
 	txType, ok := txMap.Data.Get("type")
+
 	if !ok {
 		return fmt.Errorf("transaction type not found")
 	}
@@ -310,7 +313,7 @@ func (m *Machine) Response(request SignedRequest) (interface{}, error) {
 		return nil, err
 	}
 
-	m.interpreter.Reset()
+	m.interpreter.Reset(true)
 	m.interpreter.Init("request")
 
 	m.loadRequests()

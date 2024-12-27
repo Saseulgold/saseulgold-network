@@ -305,3 +305,20 @@ func Publish() *Method {
 
 	return method
 }
+
+func Count() *Method {
+	method := NewMethod(map[string]interface{}{
+		"type":    "contract",
+		"name":    "Count",
+		"version": "1",
+		"space":   RootSpace(),
+		"writer":  ZERO_ADDRESS,
+	})
+
+	count := abi.ReadUniversal("count", "count", "0")
+	update := abi.PreciseAdd(count, "1", 0)
+	wr := abi.WriteUniversal("count", "count", update)
+	method.AddExecution(wr)
+
+	return method
+}

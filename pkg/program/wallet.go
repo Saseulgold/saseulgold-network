@@ -268,6 +268,44 @@ func CreateFaucetTransactionCmd() *cobra.Command {
 	return cmd
 }
 
+func CreateCountTransactionCmd() *cobra.Command {
+	var peer string
+
+	cmd := &cobra.Command{
+		Use:   "count",
+		Short: "count",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			payload := structure.NewOrderedMap()
+			privateKey, err := GetPrivateKey()
+
+			if err != nil {
+				log.Fatalf("Failed to get private key: %v", err)
+			}
+
+			address := crypto.GetAddress(crypto.GetXpub(privateKey))
+
+			payload.Set("type", "Count")
+			payload.Set("from", address)
+			payload.Set("timestamp", util.Utime())
+
+			req := CreateWalletTransaction(peer, payload.Ser())
+			fmt.Println(req.Payload)
+
+			response, err := network.CallTransactionRequest(req)
+			if err != nil {
+				log.Fatalf("Failed to send request: %v", err)
+			}
+
+			rstr := FormatResponse(&response.Payload)
+			fmt.Println(rstr)
+		},
+	}
+
+	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to get balance")
+	return cmd
+}
+
 func CreateWalletCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "wallet",
@@ -279,6 +317,7 @@ func CreateWalletCmd() *cobra.Command {
 		CreateSetWalletCmd(),
 		CreateFaucetTransactionCmd(),
 		CreateSendTransactionCmd(),
+		CreateCountTransactionCmd(),
 	)
 
 	return cmd

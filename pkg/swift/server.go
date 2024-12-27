@@ -93,7 +93,7 @@ func (s *Server) Start() error {
 	var err error
 
 	machine := vm.GetMachineInstance()
-	machine.GetInterpreter().Reset()
+	machine.GetInterpreter().Reset(true)
 
 	if s.security.UseTLS {
 		tlsConfig, err := newTLSConfig(s.security)

@@ -9,7 +9,10 @@ import (
 
 	. "hello/pkg/crypto"
 	F "hello/pkg/util"
+	"go.uber.org/zap"
 )
+
+var logger = F.GetLogger()
 
 type State int
 
@@ -95,13 +98,22 @@ func NewInterpreter() *Interpreter {
 	}
 }
 
-func (i *Interpreter) Reset() {
+func (i *Interpreter) Reset(all bool) {
+	logger.Info("reset", zap.Bool("truncate", all))
+
 	i.SignedData = nil
 	i.code = nil
 	i.postProcess = nil
 	i.breakFlag = false
 	i.result = ""
 	i.weight = 0
+
+	if (all) {
+		i.universals = make(map[string]interface{})
+		i.locals = make(map[string]interface{})
+		i.state = StateNull
+		i.process = ProcessNull
+	}
 
 	i.universalUpdates = &map[string]Update{}
 	i.localUpdates = &map[string]Update{}
@@ -122,6 +134,8 @@ func (i *Interpreter) SetSignedData(signedData *SignedData) {
 }
 
 func (i *Interpreter) Init(mode string) {
+	logger.Info("init", zap.String("value", mode))
+
 	if mode == "" {
 		mode = "transaction"
 	}
@@ -347,6 +361,7 @@ func (i *Interpreter) GetResult() interface{} {
 
 func (i *Interpreter) AddUniversalLoads(statusHash string) {
 	statusHash = F.FillHash(statusHash)
+	logger.Info("add universal loads", zap.String("hash", statusHash))
 
 	if _, ok := i.universals[statusHash]; !ok {
 		i.universals[statusHash] = nil
@@ -367,6 +382,7 @@ func (i *Interpreter) SetLocalLoads(statusHash string, value interface{}) {
 }
 
 func (i *Interpreter) SetUniversalLoads(statusHash string, value interface{}) {
+	logger.Info("set universal loads", zap.String("hash", statusHash), zap.String("value", fmt.Sprintf("%s", value)))
 	statusHash = F.FillHash(statusHash)
 	i.universals[statusHash] = value
 }
@@ -407,6 +423,7 @@ func (i *Interpreter) SetUniversalStatus(statusHash string, value interface{}) b
 
 	statusHash = F.FillHash(statusHash)
 	i.universals[statusHash] = value
+	logger.Info("Interpreter set univ", zap.String("value", fmt.Sprintf("%v", value)), zap.String("statusHash", statusHash))
 
 	return true
 }
@@ -420,8 +437,10 @@ func (i *Interpreter) GetUniversalStatus(statusHash string, defaultVal interface
 
 	if val, ok := i.universals[statusHash]; ok {
 		if val == nil {
+			logger.Info("Interpreter get univ default", zap.String("value", fmt.Sprintf("%v", defaultVal)), zap.String("statusHash", statusHash))
 			return defaultVal
 		}
+		logger.Info("Interpreter get univ ", zap.String("value", fmt.Sprintf("%v", val)), zap.String("statusHash", statusHash))
 		return val
 	}
 	return defaultVal

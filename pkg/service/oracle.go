@@ -13,7 +13,10 @@ import (
 	"hello/pkg/util"
 	"os"
 	"time"
+	"go.uber.org/zap"
 )
+
+var logger = util.GetLogger()
 
 type OracleState string
 
@@ -81,6 +84,7 @@ func (o *Oracle) Commit(txs map[string]*model.SignedTransaction) ([]string, erro
 
 	o.machine.Init(previousBlock, int64(util.Utime()))
 	o.machine.SetTransactions(txs)
+
 	o.machine.PreCommit()
 
 	block := model.NewBlock(storage.LastHeight()+1, previousBlockhash)
@@ -106,7 +110,7 @@ func (o *Oracle) Commit(txs map[string]*model.SignedTransaction) ([]string, erro
 		txHashes = append(txHashes, txHash)
 	}
 
-	OracleLog("Commit success %v", len(txHashes))
+	logger.Info("Commit success", zap.Int("transaction_count", len(txHashes)))
 	return txHashes, nil
 
 }
