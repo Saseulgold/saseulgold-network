@@ -168,6 +168,7 @@ func ListTransaction() *Method {
 	count := abi.Param("count")
 	response := abi.ListTransaction(count)
 	response = abi.EncodeJSON(response)
+
 	method.AddExecution(abi.Response(response))
 
 	return method

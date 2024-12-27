@@ -92,6 +92,7 @@ func CreateListTransactionCmd() *cobra.Command {
 			}
 
 			rstr := FormatResponse(&response.Payload)
+
 			fmt.Println(rstr)
 		},
 	}

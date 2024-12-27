@@ -9,6 +9,7 @@ import (
 	"hello/pkg/rpc"
 	"hello/pkg/util"
 	"sync"
+
 	"go.uber.org/zap"
 )
 
@@ -93,7 +94,20 @@ func (m *Machine) Commit(block *Block) error {
 	return nil
 }
 
-func (m *Machine) PreLoad(universalUpdates *map[string]Update) {
+func (m *Machine) PreLoad(universalUpdates map[string]map[string]interface{}, localUpdates map[string]map[string]interface{}) {
+	for key, update := range universalUpdates {
+		old, exists := update["old"]
+		if exists {
+			m.interpreter.SetUniversalLoads(key, old)
+		}
+	}
+
+	for key, update := range localUpdates {
+		old, exists := update["old"]
+		if exists {
+			m.interpreter.SetLocalLoads(key, old)
+		}
+	}
 }
 
 func (m *Machine) SetTransactions(txs map[string]*SignedTransaction) {
@@ -101,10 +115,7 @@ func (m *Machine) SetTransactions(txs map[string]*SignedTransaction) {
 }
 
 func (m *Machine) TxValidity(tx *SignedTransaction) (bool, error) {
-	logger.Info(
-		fmt.Sprintf("txvalidity ", tx.GetType()), 
-		zap.String("cid", tx.GetCID()),
-	)
+	logger.Info("txValidity", zap.String("tx", fmt.Sprintf("%v", tx)))
 
 	size, err := tx.GetSize()
 	if err != nil {
@@ -130,9 +141,6 @@ func (m *Machine) TxValidity(tx *SignedTransaction) (bool, error) {
 
 	m.Init(lastBlock, roundTimestamp)
 
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	// txHash := tx.GetTxHash()
 	//m.SetTransactions(map[string]*SignedTransaction{ txHash: tx, })
 
@@ -152,21 +160,22 @@ func (m *Machine) loadContracts() {
 }
 
 func (m *Machine) deleteTransaction(txHash string, err error) {
-	logger.Info(
-		"delete transaction from precommit", 
-		zap.String("hash", txHash), 
-		zap.String("err", err.Error()),
-	)
-
 	delete(*m.transactions, txHash)
+
+	if err != nil {
+		logger.Error("deleteTransaction", zap.String("txHash", txHash), zap.Error(err))
+	}
 }
 
 func (m *Machine) PreCommit() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	logger.Info("preCommit", zap.String("transactions", fmt.Sprintf("%v", *m.transactions)))
+
 	m.loadContracts()
 	var err error
 	txs := util.SortedValueK[*SignedTransaction](*m.transactions)
-
-	logger.Info("precommit")
 
 	for _, tx := range txs {
 		txHash := tx.GetTxHash()
@@ -202,8 +211,9 @@ func (m *Machine) PreCommit() error {
 	for _, transaction := range txs {
 		hash := transaction.GetTxHash()
 		if err := m.MountContract(*transaction); err == nil {
+			logger.Info("excute", zap.String("hash", hash))
 			if result, err := m.interpreter.Execute(); err == nil {
-				DebugLog("Execute ", hash, " result:", result)
+				logger.Info("excuted", zap.String("hash", hash), zap.Any("result", result))
 				continue
 			}
 		}
@@ -219,7 +229,6 @@ func (m *Machine) MountContract(tx SignedTransaction) error {
 	cid := tx.GetCID()
 
 	txType, ok := txMap.Data.Get("type")
-
 	if !ok {
 		return fmt.Errorf("transaction type not found")
 	}
@@ -309,6 +318,8 @@ func (m *Machine) ExpectedBlock() *Block {
 	return expectedBlock
 }
 func (m *Machine) Response(request SignedRequest) (interface{}, error) {
+	logger.Info("Response", zap.String("request", fmt.Sprintf("%v", request)))
+
 	if err := request.Validate(); err != nil {
 		return nil, err
 	}
@@ -330,7 +341,6 @@ func (m *Machine) Response(request SignedRequest) (interface{}, error) {
 	}
 
 	m.interpreter.Read()
-	m.interpreter.LoadUniversalStatus()
 
 	_, result := m.interpreter.Execute()
 
@@ -355,6 +365,11 @@ func (m *Machine) suitedRequest(request SignedRequest) *Method {
 }
 
 func (m *Machine) PreCommitOne(tx *SignedTransaction) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	logger.Info("preCommitOne", zap.String("tx", fmt.Sprintf("%v", tx)))
+
 	m.loadContracts()
 	var err error
 

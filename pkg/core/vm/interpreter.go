@@ -9,6 +9,7 @@ import (
 
 	. "hello/pkg/crypto"
 	F "hello/pkg/util"
+
 	"go.uber.org/zap"
 )
 
@@ -108,7 +109,7 @@ func (i *Interpreter) Reset(all bool) {
 	i.result = ""
 	i.weight = 0
 
-	if (all) {
+	if all {
 		i.universals = make(map[string]interface{})
 		i.locals = make(map[string]interface{})
 		i.state = StateNull
@@ -160,6 +161,7 @@ func (i *Interpreter) Init(mode string) {
 }
 
 func (i *Interpreter) Read() {
+	logger.Info("read")
 	i.state = StateRead
 	i.process = ProcessMain
 
@@ -341,7 +343,7 @@ func (i *Interpreter) Execute() (interface{}, error) {
 
 		if i.breakFlag {
 			return postExecutions[key], fmt.Errorf("%v", i.result)
-		} 
+		}
 	}
 
 	return i.result, nil
@@ -396,8 +398,12 @@ func (i *Interpreter) GetLocalStatus(statusHash string, defaultVal interface{}) 
 }
 
 func (i *Interpreter) SetLocalStatus(statusHash string, value interface{}) bool {
-	if updates, ok := (*i.localUpdates)[statusHash]; ok {
-		updates.New = value
+	if _, ok := (*i.localUpdates)[statusHash]; ok {
+		oldUpdate := (*i.localUpdates)[statusHash]
+		(*i.localUpdates)[statusHash] = Update{
+			Old: oldUpdate.Old,
+			New: value,
+		}
 	} else {
 		(*i.localUpdates)[statusHash] = Update{
 			Old: i.GetLocalStatus(statusHash, nil),
@@ -412,8 +418,12 @@ func (i *Interpreter) SetLocalStatus(statusHash string, value interface{}) bool 
 }
 
 func (i *Interpreter) SetUniversalStatus(statusHash string, value interface{}) bool {
-	if updates, ok := (*i.universalUpdates)[statusHash]; ok {
-		updates.New = value
+	if _, ok := (*i.universalUpdates)[statusHash]; ok {
+		oldUpdate := (*i.universalUpdates)[statusHash]
+		(*i.universalUpdates)[statusHash] = Update{
+			Old: oldUpdate.Old,
+			New: value,
+		}
 	} else {
 		(*i.universalUpdates)[statusHash] = Update{
 			Old: i.GetUniversalStatus(statusHash, nil),
@@ -455,13 +465,25 @@ func (i *Interpreter) GetLocalUpdates() UpdateMap {
 }
 
 func (i *Interpreter) LoadUniversalStatus() {
-
 	if len(i.universals) > 0 {
 		statusFile := storage.GetStatusFileInstance()
 
 		for k := range i.universals {
+			// First check if there's a pending update in memory
+			if updates, ok := (*i.universalUpdates)[k]; ok {
+				i.universals[k] = updates.New
+				logger.Info("Loading from memory updates",
+					zap.String("key", k),
+					zap.Any("value", updates.New))
+				continue
+			}
+
+			// If no pending update, get from status file
 			value := statusFile.GetUniversalStatus(k)
 			i.universals[k] = value
+			logger.Info("Loading from status file",
+				zap.String("key", k),
+				zap.Any("value", value))
 		}
 	}
 }

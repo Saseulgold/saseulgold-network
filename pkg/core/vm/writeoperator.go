@@ -5,6 +5,8 @@ import (
 	C "hello/pkg/core/config"
 	"hello/pkg/core/debug"
 	F "hello/pkg/util"
+
+	"go.uber.org/zap"
 )
 
 func OpWriteUniversal(i *Interpreter, vars interface{}) interface{} {
@@ -39,11 +41,9 @@ func OpWriteUniversal(i *Interpreter, vars interface{}) interface{} {
 	var result interface{}
 	switch i.state {
 	case StateRead:
-		OperatorLog("OpWriteUniversal READ ", statusHash)
 		i.AddUniversalLoads(statusHash)
 		result = nil
 	case StateCondition:
-		OperatorLog("OpWriteUniversal CONDITION ", statusHash, value)
 		length := len(F.String(value))
 
 		if length > C.STATUS_SIZE_LIMIT {
@@ -64,6 +64,7 @@ func OpWriteUniversal(i *Interpreter, vars interface{}) interface{} {
 		result = i.SetUniversalStatus(statusHash, value)
 	}
 
+	logger.Info("write_universal", zap.String("statusHash", statusHash), zap.Any("value", value), zap.Any("result", result))
 	return result
 }
 
