@@ -183,12 +183,6 @@ func LiquidityProvider() *Method {
 		abi.PreciseSub(userBalanceB, amountB, "0")))
 
 	pairAddress := abi.HashMany("pair", tokenA, tokenB)
-
-	method.AddExecution(abi.Condition(
-		abi.Eq(abi.ReadUniversal(pairAddress, "exists", nil), nil),
-		"Liquidity pair does not exist.",
-	))
-
 	method.AddExecution(abi.WriteUniversal(pairAddress, "exists", true))
 
 	currentReserveA := abi.ReadUniversal(pairAddress, "reserveA", "0")
@@ -202,11 +196,14 @@ func LiquidityProvider() *Method {
 
 	liquidity := abi.PreciseSqrt(abi.PreciseMul(amountA, amountB, "0"), "0")
 
-	liquidityToken := abi.HashMany("liquidity", pairAddress, from)
-	currentLiquidity := abi.ReadUniversal(liquidityToken, "balance", "0")
+	currentLiquidity := abi.ReadUniversal(pairAddress, from, "0")
 	newLiquidity := abi.PreciseAdd(currentLiquidity, liquidity, "0")
 
-	method.AddExecution(abi.WriteUniversal(liquidityToken, "balance", newLiquidity))
+	method.AddExecution(abi.WriteUniversal(pairAddress, from, newLiquidity))
+
+        totalLiquidity := abi.ReadUniversal(pairAddress, "totalLiquidity", "0")
+        newTotalLiquidity := abi.PreciseAdd(totalLiquidity, liquidity, "0")
+        method.AddExecution(abi.WriteUniversal(pairAddress, "totalLiquidity", newTotalLiquidity))
 
 	return method
 }

@@ -281,8 +281,10 @@ func (i *Interpreter) setDefaultValue() {
 }
 
 func (i *Interpreter) Execute() (interface{}, error) {
+
 	executions := i.code.GetExecutions()
 	postExecutions := i.postProcess.GetExecutions()
+	logger.Info("execute", zap.Bool("breakFlag", i.breakFlag), zap.String("executions", fmt.Sprintf("%v", executions)))
 
 	i.state = StateCondition
 	i.process = ProcessMain
@@ -398,6 +400,8 @@ func (i *Interpreter) GetLocalStatus(statusHash string, defaultVal interface{}) 
 }
 
 func (i *Interpreter) SetLocalStatus(statusHash string, value interface{}) bool {
+	statusHash = F.FillHash(statusHash)
+
 	if _, ok := (*i.localUpdates)[statusHash]; ok {
 		oldUpdate := (*i.localUpdates)[statusHash]
 		(*i.localUpdates)[statusHash] = Update{
@@ -411,13 +415,14 @@ func (i *Interpreter) SetLocalStatus(statusHash string, value interface{}) bool 
 		}
 	}
 
-	statusHash = F.FillHash(statusHash)
 	i.locals[statusHash] = value
 
 	return true
 }
 
 func (i *Interpreter) SetUniversalStatus(statusHash string, value interface{}) bool {
+	statusHash = F.FillHash(statusHash)
+
 	if _, ok := (*i.universalUpdates)[statusHash]; ok {
 		oldUpdate := (*i.universalUpdates)[statusHash]
 		(*i.universalUpdates)[statusHash] = Update{
@@ -431,7 +436,6 @@ func (i *Interpreter) SetUniversalStatus(statusHash string, value interface{}) b
 		}
 	}
 
-	statusHash = F.FillHash(statusHash)
 	i.universals[statusHash] = value
 	logger.Info("Interpreter set univ", zap.String("value", fmt.Sprintf("%v", value)), zap.String("statusHash", statusHash))
 
@@ -465,26 +469,19 @@ func (i *Interpreter) GetLocalUpdates() UpdateMap {
 }
 
 func (i *Interpreter) LoadUniversalStatus() {
-	if len(i.universals) > 0 {
-		statusFile := storage.GetStatusFileInstance()
+	logger.Info("load univ status", zap.Int("len", len(i.universals)))
 
-		for k := range i.universals {
-			// First check if there's a pending update in memory
-			if updates, ok := (*i.universalUpdates)[k]; ok {
-				i.universals[k] = updates.New
-				logger.Info("Loading from memory updates",
-					zap.String("key", k),
-					zap.Any("value", updates.New))
-				continue
-			}
+	if len(i.universals) == 0 {
+		return
+	}
+	statusFile := storage.GetStatusFileInstance()
 
-			// If no pending update, get from status file
-			value := statusFile.GetUniversalStatus(k)
-			i.universals[k] = value
-			logger.Info("Loading from status file",
-				zap.String("key", k),
-				zap.Any("value", value))
-		}
+	for k := range i.universals {
+		value := statusFile.GetUniversalStatus(k)
+		i.universals[k] = value
+		logger.Info("Loading from status file",
+			zap.String("key", k),
+			zap.Any("value", value))
 	}
 }
 

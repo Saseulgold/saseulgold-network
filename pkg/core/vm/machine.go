@@ -53,7 +53,7 @@ func (m *Machine) Init(previousBlock *Block, roundTimestamp int64) {
 }
 
 func (m *Machine) ValidateTxTimestamp(tx *SignedTransaction) bool {
-	if m.previousBlock != nil && tx.GetTimestamp() <= m.previousBlock.GetTimestamp() {
+	if m.previousBlock != nil && tx.GetTimestamp() <= m.previousBlock.GetTimestamp()-C.TIME_STAMP_FORWARD_ERROR_LIMIT {
 		return false
 	}
 
@@ -243,7 +243,7 @@ func (m *Machine) MountContract(tx SignedTransaction) error {
 		return fmt.Errorf("contract code is nil")
 	}
 
-	m.interpreter.Set(tx.GetTxData(), code, new(Method))
+	m.interpreter.Set(tx.GetTxData(), code.Copy(), new(Method))
 
 	return nil
 }
@@ -257,14 +257,6 @@ func (m *Machine) NextBlock() *Block {
 		LocalUpdates:      m.interpreter.GetLocalUpdates(),
 		PreviousBlockhash: m.previousBlock.BlockHash(),
 	}
-}
-
-func (m *Machine) TimeValidity(tx *SignedTransaction, timestamp int64) (bool, error) {
-	if m.previousBlock.Timestamp_s < tx.GetTimestamp() && tx.GetTimestamp() <= int64(timestamp) {
-		return true, nil
-	}
-
-	return false, fmt.Errorf("Timestamp must be greater than %d and less than %d", m.previousBlock.Timestamp_s, timestamp)
 }
 
 func (m *Machine) Epoch() string {
@@ -341,6 +333,7 @@ func (m *Machine) Response(request SignedRequest) (interface{}, error) {
 	}
 
 	m.interpreter.Read()
+	m.interpreter.LoadUniversalStatus()
 
 	_, result := m.interpreter.Execute()
 

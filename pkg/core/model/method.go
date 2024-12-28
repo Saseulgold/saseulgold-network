@@ -217,3 +217,23 @@ func (m *Method) GetCode() string {
 	codeBytes, _ := json.Marshal(compiled)
 	return string(codeBytes)
 }
+
+func (m *Method) Copy() *Method {
+	newMethod := &Method{
+		Type:       m.Type,
+		Machine:    m.Machine,
+		Name:       m.Name,
+		Version:    m.Version,
+		Space:      m.Space,
+		Writer:     m.Writer,
+		Parameters: make(Parameters),
+		Executions: make([]Execution, len(m.Executions)),
+	}
+
+	for key, param := range m.Parameters {
+		newMethod.Parameters[key] = param
+	}
+
+	copy(newMethod.Executions, m.Executions)
+	return newMethod
+}

@@ -147,6 +147,52 @@ func CreateListBlockCmd() *cobra.Command {
 	return cmd
 }
 
+func CreatePairInfoRequestCmd() *cobra.Command {
+	var peer string
+	var address_a string
+	var address_b string
+
+	cmd := &cobra.Command{
+		Use:   "pairinfo",
+		Short: "",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			payload := structure.NewOrderedMap()
+			privateKey, err := GetPrivateKey()
+
+			if err != nil {
+				log.Fatalf("Failed to get private key: %v", err)
+			}
+
+			address := crypto.GetAddress(crypto.GetXpub(privateKey))
+
+			payload.Set("type", "GetPairInfo")
+			payload.Set("token_address_a", address_a)
+			payload.Set("token_address_b", address_b)
+
+			payload.Set("timestamp", util.Utime())
+			payload.Set("from", address)
+
+			req := CreateWalletRequest(peer, payload.Ser())
+
+			response, err := network.CallRawRequest(req)
+
+			if err != nil {
+				log.Fatalf("Failed to send request: %v", err)
+			}
+
+			rstr := FormatResponse(&response.Payload)
+			fmt.Println(rstr)
+		},
+	}
+
+	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer")
+	cmd.Flags().StringVarP(&address_a, "address_a", "a", "", "")
+	cmd.Flags().StringVarP(&address_b, "address_b", "b", "", "")
+
+	return cmd
+}
+
 func CreateApiCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "api",
@@ -157,6 +203,7 @@ func CreateApiCmd() *cobra.Command {
 		CreateRequestCmd(),
 		CreateListBlockCmd(),
 		CreateListTransactionCmd(),
+		CreatePairInfoRequestCmd(), 
 	)
 
 	return cmd

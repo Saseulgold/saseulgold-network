@@ -89,7 +89,7 @@ func Pow(a, b string) string {
 }
 
 // Mod returns modulo of a divided by b
-func Mod(a, b string) *string {
+func Mod(a, b string) string {
 	af := new(big.Int)
 	bf := new(big.Int)
 	af.SetString(a, 10)
@@ -97,7 +97,7 @@ func Mod(a, b string) *string {
 
 	result := new(big.Int).Mod(af, bf)
 	str := result.String()
-	return &str
+	return str
 }
 
 // Equal returns true if a equals b

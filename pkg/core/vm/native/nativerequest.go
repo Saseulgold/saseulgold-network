@@ -136,6 +136,7 @@ func GetTokenInfo() *Method {
 	response = abi.Set(response, "symbol", symbol_univ)
 	response = abi.Set(response, "supply", supply_univ)
 
+	response = abi.EncodeJSON(response)
 	method.AddExecution(abi.Response(response))
 
 	return method
@@ -172,4 +173,50 @@ func ListTransaction() *Method {
 	method.AddExecution(abi.Response(response))
 
 	return method
+}
+
+func GetPairInfo() *Method {
+	method := NewMethod(map[string]interface{}{
+		"type":    "request",
+		"name":    "GetPairInfo",
+		"version": "1",
+		"space":   RootSpace(),
+		"writer":  ZERO_ADDRESS,
+	})
+
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "token_address_a",
+		"type":         "string",
+		"maxlength":    64,
+		"requirements": true,
+	}))
+
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "token_address_b",
+		"type":         "string",
+		"maxlength":    64,
+		"requirements": true,
+	}))
+
+	tokenA := abi.Param("token_address_a")
+	tokenB := abi.Param("token_address_b")
+
+	pairAddress := abi.HashMany("pair", tokenA, tokenB)
+
+	var response interface{}
+
+	rsrva := abi.ReadUniversal(pairAddress, "reserveA", nil)
+	response = abi.Set(response, "reserve_a", rsrva)
+
+	rsrvb := abi.ReadUniversal(pairAddress, "reserveB", nil)
+	response = abi.Set(response, "reserve_b", rsrvb)
+
+	totalLq := abi.ReadUniversal(pairAddress, "totalLiquidity", "0")
+	response = abi.Set(response, "liquidity", totalLq)
+
+	response = abi.EncodeJSON(response)
+	method.AddExecution(abi.Response(response))
+
+	return method
+
 }

@@ -204,7 +204,6 @@ func CreateSendTransactionCmd() *cobra.Command {
 			payload.Set("timestamp", util.Utime())
 
 			req := CreateWalletTransaction(peer, payload.Ser())
-			fmt.Println(req.Payload)
 
 			response, err := network.CallTransactionRequest(req)
 			if err != nil {
@@ -250,14 +249,12 @@ func CreateFaucetTransactionCmd() *cobra.Command {
 
 			req := CreateWalletTransaction(peer, spayload)
 			fmt.Println(req.Payload)
-			fmt.Println("calltransactionrequest")
 
 			response, err := network.CallTransactionRequest(req)
 			if err != nil {
 				log.Fatalf("Failed to send request: %v", err)
 			}
 		
-			fmt.Println("get response")
 			rstr := FormatResponse(&response.Payload)
 			fmt.Println(rstr)
 		},

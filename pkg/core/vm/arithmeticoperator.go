@@ -3,6 +3,7 @@ package vm
 import (
 	. "hello/pkg/core/abi"
 	"hello/pkg/util"
+	"fmt"
 )
 
 func OpAdd(i *Interpreter, vars interface{}) interface{} {
@@ -101,11 +102,8 @@ func OpDiv(i *Interpreter, vars interface{}) interface{} {
 	}
 
 	if divResult := util.Div(aStr, bStr, nil); divResult != nil {
-		OperatorLog("OpDiv", "input:", vars, "result:", *divResult)
 		return *divResult
 	} else {
-		DebugLog("OpDiv: division by zero or invalid division")
-		OperatorLog("OpDiv", "input:", vars, "result: 0")
 		return "0"
 	}
 }
@@ -214,8 +212,12 @@ func OpPreciseSqrt(i *Interpreter, vars interface{}) interface{} {
 	}
 
 	result := util.Sqrt(aStr, &scale)
-	OperatorLog("OpPreciseSqrt", "input:", vars, "result:", result)
-	return result
+
+	if result == nil {
+		return "0"
+	}
+	fmt.Println("OpPreciseSqrt", "input:", vars, "result:", *result)
+	return *result
 }
 
 func OpPreciseDiv(i *Interpreter, vars interface{}) interface{} {
@@ -242,12 +244,9 @@ func OpPreciseDiv(i *Interpreter, vars interface{}) interface{} {
 	}
 
 	if result := util.Div(aStr, bStr, &scale); result != nil {
-		OperatorLog("OpPreciseDiv", "input:", vars, "result:", *result)
 		return *result
 	}
 
-	DebugLog("OpPreciseDiv: vars is not array or invalid length")
-	OperatorLog("OpPreciseDiv", "input:", vars, "result: 0")
 	return "0"
 }
 
