@@ -1,7 +1,6 @@
 package util
 
 import (
-	"fmt"
 	"sort"
 )
 
@@ -37,10 +36,6 @@ func AllEqual(args ...Ia) Ia {
 	return Reduce(args[1:], true, func(acc Ia, current Ia) Ia {
 		return acc.(bool) && (first == current)
 	})
-}
-
-func Print(args ...Ia) {
-	fmt.Println(args...)
 }
 
 var memocache = make(map[string](map[Ia]Ia))

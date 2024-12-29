@@ -13,6 +13,9 @@ import (
 	"hello/pkg/util"
 	"os"
 	"time"
+
+	"sync"
+
 	"go.uber.org/zap"
 )
 
@@ -40,6 +43,8 @@ type Oracle struct {
 	chain        *storage.ChainStorage
 	mempool      *storage.MempoolStorage
 
+	mu sync.RWMutex
+
 	State OracleState
 }
 
@@ -60,17 +65,16 @@ func GetOracleService() *Oracle {
 	return oracleInstance
 }
 
-func (o *Oracle) RemoveCommittedTransactions(txs map[string]*model.SignedTransaction) {
-	for _, tx := range txs {
-		o.mempool.RemoveTransaction(tx.GetTxHash())
-	}
-}
-
 func (o *Oracle) Consensus(txs map[string]*model.SignedTransaction) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
 
 }
 
 func (o *Oracle) Commit(txs map[string]*model.SignedTransaction) ([]string, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
 	var previousBlockhash string
 
 	lastBlockHeight := storage.LastHeight()
@@ -82,9 +86,8 @@ func (o *Oracle) Commit(txs map[string]*model.SignedTransaction) ([]string, erro
 		previousBlockhash = previousBlock.BlockHash()
 	}
 
-	o.machine.Init(previousBlock, int64(util.Utime()))
+	o.machine.Init(previousBlock)
 	o.machine.SetTransactions(txs)
-
 	o.machine.PreCommit()
 
 	block := model.NewBlock(storage.LastHeight()+1, previousBlockhash)
@@ -116,10 +119,16 @@ func (o *Oracle) Commit(txs map[string]*model.SignedTransaction) ([]string, erro
 }
 
 func (o *Oracle) OnStartCommit() {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
 	o.State = StateCommitting
 }
 
 func (o *Oracle) OnFinishCommit() {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
 	o.State = StateTransaction
 }
 
@@ -242,7 +251,11 @@ func (o *Oracle) registerPacketHandlers() {
 			return err
 		}
 
-		valid, err := o.machine.TxValidity(&tx)
+		lastBlockHeight := storage.LastHeight()
+		previousBlock, err := storage.GetChainStorageInstance().GetBlock(lastBlockHeight)
+
+		machine := vm.NewMachine(previousBlock)
+		valid, err := machine.TxValidity(&tx)
 
 		if err != nil {
 			return o.swift.SendErrorResponse(ctx, err.Error())
@@ -258,6 +271,8 @@ func (o *Oracle) registerPacketHandlers() {
 		}
 
 		txHash := tx.GetTxHash()
+		logger.Info("successfully added transaction to mempool", zap.String("tx_hash", txHash))
+
 		OracleLog("successfully added transaction to mempool: %s", txHash)
 
 		var responseData []byte
@@ -326,7 +341,18 @@ func (o *Oracle) registerPacketHandlers() {
 		data, _ := structure.ParseOrderedMap(string(packet.Payload))
 		signedRequest := model.NewSignedRequest(data)
 
-		res, err := o.machine.Response(signedRequest)
+		lastBlockHeight := storage.LastHeight()
+		previousBlock, err := storage.GetChainStorageInstance().GetBlock(lastBlockHeight)
+		if err != nil {
+			return o.swift.SendErrorResponse(ctx, err.Error())
+		}
+
+		// create a new machine for each request
+		machine := vm.NewMachine(previousBlock)
+		machine.Init(previousBlock)
+
+		res, err := machine.Response(signedRequest)
+
 		if err != nil {
 			return o.swift.SendErrorResponse(ctx, err.Error())
 		}

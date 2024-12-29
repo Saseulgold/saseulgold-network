@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"fmt"
 	F "hello/pkg/util"
 )
 
@@ -101,6 +102,6 @@ func OpReadUniversal(i *Interpreter, vars interface{}) interface{} {
 		result = i.GetUniversalStatus(statusHash, defaultVal)
 	}
 
-	OperatorLog("OpReadUniversal", "input:", vars, "result:", result)
+	fmt.Println(fmt.Sprintf("OpReadUniversal: attr=%s; key=%s; result=%v", attr, key, result))
 	return result
 }

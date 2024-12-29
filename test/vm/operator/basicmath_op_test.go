@@ -77,7 +77,7 @@ func TestCombinedOperators(t *testing.T) {
 	})
 
 	// 실행
-	interpreter.Reset()
+	interpreter.Reset(true)
 	interpreter.SetSignedData(signedData)
 	interpreter.SetCode(methodTest)
 	interpreter.SetPostProcess(post)
@@ -121,5 +121,129 @@ func TestCombinedOperators(t *testing.T) {
 
 	if _, ok := executions[2].(string); !ok {
 		t.Errorf("세 번째 실행 결과는 문자열이어야 합니다. 현재 타입: %T", executions[2])
+	}
+}
+
+func TestMinMaxOperators(t *testing.T) {
+	// Initialize interpreter
+	interpreter := vm.NewInterpreter()
+	interpreter.Init("transaction")
+	post := &Method{}
+
+	// Test method definition
+	methodTest := &Method{
+		Parameters: Parameters{
+			"hash1": NewParameter(map[string]interface{}{
+				"name":         "hash1",
+				"requirements": true,
+			}),
+			"hash2": NewParameter(map[string]interface{}{
+				"name":         "hash2",
+				"requirements": true,
+			}),
+			"num1": NewParameter(map[string]interface{}{
+				"name":         "num1",
+				"requirements": true,
+			}),
+			"num2": NewParameter(map[string]interface{}{
+				"name":         "num2",
+				"requirements": true,
+			}),
+		},
+		Executions: []Execution{
+			// Test Min with hashes
+			abi.Min(abi.Param("hash1"), abi.Param("hash2")),
+
+			// Test Max with hashes
+			abi.Max(abi.Param("hash1"), abi.Param("hash2")),
+
+			// Test Min with numbers
+			abi.Min(abi.Param("num1"), abi.Param("num2")),
+
+			// Test Max with numbers
+			abi.Max(abi.Param("num1"), abi.Param("num2")),
+		},
+	}
+
+	// First test with original order
+	signedData := NewSignedData()
+	signedData.SetAttribute("hash1", "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+	signedData.SetAttribute("hash2", "fedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321")
+	signedData.SetAttribute("num1", "100")
+	signedData.SetAttribute("num2", "200")
+
+	// Execute
+	interpreter.Reset(true)
+	interpreter.SetSignedData(signedData)
+	interpreter.SetCode(methodTest)
+	interpreter.SetPostProcess(post)
+	_, err := interpreter.Execute()
+
+	if err != nil {
+		t.Errorf("Execution error: %v", err)
+	}
+
+	executions := methodTest.GetExecutions()
+
+	// Verify Min hash result
+	expectedMinHash := "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+	if executions[0] != expectedMinHash {
+		t.Errorf("Min hash test failed.\nExpected: %s\nGot: %v",
+			expectedMinHash, executions[0])
+	}
+
+	// Verify Max hash result
+	expectedMaxHash := "fedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321"
+	if executions[1] != expectedMaxHash {
+		t.Errorf("Max hash test failed.\nExpected: %s\nGot: %v",
+			expectedMaxHash, executions[1])
+	}
+
+	// Verify Min number result
+	expectedMinNum := "100"
+	if executions[2] != expectedMinNum {
+		t.Errorf("Min number test failed.\nExpected: %s\nGot: %v",
+			expectedMinNum, executions[2])
+	}
+
+	// Verify Max number result
+	expectedMaxNum := "200"
+	if executions[3] != expectedMaxNum {
+		t.Errorf("Max number test failed.\nExpected: %s\nGot: %v",
+			expectedMaxNum, executions[3])
+	}
+
+	// Test with swapped hash values
+	signedData2 := NewSignedData()
+	signedData2.SetAttribute("hash1", "fedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321")
+	signedData2.SetAttribute("hash2", "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+	signedData2.SetAttribute("num1", "100")
+	signedData2.SetAttribute("num2", "200")
+
+	// Execute with swapped values
+	interpreter.Reset(true)
+	interpreter.SetSignedData(signedData2)
+	interpreter.SetCode(methodTest)
+	interpreter.SetPostProcess(post)
+	_, err = interpreter.Execute()
+
+	if err != nil {
+		t.Errorf("Execution error with swapped values: %v", err)
+	}
+
+	executionsSwapped := methodTest.GetExecutions()
+
+	// Verify Min hash result with swapped values
+	expectedMinHash = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+	if executionsSwapped[0] != expectedMinHash {
+		t.Errorf("Min hash test with swapped values failed.\nExpected: %s\nGot: %v",
+			expectedMinHash, executionsSwapped[0])
+	}
+
+	// Verify Max hash result with swapped values
+	expectedMaxHash = "fedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321"
+	if executionsSwapped[1] != expectedMaxHash {
+		t.Errorf("Max hash test with swapped values failed.\nExpected: %s\nGot: %v",
+			expectedMaxHash, executionsSwapped[1])
 	}
 }

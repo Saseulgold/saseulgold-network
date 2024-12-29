@@ -2,7 +2,6 @@ package model
 
 import (
 	"encoding/json"
-	"fmt"
 	"hello/pkg/core/structure"
 	F "hello/pkg/util"
 )
@@ -18,7 +17,6 @@ type BlockHeader struct {
 
 func (bh BlockHeader) Ser() string {
 	j, _ := json.Marshal(bh)
-	fmt.Println(string(j))
 	return string(j)
 }
 

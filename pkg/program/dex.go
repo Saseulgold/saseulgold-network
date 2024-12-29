@@ -228,7 +228,7 @@ func CreateProvideLiquidityCmd() *cobra.Command {
 
 			address := crypto.GetAddress(crypto.GetXpub(privateKey))
 
-			payload.Set("type", "LiquidityProvider")
+			payload.Set("type", "LiquidityProvide")
 			payload.Set("token_address_a", token_address_a)
 			payload.Set("token_address_b", token_address_b)
 			payload.Set("amount_a", amount_a)
@@ -318,6 +318,62 @@ func CreateWithdrawLiquidityCmd() *cobra.Command {
 	return cmd
 }
 
+func CreateSwapCmd() *cobra.Command {
+	var peer string
+	var token_address_a string
+	var token_address_b string
+	var amount_a string
+
+	cmd := &cobra.Command{
+		Use:   "swap",
+		Short: "swap token",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			logger.Info("Swap token",
+				zap.String("token_address_a", token_address_a),
+				zap.String("token_address_b", token_address_b),
+				zap.String("amount_a", amount_a))
+
+			payload := structure.NewOrderedMap()
+			privateKey, err := GetPrivateKey()
+
+			if err != nil {
+				log.Fatalf("Failed to get private key: %v", err)
+			}
+
+			address := crypto.GetAddress(crypto.GetXpub(privateKey))
+
+			payload.Set("type", "Swap")
+			payload.Set("token_address_a", token_address_a)
+			payload.Set("token_address_b", token_address_b)
+			payload.Set("amount_a", amount_a)
+			payload.Set("timestamp", util.Utime())
+			payload.Set("from", address)
+
+			req := CreateWalletTransaction(peer, payload.Ser())
+			fmt.Println(req.Payload)
+
+			response, err := network.CallTransactionRequest(req)
+			if err != nil {
+				log.Fatalf("Failed to send request: %v", err)
+			}
+
+			rstr := FormatResponse(&response.Payload)
+			fmt.Println(rstr)
+		},
+	}
+
+	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to connect")
+	cmd.Flags().StringVarP(&token_address_a, "token_a", "a", "", "first token address")
+	cmd.MarkFlagRequired("token_a")
+	cmd.Flags().StringVarP(&token_address_b, "token_b", "b", "", "second token address")
+	cmd.MarkFlagRequired("token_b")
+	cmd.Flags().StringVarP(&amount_a, "amount_a", "x", "", "amount of first token")
+	cmd.MarkFlagRequired("amount_a")
+
+	return cmd
+}
+
 func CreateDexCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "dex",
@@ -331,6 +387,7 @@ func CreateDexCmd() *cobra.Command {
 		CreateTokenInfoCmd(),
 		CreateProvideLiquidityCmd(),
 		CreateWithdrawLiquidityCmd(),
+		CreateSwapCmd(),
 	)
 
 	return cmd

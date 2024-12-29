@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"fmt"
 	. "hello/pkg/core/abi"
 	C "hello/pkg/core/config"
 	"hello/pkg/core/debug"
@@ -10,7 +11,6 @@ import (
 )
 
 func OpWriteUniversal(i *Interpreter, vars interface{}) interface{} {
-	OperatorLog("op start", i.process.String(), i.state.String())
 
 	attr, key, value := Unpack3(vars)
 
@@ -28,8 +28,8 @@ func OpWriteUniversal(i *Interpreter, vars interface{}) interface{} {
 	var statusHash string
 	if i.process == ProcessMain {
 		statusHash = F.StatusHash(i.code.GetWriter(), i.code.GetSpace(), attr.(string), key.(string))
-		debug.DebugLog("write_universal main: attr=%s; key=%s; writer=%s; space=%s; status_hash=%s",
-			attr, key, i.code.GetWriter(), i.code.GetSpace(), statusHash)
+		fmt.Println(fmt.Sprintf("write_universal main: attr=%s; key=%s; writer=%s; space=%s; status_hash=%s",
+			attr, key, i.code.GetWriter(), i.code.GetSpace(), statusHash))
 	} else if i.process == ProcessPost {
 		statusHash = F.StatusHash(i.postProcess.GetWriter(), i.postProcess.GetSpace(), attr.(string), key.(string))
 	}

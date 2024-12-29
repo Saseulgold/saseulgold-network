@@ -3,6 +3,7 @@ package native
 import (
 	abi "hello/pkg/core/abi"
 	. "hello/pkg/core/config"
+	C "hello/pkg/core/config"
 	. "hello/pkg/core/model"
 	. "hello/pkg/util"
 )
@@ -93,23 +94,23 @@ func Mint() *Method {
 	update_symbol := abi.WriteUniversal(token_address, "symbol", symbol)
 	method.AddExecution(update_symbol)
 
-	owner_address := abi.HashMany(token_address, from)
-	update_owner_balance := abi.WriteUniversal(owner_address, "balance", supply)
+	balance_address := abi.HashMany(token_address, "balance")
+	update_balance := abi.WriteUniversal(balance_address, from, supply)
 
-	method.AddExecution(update_owner_balance)
+	method.AddExecution(update_balance)
 
 	network_fee_reserve := abi.ReadUniversal("network_fee_reserve", ZERO_ADDRESS, "0")
-	rewserve_update := abi.WriteUniversal("network_fee_reserve", ZERO_ADDRESS, abi.PreciseAdd(network_fee_reserve, MINT_FEE, 0))
+	network_fee_reserve_update := abi.WriteUniversal("network_fee_reserve", ZERO_ADDRESS, abi.PreciseAdd(network_fee_reserve, MINT_FEE, 0))
 
-	method.AddExecution(rewserve_update)
+	method.AddExecution(network_fee_reserve_update)
 
 	return method
 }
 
-func LiquidityProvider() *Method {
+func LiquidityProvide() *Method {
 	method := NewMethod(map[string]interface{}{
 		"type":    "contract",
-		"name":    "LiquidityProvider",
+		"name":    "LiquidityProvide",
 		"version": "1",
 		"space":   RootSpace(),
 		"writer":  ZERO_ADDRESS,
@@ -145,6 +146,7 @@ func LiquidityProvider() *Method {
 
 	tokenA := abi.Param("token_address_a")
 	tokenB := abi.Param("token_address_b")
+
 	amountA := abi.Param("amount_a")
 	amountB := abi.Param("amount_b")
 	from := abi.Param("from")
@@ -159,12 +161,20 @@ func LiquidityProvider() *Method {
 		"TokenB does not exist",
 	))
 
-	// Check user's token balances
-	fromBalanceA := abi.HashMany(tokenA, from)
-	fromBalanceB := abi.HashMany(tokenB, from)
+	balance_address_a := abi.If(
+		abi.Eq(tokenA, ZERO_ADDRESS),
+		"balance",
+		abi.HashMany(tokenA, "balance"),
+	)
 
-	userBalanceA := abi.ReadUniversal(fromBalanceA, "balance", "0")
-	userBalanceB := abi.ReadUniversal(fromBalanceB, "balance", "0")
+	balance_address_b := abi.If(
+		abi.Eq(tokenB, ZERO_ADDRESS),
+		"balance",
+		abi.HashMany(tokenB, "balance"),
+	)
+
+	userBalanceA := abi.ReadUniversal(balance_address_a, from, "0")
+	userBalanceB := abi.ReadUniversal(balance_address_b, from, "0")
 
 	// Verify sufficient balances
 	method.AddExecution(abi.Condition(
@@ -177,22 +187,23 @@ func LiquidityProvider() *Method {
 	))
 
 	// Deduct tokens from user's balance
-	method.AddExecution(abi.WriteUniversal(fromBalanceA, "balance",
+	method.AddExecution(abi.WriteUniversal(balance_address_a, from,
 		abi.PreciseSub(userBalanceA, amountA, "0")))
-	method.AddExecution(abi.WriteUniversal(fromBalanceB, "balance",
+	method.AddExecution(abi.WriteUniversal(balance_address_b, from,
 		abi.PreciseSub(userBalanceB, amountB, "0")))
 
-	pairAddress := abi.HashMany("pair", tokenA, tokenB)
+	pairAddress := abi.HashMany("qrc_20_pair", abi.Min(tokenA, tokenB), abi.Max(tokenA, tokenB))
+
 	method.AddExecution(abi.WriteUniversal(pairAddress, "exists", true))
 
-	currentReserveA := abi.ReadUniversal(pairAddress, "reserveA", "0")
-	currentReserveB := abi.ReadUniversal(pairAddress, "reserveB", "0")
+	currentReserveA := abi.ReadUniversal(pairAddress, "reserve_a", "0")
+	currentReserveB := abi.ReadUniversal(pairAddress, "reserve_b", "0")
 
 	newReserveA := abi.PreciseAdd(currentReserveA, amountA, "0")
 	newReserveB := abi.PreciseAdd(currentReserveB, amountB, "0")
 
-	method.AddExecution(abi.WriteUniversal(pairAddress, "reserveA", newReserveA))
-	method.AddExecution(abi.WriteUniversal(pairAddress, "reserveB", newReserveB))
+	method.AddExecution(abi.WriteUniversal(pairAddress, "reserve_a", newReserveA))
+	method.AddExecution(abi.WriteUniversal(pairAddress, "reserve_b", newReserveB))
 
 	liquidity := abi.PreciseSqrt(abi.PreciseMul(amountA, amountB, "0"), "0")
 
@@ -201,9 +212,9 @@ func LiquidityProvider() *Method {
 
 	method.AddExecution(abi.WriteUniversal(pairAddress, from, newLiquidity))
 
-        totalLiquidity := abi.ReadUniversal(pairAddress, "totalLiquidity", "0")
-        newTotalLiquidity := abi.PreciseAdd(totalLiquidity, liquidity, "0")
-        method.AddExecution(abi.WriteUniversal(pairAddress, "totalLiquidity", newTotalLiquidity))
+	totalLiquidity := abi.ReadUniversal(pairAddress, "total_liquidity", "0")
+	newTotalLiquidity := abi.PreciseAdd(totalLiquidity, liquidity, "0")
+	method.AddExecution(abi.WriteUniversal(pairAddress, "total_liquidity", newTotalLiquidity))
 
 	return method
 }
@@ -271,21 +282,20 @@ func Transfer() *Method {
 	))
 
 	// Check if sender has enough balance
-	fromAddressBalance := abi.HashMany(token_address, from)
-	fromBalance := abi.ReadUniversal(fromAddressBalance, "balance", "0")
+	balance_address := abi.HashMany(token_address, "balance")
+	fromBalance := abi.ReadUniversal(balance_address, from, "0")
 	method.AddExecution(abi.Condition(
 		abi.Gte(fromBalance, amount),
 		"Insufficient balance",
 	))
 
 	// Update balances
-	newFromBalance := abi.PreciseSub(fromBalance, amount, "0")
-	method.AddExecution(abi.WriteUniversal(fromAddressBalance, "balance", newFromBalance))
+	method.AddExecution(abi.WriteUniversal(balance_address, from,
+		abi.PreciseSub(fromBalance, amount, "0")))
 
-	toAddressBalance := abi.HashMany(token_address, to)
-	toBalance := abi.ReadUniversal(toAddressBalance, "balance", "0")
-	newToBalance := abi.PreciseAdd(toBalance, amount, "0")
-	method.AddExecution(abi.WriteUniversal(toAddressBalance, "balance", newToBalance))
+	toBalance := abi.ReadUniversal(balance_address, to, "0")
+	method.AddExecution(abi.WriteUniversal(balance_address, to,
+		abi.PreciseAdd(toBalance, amount, "0")))
 
 	// Deduct transfer fee from sender's balance
 	newFromBalanceSG := abi.PreciseSub(fromBalanceSG, TRNF_FEE, "0")
@@ -300,7 +310,7 @@ func Transfer() *Method {
 
 func BalanceOf() *Method {
 	method := NewMethod(map[string]interface{}{
-		"type":    "contract",
+		"type":    "request",
 		"name":    "BalanceOf",
 		"version": "1",
 		"space":   RootSpace(),
@@ -333,10 +343,10 @@ func BalanceOf() *Method {
 	))
 
 	// Get balance address
-	balance_address := abi.HashMany(token_address, address)
+	balance_address := abi.HashMany(token_address, "balance")
 
 	// Read and return balance
-	balance := abi.ReadUniversal(balance_address, "balance", "0")
+	balance := abi.ReadUniversal(balance_address, address, "0")
 	method.AddExecution(abi.Response(balance))
 
 	return method
@@ -351,35 +361,48 @@ func Swap() *Method {
 		"writer":  ZERO_ADDRESS,
 	})
 
-	// Add parameters for token addresses and amount
+	// Parameters for the swap
 	method.AddParameter(NewParameter(map[string]interface{}{
-		"name":         "tokenA",
+		"name":         "token_address_a",
 		"type":         "string",
 		"maxlength":    80,
 		"requirements": true,
 	}))
-
 	method.AddParameter(NewParameter(map[string]interface{}{
-		"name":         "tokenB",
+		"name":         "token_address_b",
 		"type":         "string",
 		"maxlength":    80,
 		"requirements": true,
 	}))
-
 	method.AddParameter(NewParameter(map[string]interface{}{
-		"name":         "amount",
+		"name":         "amount_a",
 		"type":         "string",
 		"maxlength":    50,
 		"requirements": true,
 	}))
 
-	// Get parameters
-	tokenA := abi.Param("tokenA")
-	tokenB := abi.Param("tokenB")
-	amount := abi.Param("amount")
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "minimum_amount_b",
+		"type":         "string",
+		"maxlength":    50,
+		"requirements": false,
+		"default":      nil,
+	}))
+
+	// Extract parameters
+	tokenA := abi.Param("token_address_a")
+	tokenB := abi.Param("token_address_b")
+	amountA := abi.Param("amount_a")
+	// minimumAmountB := abi.Param("minimum_amount_b")
 	from := abi.Param("from")
 
-	// Check if tokens exist
+	// Ensure tokenA and tokenB are not the same
+	method.AddExecution(abi.Condition(
+		abi.Ne(tokenA, tokenB),
+		"Token addresses must be different",
+	))
+
+	// Validate tokens exist
 	method.AddExecution(abi.Condition(
 		abi.Ne(abi.ReadUniversal(tokenA, "supply", nil), nil),
 		"TokenA does not exist",
@@ -389,53 +412,132 @@ func Swap() *Method {
 		"TokenB does not exist",
 	))
 
-	// Check if pair exists
-	pairAddress := abi.HashMany("pair", tokenA, tokenB)
+	// Validate reserves
+	pairAddress := abi.HashMany("qrc_20_pair", abi.Min(tokenA, tokenB), abi.Max(tokenA, tokenB))
+	existsHashKey := abi.HashMany(pairAddress, "exists")
+
+	reserveA := abi.ReadUniversal(pairAddress, "reserve_a", "0")
+	reserveB := abi.ReadUniversal(pairAddress, "reserve_b", "0")
 	method.AddExecution(abi.Condition(
-		abi.Ne(abi.ReadUniversal(pairAddress, "exists", nil), nil),
-		"Liquidity pair does not exist",
+		abi.And(abi.Gt(reserveA, "0"), abi.Gt(reserveB, "0")),
+		"Insufficient reserves for swap",
 	))
 
-	// Check if amount is valid
+	// Validate user balance for TokenA
+	balance_address_a := abi.If(
+		abi.Eq(tokenA, ZERO_ADDRESS),
+		"balance",
+		abi.HashMany(tokenA, "balance"),
+	)
+	balanceA := abi.ReadUniversal(balance_address_a, from, "0")
 	method.AddExecution(abi.Condition(
-		abi.Gt(amount, "0"),
-		"Swap amount must be greater than 0",
+		abi.Gte(balanceA, amountA),
+		"Insufficient balance for TokenA",
 	))
 
-	// Check user's token balance
-	fromBalanceA := abi.HashMany(tokenA, from)
-	userBalanceA := abi.ReadUniversal(fromBalanceA, "balance", "0")
+	// Calculate amount of TokenB to swap
+	feeRate := C.SWAP_DEDUCT_RATE
+	numerator := abi.PreciseMul(amountA, reserveB, "0")
+	denominator := abi.PreciseAdd(reserveA, amountA, "0")
+	amountB := abi.PreciseDiv(numerator, denominator, "0")
+	amountBWithFee := abi.PreciseMul(amountB, feeRate, "0")
 
-	// Verify sufficient balance
+	// Ensure amountB meets minimum_amount_b
+	/**
 	method.AddExecution(abi.Condition(
-		abi.Gte(userBalanceA, amount),
-		"Insufficient balance for tokenA",
+		abi.Gte(amountBWithFee, minimumAmountB),
+		"Output amount is less than the minimum specified",
+	))
+	*/
+
+	// Update user's balances
+	method.AddExecution(abi.WriteUniversal(balance_address_a, from,
+		abi.PreciseSub(balanceA, amountA, "0")))
+
+	balance_address_b := abi.If(
+		abi.Eq(tokenB, ZERO_ADDRESS),
+		"balance",
+		abi.HashMany(tokenB, "balance"),
+	)
+
+	balanceB := abi.ReadUniversal(balance_address_b, from, "0")
+	method.AddExecution(abi.WriteUniversal(balance_address_b, from,
+		abi.PreciseAdd(balanceB, amountBWithFee, "0")))
+
+	// Update reserves
+	newReserveA := abi.PreciseAdd(reserveA, amountA, "0")
+	newReserveB := abi.PreciseSub(reserveB, amountBWithFee, "0")
+	method.AddExecution(abi.WriteUniversal(pairAddress, "reserve_a", newReserveA))
+	method.AddExecution(abi.WriteUniversal(pairAddress, "reserve_b", newReserveB))
+
+	// Distribute fees to LPs using state space
+	fee := abi.PreciseSub(amountB, amountBWithFee, "0")
+	totalLiquidity := abi.ReadUniversal(pairAddress, "total_liquidity", "0")
+	method.AddExecution(abi.Condition(
+		abi.Gt(totalLiquidity, "0"),
+		"No liquidity available for fee distribution",
 	))
 
-	// Check pool reserves
-	reserveA := abi.ReadUniversal(pairAddress, "reserveA", "0")
-	reserveB := abi.ReadUniversal(pairAddress, "reserveB", "0")
+	lp_rewards_address := abi.HashMany(pairAddress, "lp_rewards")
+	reward_per_unit := abi.PreciseDiv(fee, totalLiquidity, "0")
+	method.AddExecution(abi.WriteUniversal(lp_rewards_address, "reward_per_unit", reward_per_unit))
 
-	// Verify sufficient liquidity
-	method.AddExecution(abi.Condition(
-		abi.Gte(reserveB, amount),
-		"Insufficient liquidity for swap",
-	))
-
-	// Update user balances
-	method.AddExecution(abi.WriteUniversal(fromBalanceA, "balance",
-		abi.PreciseSub(userBalanceA, amount, "0")))
-
-	fromBalanceB := abi.HashMany(tokenB, from)
-	userBalanceB := abi.ReadUniversal(fromBalanceB, "balance", "0")
-	method.AddExecution(abi.WriteUniversal(fromBalanceB, "balance",
-		abi.PreciseAdd(userBalanceB, amount, "0")))
-
-	// Update pool reserves
-	method.AddExecution(abi.WriteUniversal(pairAddress, "reserveA",
-		abi.PreciseAdd(reserveA, amount, "0")))
-	method.AddExecution(abi.WriteUniversal(pairAddress, "reserveB",
-		abi.PreciseSub(reserveB, amount, "0")))
+	method.AddExecution(abi.WriteUniversal(existsHashKey, "exists", true))
 
 	return method
+}
+
+func GetPairInfo() *Method {
+	method := NewMethod(map[string]interface{}{
+		"type":    "request",
+		"name":    "GetPairInfo",
+		"version": "1",
+		"space":   RootSpace(),
+		"writer":  ZERO_ADDRESS,
+	})
+
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "token_address_a",
+		"type":         "string",
+		"maxlength":    64,
+		"requirements": true,
+	}))
+
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "token_address_b",
+		"type":         "string",
+		"maxlength":    64,
+		"requirements": true,
+	}))
+
+	tokenA := abi.Param("token_address_a")
+	tokenB := abi.Param("token_address_b")
+
+	pairAddress := abi.HashMany("qrc_20_pair", abi.Min(tokenA, tokenB), abi.Max(tokenA, tokenB))
+
+	// exists := abi.Check(abi.ReadUniversal(pairAddress, "exists", nil))
+	exists := abi.ReadUniversal(pairAddress, "exists", nil)
+
+	existsCondition := abi.Condition(abi.Eq(exists, true), abi.EncodeJSON("Pair does not exist"))
+	method.AddExecution(existsCondition)
+
+	var response interface{}
+
+	rsrva := abi.ReadUniversal(pairAddress, "reserve_a", nil)
+	response = abi.Set(response, "reserve_a", rsrva)
+
+	rsrvb := abi.ReadUniversal(pairAddress, "reserve_b", nil)
+	response = abi.Set(response, "reserve_b", rsrvb)
+
+	totalLq := abi.ReadUniversal(pairAddress, "total_liquidity", "0")
+	response = abi.Set(response, "total_liquidity", totalLq)
+
+	rewardLp := abi.ReadUniversal(pairAddress, "lp_rewards", "0")
+	response = abi.Set(response, "lp_rewards", rewardLp)
+
+	response = abi.EncodeJSON(response)
+	method.AddExecution(abi.Response(response))
+
+	return method
+
 }

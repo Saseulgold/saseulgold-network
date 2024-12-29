@@ -50,7 +50,6 @@ func (sf *StatusFile) Touch() error {
 		return err
 	}
 
-
 	files := []string{
 		sf.TempFile(),
 		sf.InfoFile(),
@@ -62,7 +61,7 @@ func (sf *StatusFile) Touch() error {
 	}
 
 	for _, file := range files {
-		fmt.Println("f: ", file)
+
 		f, err := os.OpenFile(file, os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			return err
@@ -705,7 +704,7 @@ func (sf *StatusFile) GetUniversalStatus(key string) interface{} {
 	}
 
 	value, err := sf.ReadUniversalStatus(index)
-	
+
 	if err != nil {
 		return nil
 	}

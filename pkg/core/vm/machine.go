@@ -22,9 +22,8 @@ type Machine struct {
 	requests            map[string]map[string]*Method
 	postProcessContract map[string]interface{}
 
-	previousBlock  *Block
-	roundTimestamp int64
-	transactions   *map[string]*SignedTransaction
+	previousBlock *Block
+	transactions  *map[string]*SignedTransaction
 }
 
 var instance *Machine
@@ -32,24 +31,32 @@ var instance *Machine
 func GetMachineInstance() *Machine {
 	if instance == nil {
 		instance = &Machine{
-			interpreter:    NewInterpreter(),
-			previousBlock:  nil,
-			roundTimestamp: 0,
+			interpreter:   NewInterpreter(),
+			previousBlock: nil,
 		}
 	}
 	return instance
+}
+
+func NewMachine(previousBlock *Block) *Machine {
+	m := &Machine{
+		interpreter:   NewInterpreter(),
+		previousBlock: previousBlock,
+	}
+
+	m.Init(previousBlock)
+	return m
 }
 
 func (m *Machine) GetInterpreter() *Interpreter {
 	return m.interpreter
 }
 
-func (m *Machine) Init(previousBlock *Block, roundTimestamp int64) {
+func (m *Machine) Init(previousBlock *Block) {
 	m.interpreter.Reset(true)
 	m.interpreter.Init("transaction")
 
 	m.previousBlock = previousBlock
-	m.roundTimestamp = roundTimestamp
 }
 
 func (m *Machine) ValidateTxTimestamp(tx *SignedTransaction) bool {
@@ -88,7 +95,7 @@ func (m *Machine) Commit(block *Block) error {
 	}
 
 	m.previousBlock = block
-	m.roundTimestamp = block.Timestamp_s
+	block.Timestamp_s = util.Utime()
 	m.transactions = &map[string]*SignedTransaction{}
 
 	return nil
@@ -137,9 +144,7 @@ func (m *Machine) TxValidity(tx *SignedTransaction) (bool, error) {
 		return false, err
 	}
 
-	roundTimestamp := util.Utime() + C.TIME_STAMP_ERROR_LIMIT
-
-	m.Init(lastBlock, roundTimestamp)
+	m.Init(lastBlock)
 
 	// txHash := tx.GetTxHash()
 	//m.SetTransactions(map[string]*SignedTransaction{ txHash: tx, })
@@ -252,7 +257,7 @@ func (m *Machine) NextBlock() *Block {
 	return &Block{
 		Height:            m.previousBlock.Height + 1,
 		Transactions:      m.transactions,
-		Timestamp_s:       m.roundTimestamp,
+		Timestamp_s:       util.Utime(),
 		UniversalUpdates:  m.interpreter.GetUniversalUpdates(),
 		LocalUpdates:      m.interpreter.GetLocalUpdates(),
 		PreviousBlockhash: m.previousBlock.BlockHash(),
@@ -301,7 +306,7 @@ func (m *Machine) ExpectedBlock() *Block {
 	expectedBlock := &Block{
 		Height:            Height + 1,
 		Transactions:      m.transactions,
-		Timestamp_s:       m.roundTimestamp,
+		Timestamp_s:       util.Utime(),
 		UniversalUpdates:  m.interpreter.GetUniversalUpdates(),
 		LocalUpdates:      m.interpreter.GetLocalUpdates(),
 		PreviousBlockhash: previousBlockhash,
@@ -310,6 +315,9 @@ func (m *Machine) ExpectedBlock() *Block {
 	return expectedBlock
 }
 func (m *Machine) Response(request SignedRequest) (interface{}, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
 	logger.Info("Response", zap.String("request", fmt.Sprintf("%v", request)))
 
 	if err := request.Validate(); err != nil {

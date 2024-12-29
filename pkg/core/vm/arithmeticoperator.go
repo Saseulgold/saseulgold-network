@@ -1,9 +1,9 @@
 package vm
 
 import (
+	"fmt"
 	. "hello/pkg/core/abi"
 	"hello/pkg/util"
-	"fmt"
 )
 
 func OpAdd(i *Interpreter, vars interface{}) interface{} {
@@ -262,4 +262,81 @@ func OpScale(i *Interpreter, vars interface{}) interface{} {
 	DebugLog("OpScale: value is not numeric")
 	OperatorLog("OpScale", "input:", vars, "result: 0")
 	return 0
+}
+
+func OpMax(i *Interpreter, vars interface{}) interface{} {
+	a, b := Unpack2(vars)
+
+	// Check if both are strings
+	if aStr, aOk := a.(string); aOk {
+		if bStr, bOk := b.(string); bOk {
+			// If both are numeric strings, compare as numbers
+			if util.IsNumeric(aStr) && util.IsNumeric(bStr) {
+				if result := util.Compare(aStr, bStr, 0); result >= 0 {
+					fmt.Println("OpMax: ", aStr)
+					return aStr
+				}
+				fmt.Println("OpMax: ", bStr)
+				return bStr
+			}
+			// If both are regular strings, compare lexicographically
+			if aStr >= bStr {
+				fmt.Println("OpMax: ", aStr)
+				return aStr
+			}
+			fmt.Println("OpMax: ", bStr)
+			return bStr
+		}
+	}
+
+	// Check if both are numbers
+	if aNum, aOk := a.(float64); aOk {
+		if bNum, bOk := b.(float64); bOk {
+			if aNum >= bNum {
+				return aNum
+			}
+			return bNum
+		}
+	}
+
+	DebugLog("OpMax: incompatible types or invalid values")
+	return nil
+}
+
+func OpMin(i *Interpreter, vars interface{}) interface{} {
+	a, b := Unpack2(vars)
+
+	// Check if both are strings
+	if aStr, aOk := a.(string); aOk {
+		if bStr, bOk := b.(string); bOk {
+			// If both are numeric strings, compare as numbers
+			if util.IsNumeric(aStr) && util.IsNumeric(bStr) {
+				if result := util.Compare(aStr, bStr, 0); result <= 0 {
+					return aStr
+				}
+				fmt.Println("OpMin: ", bStr)
+				return bStr
+			}
+			// If both are regular strings, compare lexicographically
+			if aStr <= bStr {
+				fmt.Println("OpMin: ", aStr)
+				return aStr
+			}
+			fmt.Println("OpMin: ", bStr)
+			return bStr
+		}
+	}
+
+	// Check if both are numbers
+	if aNum, aOk := a.(float64); aOk {
+		if bNum, bOk := b.(float64); bOk {
+			if aNum <= bNum {
+				return aNum
+			}
+			return bNum
+		}
+	}
+
+	DebugLog("OpMin: incompatible types or invalid values")
+	return nil
 }

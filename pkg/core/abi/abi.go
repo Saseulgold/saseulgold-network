@@ -410,3 +410,17 @@ func ListTransaction(count interface{}) ABI {
 		Value: []interface{}{count},
 	}
 }
+
+func Min(a, b interface{}) ABI {
+	return ABI{
+		Key:   "$min",
+		Value: []interface{}{a, b},
+	}
+}
+
+func Max(a, b interface{}) ABI {
+	return ABI{
+		Key:   "$max",
+		Value: []interface{}{a, b},
+	}
+}

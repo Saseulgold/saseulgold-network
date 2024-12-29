@@ -187,8 +187,11 @@ func CreatePairInfoRequestCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer")
+
 	cmd.Flags().StringVarP(&address_a, "address_a", "a", "", "")
+	cmd.MarkFlagRequired("address_a")
 	cmd.Flags().StringVarP(&address_b, "address_b", "b", "", "")
+	cmd.MarkFlagRequired("address_b")
 
 	return cmd
 }
@@ -203,7 +206,7 @@ func CreateApiCmd() *cobra.Command {
 		CreateRequestCmd(),
 		CreateListBlockCmd(),
 		CreateListTransactionCmd(),
-		CreatePairInfoRequestCmd(), 
+		CreatePairInfoRequestCmd(),
 	)
 
 	return cmd
