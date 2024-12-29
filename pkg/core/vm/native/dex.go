@@ -144,11 +144,20 @@ func LiquidityProvide() *Method {
 		"requirements": true,
 	}))
 
-	tokenA := abi.Param("token_address_a")
-	tokenB := abi.Param("token_address_b")
+	tokenA := abi.Min(abi.Param("token_address_a"), abi.Param("token_address_b"))
+	tokenB := abi.Max(abi.Param("token_address_a"), abi.Param("token_address_b"))
 
-	amountA := abi.Param("amount_a")
-	amountB := abi.Param("amount_b")
+	amountA := abi.If(
+		abi.Eq(tokenA, abi.Param("token_address_a")),
+		abi.Param("amount_a"),
+		abi.Param("amount_b"),
+	)
+	amountB := abi.If(
+		abi.Eq(tokenB, abi.Param("token_address_b")),
+		abi.Param("amount_b"),
+		abi.Param("amount_a"),
+	)
+
 	from := abi.Param("from")
 
 	// Check if tokens exist
@@ -192,9 +201,7 @@ func LiquidityProvide() *Method {
 	method.AddExecution(abi.WriteUniversal(balance_address_b, from,
 		abi.PreciseSub(userBalanceB, amountB, "0")))
 
-	pairAddress := abi.HashMany("qrc_20_pair", abi.Min(tokenA, tokenB), abi.Max(tokenA, tokenB))
-
-	method.AddExecution(abi.WriteUniversal(pairAddress, "exists", true))
+	pairAddress := abi.HashMany("qrc_20_pair", tokenA, tokenB)
 
 	currentReserveA := abi.ReadUniversal(pairAddress, "reserve_a", "0")
 	currentReserveB := abi.ReadUniversal(pairAddress, "reserve_b", "0")
@@ -205,7 +212,16 @@ func LiquidityProvide() *Method {
 	method.AddExecution(abi.WriteUniversal(pairAddress, "reserve_a", newReserveA))
 	method.AddExecution(abi.WriteUniversal(pairAddress, "reserve_b", newReserveB))
 
-	liquidity := abi.PreciseSqrt(abi.PreciseMul(amountA, amountB, "0"), "0")
+	exists := abi.ReadUniversal(pairAddress, "exists", nil)
+
+	liquidity := abi.If(
+		abi.Eq(exists, nil),
+		abi.PreciseSqrt(abi.PreciseMul(amountA, amountB, "0"), "0"),
+		abi.Min(
+			abi.PreciseDiv(abi.PreciseMul(amountA, currentReserveB, "0"), currentReserveA, "0"),
+			abi.PreciseDiv(abi.PreciseMul(amountB, currentReserveA, "0"), currentReserveB, "0"),
+		),
+	)
 
 	currentLiquidity := abi.ReadUniversal(pairAddress, from, "0")
 	newLiquidity := abi.PreciseAdd(currentLiquidity, liquidity, "0")
@@ -214,7 +230,9 @@ func LiquidityProvide() *Method {
 
 	totalLiquidity := abi.ReadUniversal(pairAddress, "total_liquidity", "0")
 	newTotalLiquidity := abi.PreciseAdd(totalLiquidity, liquidity, "0")
+
 	method.AddExecution(abi.WriteUniversal(pairAddress, "total_liquidity", newTotalLiquidity))
+	method.AddExecution(abi.WriteUniversal(pairAddress, "exists", true))
 
 	return method
 }
@@ -365,17 +383,17 @@ func Swap() *Method {
 	method.AddParameter(NewParameter(map[string]interface{}{
 		"name":         "token_address_a",
 		"type":         "string",
-		"maxlength":    80,
+		"maxlength":    64,
 		"requirements": true,
 	}))
 	method.AddParameter(NewParameter(map[string]interface{}{
 		"name":         "token_address_b",
 		"type":         "string",
-		"maxlength":    80,
+		"maxlength":    64,
 		"requirements": true,
 	}))
 	method.AddParameter(NewParameter(map[string]interface{}{
-		"name":         "amount_a",
+		"name":         "amount_in",
 		"type":         "string",
 		"maxlength":    50,
 		"requirements": true,
@@ -390,10 +408,15 @@ func Swap() *Method {
 	}))
 
 	// Extract parameters
-	tokenA := abi.Param("token_address_a")
-	tokenB := abi.Param("token_address_b")
-	amountA := abi.Param("amount_a")
-	// minimumAmountB := abi.Param("minimum_amount_b")
+	tokenA := abi.Min(abi.Param("token_address_a"), abi.Param("token_address_b"))
+	tokenB := abi.Max(abi.Param("token_address_a"), abi.Param("token_address_b"))
+
+	inputAmount := abi.Param("amount_in")
+	isInputTokenA := abi.Eq(abi.Param("token_address_a"), tokenA)
+
+	amountA := abi.If(isInputTokenA, inputAmount, "0")
+	amountB := abi.If(isInputTokenA, "0", inputAmount)
+
 	from := abi.Param("from")
 
 	// Ensure tokenA and tokenB are not the same
@@ -413,8 +436,13 @@ func Swap() *Method {
 	))
 
 	// Validate reserves
-	pairAddress := abi.HashMany("qrc_20_pair", abi.Min(tokenA, tokenB), abi.Max(tokenA, tokenB))
-	existsHashKey := abi.HashMany(pairAddress, "exists")
+	pairAddress := abi.HashMany("qrc_20_pair", tokenA, tokenB)
+	totalLiquidity := abi.ReadUniversal(pairAddress, "total_liquidity", "0")
+
+	method.AddExecution(abi.Condition(
+		abi.Gt(totalLiquidity, "0"),
+		"No liquidity available for fee distribution",
+	))
 
 	reserveA := abi.ReadUniversal(pairAddress, "reserve_a", "0")
 	reserveB := abi.ReadUniversal(pairAddress, "reserve_b", "0")
@@ -437,10 +465,21 @@ func Swap() *Method {
 
 	// Calculate amount of TokenB to swap
 	feeRate := C.SWAP_DEDUCT_RATE
-	numerator := abi.PreciseMul(amountA, reserveB, "0")
-	denominator := abi.PreciseAdd(reserveA, amountA, "0")
-	amountB := abi.PreciseDiv(numerator, denominator, "0")
-	amountBWithFee := abi.PreciseMul(amountB, feeRate, "0")
+
+	outputAmount := abi.If(isInputTokenA,
+		// If input is tokenA, calculate tokenB output
+		abi.PreciseDiv(
+			abi.PreciseMul(amountA, reserveB, "0"),
+			abi.PreciseAdd(reserveA, amountA, "0"),
+			"0"),
+		// If input is tokenB, calculate tokenA output
+		abi.PreciseDiv(
+			abi.PreciseMul(amountB, reserveA, "0"),
+			abi.PreciseAdd(reserveB, amountB, "0"),
+			"0"))
+
+	// Apply fee to output amount
+	outputAmountWithFee := abi.PreciseMul(outputAmount, feeRate, "0")
 
 	// Ensure amountB meets minimum_amount_b
 	/**
@@ -461,28 +500,35 @@ func Swap() *Method {
 	)
 
 	balanceB := abi.ReadUniversal(balance_address_b, from, "0")
-	method.AddExecution(abi.WriteUniversal(balance_address_b, from,
-		abi.PreciseAdd(balanceB, amountBWithFee, "0")))
 
-	// Update reserves
-	newReserveA := abi.PreciseAdd(reserveA, amountA, "0")
-	newReserveB := abi.PreciseSub(reserveB, amountBWithFee, "0")
+	// Update user's balance with outputAmountWithFee instead of amountBWithFee
+	method.AddExecution(abi.WriteUniversal(balance_address_b, from,
+		abi.PreciseAdd(balanceB, outputAmountWithFee, "0")))
+
+	// Update reserves using outputAmountWithFee
+	newReserveA := abi.If(isInputTokenA,
+		abi.PreciseAdd(reserveA, amountA, "0"),
+		abi.PreciseSub(reserveA, outputAmountWithFee, "0"))
+
+	newReserveB := abi.If(isInputTokenA,
+		abi.PreciseSub(reserveB, outputAmountWithFee, "0"),
+		abi.PreciseAdd(reserveB, amountB, "0"))
+
 	method.AddExecution(abi.WriteUniversal(pairAddress, "reserve_a", newReserveA))
 	method.AddExecution(abi.WriteUniversal(pairAddress, "reserve_b", newReserveB))
 
-	// Distribute fees to LPs using state space
-	fee := abi.PreciseSub(amountB, amountBWithFee, "0")
-	totalLiquidity := abi.ReadUniversal(pairAddress, "total_liquidity", "0")
-	method.AddExecution(abi.Condition(
-		abi.Gt(totalLiquidity, "0"),
-		"No liquidity available for fee distribution",
-	))
+	// Calculate fee using outputAmount and outputAmountWithFee
+	fee := abi.PreciseSub(outputAmount, outputAmountWithFee, "0")
 
-	lp_rewards_address := abi.HashMany(pairAddress, "lp_rewards")
-	reward_per_unit := abi.PreciseDiv(fee, totalLiquidity, "0")
-	method.AddExecution(abi.WriteUniversal(lp_rewards_address, "reward_per_unit", reward_per_unit))
+	// Read current accumulated reward per unit
+	current_reward_per_unit := abi.ReadUniversal(pairAddress, "accumulated_reward_per_unit", "0")
 
-	method.AddExecution(abi.WriteUniversal(existsHashKey, "exists", true))
+	// Calculate new reward per unit and add to accumulated total
+	new_reward_per_unit := abi.PreciseDiv(fee, totalLiquidity, "0")
+	accumulated_reward_per_unit := abi.PreciseAdd(current_reward_per_unit, new_reward_per_unit, "0")
+
+	// Store accumulated reward per unit
+	method.AddExecution(abi.WriteUniversal(pairAddress, "accumulated_reward_per_unit", accumulated_reward_per_unit))
 
 	return method
 }
@@ -515,29 +561,173 @@ func GetPairInfo() *Method {
 
 	pairAddress := abi.HashMany("qrc_20_pair", abi.Min(tokenA, tokenB), abi.Max(tokenA, tokenB))
 
-	// exists := abi.Check(abi.ReadUniversal(pairAddress, "exists", nil))
+	// Check if pair exists first
 	exists := abi.ReadUniversal(pairAddress, "exists", nil)
-
-	existsCondition := abi.Condition(abi.Eq(exists, true), abi.EncodeJSON("Pair does not exist"))
-	method.AddExecution(existsCondition)
+	method.AddExecution(abi.Condition(
+		abi.Eq(exists, true),
+		"Pair does not exist",
+	))
 
 	var response interface{}
 
-	rsrva := abi.ReadUniversal(pairAddress, "reserve_a", nil)
-	response = abi.Set(response, "reserve_a", rsrva)
+	// Get reserves
+	reserveA := abi.ReadUniversal(pairAddress, "reserve_a", "0")
+	response = abi.Set(response, "reserve_a", reserveA)
 
-	rsrvb := abi.ReadUniversal(pairAddress, "reserve_b", nil)
-	response = abi.Set(response, "reserve_b", rsrvb)
+	reserveB := abi.ReadUniversal(pairAddress, "reserve_b", "0")
+	response = abi.Set(response, "reserve_b", reserveB)
 
-	totalLq := abi.ReadUniversal(pairAddress, "total_liquidity", "0")
-	response = abi.Set(response, "total_liquidity", totalLq)
+	// Calculate swap rates
+	// rate_a: How much of tokenB you get for 1 tokenA
+	// rate_b: How much of tokenA you get for 1 tokenB
 
-	rewardLp := abi.ReadUniversal(pairAddress, "lp_rewards", "0")
-	response = abi.Set(response, "lp_rewards", rewardLp)
+	addressA := abi.Min(tokenA, tokenB)
+	addressB := abi.Max(tokenA, tokenB)
 
+	// Apply fee rate to calculations
+	feeRate := C.SWAP_DEDUCT_RATE
+
+	response = abi.Set(response, "address_a", addressA)
+	response = abi.Set(response, "address_b", addressB)
+
+	// For 1 tokenA -> tokenB
+	oneTokenA := "1000000000000000000" // 1 with 18 decimals
+	numeratorA := abi.PreciseMul(oneTokenA, reserveB, "0")
+	denominatorA := abi.PreciseAdd(reserveA, oneTokenA, "0")
+	rateA := abi.PreciseMul(abi.PreciseDiv(numeratorA, denominatorA, "0"), feeRate, "0")
+	response = abi.Set(response, "rate_a_to_b", rateA)
+
+	// For 1 tokenB -> tokenA
+	oneTokenB := "1000000000000000000" // 1 with 18 decimals
+	numeratorB := abi.PreciseMul(oneTokenB, reserveA, "0")
+	denominatorB := abi.PreciseAdd(reserveB, oneTokenB, "0")
+	rateB := abi.PreciseMul(abi.PreciseDiv(numeratorB, denominatorB, "0"), feeRate, "0")
+	response = abi.Set(response, "rate_b_to_a", rateB)
+
+	// Get liquidity info
+	totalLiquidity := abi.ReadUniversal(pairAddress, "total_liquidity", "0")
+	response = abi.Set(response, "total_liquidity", totalLiquidity)
+
+	// Get accumulated rewards per unit
+	accumulatedRewardPerUnit := abi.ReadUniversal(pairAddress, "accumulated_reward_per_unit", "0")
+	response = abi.Set(response, "accumulated_reward_per_unit", accumulatedRewardPerUnit)
+
+	// Encode and return response
 	response = abi.EncodeJSON(response)
 	method.AddExecution(abi.Response(response))
 
 	return method
+}
 
+func LiquidityWithdraw() *Method {
+	method := NewMethod(map[string]interface{}{
+		"type":    "contract",
+		"name":    "LiquidityWithdraw",
+		"version": "1",
+		"space":   RootSpace(),
+		"writer":  ZERO_ADDRESS,
+	})
+
+	// Add parameters
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "token_address_a",
+		"type":         "string",
+		"maxlength":    64,
+		"requirements": true,
+	}))
+
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "token_address_b",
+		"type":         "string",
+		"maxlength":    64,
+		"requirements": true,
+	}))
+
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "liquidity_amount",
+		"type":         "string",
+		"maxlength":    50,
+		"requirements": true,
+	}))
+
+	// Get and sort token addresses
+	tokenA := abi.Min(abi.Param("token_address_a"), abi.Param("token_address_b"))
+	tokenB := abi.Max(abi.Param("token_address_a"), abi.Param("token_address_b"))
+	liquidityAmount := abi.Param("liquidity_amount")
+	from := abi.Param("from")
+
+	// Validate withdrawal amount
+	method.AddExecution(abi.Condition(
+		abi.Gt(liquidityAmount, "0"),
+		"Withdrawal amount must be greater than 0",
+	))
+
+	pairAddress := abi.HashMany("qrc_20_pair", tokenA, tokenB)
+
+	// Validate pair exists
+	method.AddExecution(abi.Condition(
+		abi.Eq(abi.ReadUniversal(pairAddress, "exists", nil), true),
+		"Liquidity pair does not exist",
+	))
+
+	// Check user's liquidity balance
+	userLiquidity := abi.ReadUniversal(pairAddress, from, "0")
+	method.AddExecution(abi.Condition(
+		abi.Gte(userLiquidity, liquidityAmount),
+		"Insufficient liquidity balance",
+	))
+
+	// Get pool state
+	reserveA := abi.ReadUniversal(pairAddress, "reserve_a", "0")
+	reserveB := abi.ReadUniversal(pairAddress, "reserve_b", "0")
+	totalLiquidity := abi.ReadUniversal(pairAddress, "total_liquidity", "0")
+
+	// Calculate withdrawal amounts
+	amountA := abi.PreciseDiv(abi.PreciseMul(liquidityAmount, reserveA, "0"), totalLiquidity, "0")
+	amountB := abi.PreciseDiv(abi.PreciseMul(liquidityAmount, reserveB, "0"), totalLiquidity, "0")
+
+	// Calculate rewards
+	accumulated_reward_per_unit := abi.ReadUniversal(pairAddress, "accumulated_reward_per_unit", "0")
+	rewards := abi.PreciseMul(liquidityAmount, accumulated_reward_per_unit, "0")
+
+	// Get balance addresses
+	balance_address_a := abi.If(
+		abi.Eq(tokenA, ZERO_ADDRESS),
+		"balance",
+		abi.HashMany(tokenA, "balance"),
+	)
+	balance_address_b := abi.If(
+		abi.Eq(tokenB, ZERO_ADDRESS),
+		"balance",
+		abi.HashMany(tokenB, "balance"),
+	)
+
+	// Update user balances
+	userBalanceA := abi.ReadUniversal(balance_address_a, from, "0")
+	userBalanceB := abi.ReadUniversal(balance_address_b, from, "0")
+
+	// Update token A balance
+	method.AddExecution(abi.WriteUniversal(balance_address_a, from,
+		abi.PreciseAdd(userBalanceA, amountA, "0")))
+
+	// Update token B balance with rewards
+	rewardBalanceB := abi.PreciseAdd(userBalanceB, rewards, "0")
+	method.AddExecution(abi.WriteUniversal(balance_address_b, from,
+		abi.PreciseAdd(rewardBalanceB, amountB, "0")))
+
+	// Update reserves
+	method.AddExecution(abi.WriteUniversal(pairAddress, "reserve_a",
+		abi.PreciseSub(reserveA, amountA, "0")))
+	method.AddExecution(abi.WriteUniversal(pairAddress, "reserve_b",
+		abi.PreciseSub(reserveB, amountB, "0")))
+
+	// Update liquidity state
+	method.AddExecution(abi.WriteUniversal(pairAddress, from,
+		abi.PreciseSub(userLiquidity, liquidityAmount, "0")))
+
+	// Update total liquidity
+	method.AddExecution(abi.WriteUniversal(pairAddress, "total_liquidity",
+		abi.PreciseSub(totalLiquidity, liquidityAmount, "0")))
+
+	return method
 }

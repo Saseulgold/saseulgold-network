@@ -80,7 +80,7 @@ func TestBasicOperators(t *testing.T) {
 	})
 
 	// 실행
-	interpreter.Reset()
+	interpreter.Reset(true)
 	interpreter.SetSignedData(signedData)
 	interpreter.SetCode(methodTest)
 	interpreter.SetPostProcess(post)

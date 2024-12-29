@@ -28,7 +28,7 @@ func TestOpRegexAndConditions(t *testing.T) {
 		Executions: []Execution{
 			// Email format validation
 			abi.RegMatch(abi.Param("email"), "^[^@]+@[^@]+\\.[^@]+$"),
-			abi.RegMatch(abi.Get(abi.Param("user"), "phone"), "/^010-\\d{4}-\\d{4}$/"),
+			abi.RegMatch(abi.Get(abi.Param("user"), "phone"), "/^010-\\d{4}-\\d{4}$/", nil),
 
 			// Nested condition test
 			abi.If(
@@ -41,7 +41,7 @@ func TestOpRegexAndConditions(t *testing.T) {
 			),
 
 			// Nested OpGet test
-			abi.Get(abi.Get(abi.Param("user"), "address"), "city"),
+			abi.Get(abi.Get(abi.Param("user"), "address"), "city", nil),
 		},
 	}
 
@@ -59,7 +59,7 @@ func TestOpRegexAndConditions(t *testing.T) {
 	})
 
 	// Execute
-	interpreter.Reset()
+	interpreter.Reset(true)
 	interpreter.SetSignedData(signedData)
 	interpreter.SetCode(methodTest)
 	interpreter.SetPostProcess(post)
