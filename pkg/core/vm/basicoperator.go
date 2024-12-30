@@ -201,6 +201,9 @@ func OpIn(i *Interpreter, vars interface{}) interface{} {
 }
 
 func OpCheck(i *Interpreter, vars interface{}) interface{} {
-	fmt.Println("OpCheck value:", vars, "type:", reflect.TypeOf(vars))
+	v, k := Unpack1Or2(vars)
+
+	fmt.Println("OpCheck value:", k, v, "type:", reflect.TypeOf(v))
+
 	return vars.([]interface{})[0]
 }

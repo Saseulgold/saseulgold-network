@@ -390,10 +390,10 @@ func SignVerify(obj, publicKey, signature interface{}) ABI {
 	}
 }
 
-func Check(obj interface{}) ABI {
+func Check(obj, key interface{}) ABI {
 	return ABI{
 		Key:   "$check",
-		Value: []interface{}{obj},
+		Value: []interface{}{obj, key},
 	}
 }
 

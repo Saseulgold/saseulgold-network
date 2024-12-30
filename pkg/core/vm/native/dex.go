@@ -170,6 +170,11 @@ func LiquidityProvide() *Method {
 		"TokenB does not exist",
 	))
 
+	method.AddExecution(abi.Condition(
+		abi.Ne(tokenA, tokenB),
+		"Token addresses must be different",
+	))
+
 	balance_address_a := abi.If(
 		abi.Eq(tokenA, ZERO_ADDRESS),
 		"balance",
@@ -517,15 +522,25 @@ func Swap() *Method {
 	method.AddExecution(abi.WriteUniversal(pairAddress, "reserve_a", newReserveA))
 	method.AddExecution(abi.WriteUniversal(pairAddress, "reserve_b", newReserveB))
 
+	outputAmount = abi.Check(outputAmount, "outputAmount")
+	outputAmountWithFee = abi.Check(outputAmountWithFee, "outputAmountWithFee")
+
 	// Calculate fee using outputAmount and outputAmountWithFee
-	fee := abi.PreciseSub(outputAmount, outputAmountWithFee, "0")
+	fee := abi.PreciseSub(outputAmount, outputAmountWithFee, "10")
+
+	fee = abi.Check(fee, "fee")
 
 	// Read current accumulated reward per unit
 	current_reward_per_unit := abi.ReadUniversal(pairAddress, "accumulated_reward_per_unit", "0")
 
 	// Calculate new reward per unit and add to accumulated total
-	new_reward_per_unit := abi.PreciseDiv(fee, totalLiquidity, "0")
-	accumulated_reward_per_unit := abi.PreciseAdd(current_reward_per_unit, new_reward_per_unit, "0")
+	totalLiquidity = abi.Check(totalLiquidity, "totalLiquidity")
+	new_reward_per_unit := abi.PreciseDiv(abi.PreciseMul(fee, "1000000000000000000", "0"), totalLiquidity, "10")
+
+	new_reward_per_unit = abi.Check(new_reward_per_unit, "new_reward_per_unit")
+
+	accumulated_reward_per_unit := abi.PreciseAdd(current_reward_per_unit, new_reward_per_unit, "10")
+	accumulated_reward_per_unit = abi.Check(accumulated_reward_per_unit, "accumulated_reward_per_unit")
 
 	// Store accumulated reward per unit
 	method.AddExecution(abi.WriteUniversal(pairAddress, "accumulated_reward_per_unit", accumulated_reward_per_unit))
