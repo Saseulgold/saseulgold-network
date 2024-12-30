@@ -565,10 +565,12 @@ func GetPairInfo() *Method {
 	exists := abi.ReadUniversal(pairAddress, "exists", nil)
 	method.AddExecution(abi.Condition(
 		abi.Eq(exists, true),
-		"Pair does not exist",
+		abi.EncodeJSON("Pair does not exist"),
 	))
 
 	var response interface{}
+
+	response = abi.Set(response, "pair_address", pairAddress)
 
 	// Get reserves
 	reserveA := abi.ReadUniversal(pairAddress, "reserve_a", "0")
@@ -728,6 +730,47 @@ func LiquidityWithdraw() *Method {
 	// Update total liquidity
 	method.AddExecution(abi.WriteUniversal(pairAddress, "total_liquidity",
 		abi.PreciseSub(totalLiquidity, liquidityAmount, "0")))
+
+	return method
+}
+
+func BalanceOfLP() *Method {
+	method := NewMethod(map[string]interface{}{
+		"type":    "request",
+		"name":    "BalanceOfLP",
+		"version": "1",
+		"space":   RootSpace(),
+		"writer":  ZERO_ADDRESS,
+	})
+
+	// Add pair_address parameter
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "pair_address",
+		"type":         "string",
+		"maxlength":    64,
+		"requirements": true,
+	}))
+
+	// Add account parameter
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "address",
+		"type":         "string",
+		"maxlength":    64,
+		"requirements": true,
+	}))
+
+	pair_address := abi.Param("pair_address")
+	address := abi.Param("address")
+
+	// Check if token exists
+	method.AddExecution(abi.Condition(
+		abi.Ne(abi.ReadUniversal(pair_address, "total_liquidity", nil), nil),
+		"Token Pair does not exist",
+	))
+
+	// Read and return lp token balance
+	balance := abi.ReadUniversal(pair_address, address, "0")
+	method.AddExecution(abi.Response(balance))
 
 	return method
 }

@@ -22,6 +22,7 @@ func NativeRequests() map[string]map[string]*Method {
 	requests[rootCid]["GetPairInfo"] = native.GetPairInfo()
 
 	requests[rootCid]["BalanceOf"] = native.BalanceOf()
+	requests[rootCid]["BalanceOfLP"] = native.BalanceOfLP()
 
 	return requests
 }

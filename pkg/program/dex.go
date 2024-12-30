@@ -123,6 +123,49 @@ func CreateTransferTokenCmd() *cobra.Command {
 	return cmd
 }
 
+func CreateBalanceOfLPCmd() *cobra.Command {
+	var peer string
+	var pair_address string
+
+	cmd := &cobra.Command{
+		Use:   "lp",
+		Short: "check lp token of an address",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			payload := structure.NewOrderedMap()
+			privateKey, err := GetPrivateKey()
+
+			if err != nil {
+				log.Fatalf("Failed to get private key: %v", err)
+			}
+
+			address := crypto.GetAddress(crypto.GetXpub(privateKey))
+
+			payload.Set("type", "BalanceOfLP")
+			payload.Set("pair_address", pair_address)
+			payload.Set("address", address)
+			payload.Set("timestamp", util.Utime())
+			payload.Set("from", address)
+
+			req := CreateWalletRequest(peer, payload.Ser())
+
+			response, err := network.CallRawRequest(req)
+			if err != nil {
+				log.Fatalf("Failed to send request: %v", err)
+			}
+
+			rstr := FormatResponse(&response.Payload)
+			fmt.Println("balance: ", rstr)
+		},
+	}
+
+	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to connect")
+	cmd.Flags().StringVarP(&pair_address, "pair_address", "a", "", "token address")
+	cmd.MarkFlagRequired("pair_address")
+
+	return cmd
+}
+
 func CreateBalanceOfCmd() *cobra.Command {
 	var peer string
 	var token_address string
@@ -322,7 +365,7 @@ func CreateSwapCmd() *cobra.Command {
 	var peer string
 	var token_address_a string
 	var token_address_b string
-	var amount_a string
+	var amount_in string
 
 	cmd := &cobra.Command{
 		Use:   "swap",
@@ -332,7 +375,7 @@ func CreateSwapCmd() *cobra.Command {
 			logger.Info("Swap token",
 				zap.String("token_address_a", token_address_a),
 				zap.String("token_address_b", token_address_b),
-				zap.String("amount_a", amount_a))
+				zap.String("amount_in", amount_in))
 
 			payload := structure.NewOrderedMap()
 			privateKey, err := GetPrivateKey()
@@ -346,7 +389,7 @@ func CreateSwapCmd() *cobra.Command {
 			payload.Set("type", "Swap")
 			payload.Set("token_address_a", token_address_a)
 			payload.Set("token_address_b", token_address_b)
-			payload.Set("amount_a", amount_a)
+			payload.Set("amount_in", amount_in)
 			payload.Set("timestamp", util.Utime())
 			payload.Set("from", address)
 
@@ -368,8 +411,8 @@ func CreateSwapCmd() *cobra.Command {
 	cmd.MarkFlagRequired("token_a")
 	cmd.Flags().StringVarP(&token_address_b, "token_b", "b", "", "second token address")
 	cmd.MarkFlagRequired("token_b")
-	cmd.Flags().StringVarP(&amount_a, "amount_a", "x", "", "amount of first token")
-	cmd.MarkFlagRequired("amount_a")
+	cmd.Flags().StringVarP(&amount_in, "amount_in", "x", "", "amount of first token")
+	cmd.MarkFlagRequired("amount_in")
 
 	return cmd
 }
@@ -388,6 +431,7 @@ func CreateDexCmd() *cobra.Command {
 		CreateProvideLiquidityCmd(),
 		CreateWithdrawLiquidityCmd(),
 		CreateSwapCmd(),
+		CreateBalanceOfLPCmd(),
 	)
 
 	return cmd
