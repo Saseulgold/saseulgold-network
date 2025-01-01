@@ -28,12 +28,21 @@ const (
 	PacketTypeRawRequest             // Raw request
 	PacketTypeRawResponse            // Raw response
 
+	PacketTypeReplicateBlockRequest  // Block transmission
+	PacketTypeReplicateBlockResponse // Block transmission
+
 	PacketTypeErrorResponse // Error
 
 	// Consensus
 	PacketTypeRaftRequestVote  // Raft request vote
 	PacketTypeRaftResponseVote // Raft response vote
 	PacketTypeRaftHeartbeat    // Raft heartbeat
+
+	PacketTypeRegisterReplicaRequest  // Register replica
+	PacketTypeRegisterReplicaResponse // Register replica
+
+	PacketTypeMetricsRequest  // Metrics request
+	PacketTypeMetricsResponse // Metrics response
 
 	// FOR DEV
 	PacketTypeGetStatusBundleRequest  // Get status bundle

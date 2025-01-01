@@ -45,7 +45,8 @@ type Oracle struct {
 
 	mu sync.RWMutex
 
-	State OracleState
+	State    OracleState
+	Replicas map[string]int64
 }
 
 var oracleInstance *Oracle
@@ -60,6 +61,7 @@ func GetOracleService() *Oracle {
 			storage:      storage.GetStatusFileInstance(),
 			storageIndex: storage.GetStatusIndexInstance(),
 			State:        StateTransaction,
+			Replicas:     map[string]int64{},
 		}
 	}
 	return oracleInstance
@@ -71,7 +73,7 @@ func (o *Oracle) Consensus(txs map[string]*model.SignedTransaction) {
 
 }
 
-func (o *Oracle) Commit(txs map[string]*model.SignedTransaction) ([]string, error) {
+func (o *Oracle) Commit(txs map[string]*model.SignedTransaction) (*model.Block, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
@@ -114,7 +116,7 @@ func (o *Oracle) Commit(txs map[string]*model.SignedTransaction) ([]string, erro
 	}
 
 	logger.Info("Commit success", zap.Int("transaction_count", len(txHashes)))
-	return txHashes, nil
+	return expectedBlock, nil
 
 }
 
@@ -151,7 +153,9 @@ func (o *Oracle) Run() error {
 
 				fmt.Println("transactions: ", transactions, len(transactions))
 
-				_, err := o.Commit(transactions)
+				block, err := o.Commit(transactions)
+				o.BroadcastBlock(block)
+
 				o.OnFinishCommit()
 
 				if err != nil {
@@ -163,10 +167,12 @@ func (o *Oracle) Run() error {
 }
 
 func (o *Oracle) OnStartUp(config swift.SecurityConfig, port string) error {
+	/**
 	isRunning := util.ServiceIsRunning(storage.DataRootDir(), "oracle")
 	if isRunning {
 		return fmt.Errorf("oracle is already running")
 	}
+	**/
 
 	o.chain.Touch()
 	o.storage.Touch()
@@ -273,14 +279,12 @@ func (o *Oracle) registerPacketHandlers() {
 		txHash := tx.GetTxHash()
 		logger.Info("successfully added transaction to mempool", zap.String("tx_hash", txHash))
 
-		OracleLog("successfully added transaction to mempool: %s", txHash)
-
 		var responseData []byte
 		swift.SwiftInfoLog("broadcasting transaction to peers: %s", o.swift.GetPeers())
 
-		if err := o.swift.Broadcast(ctx, packet); err != nil {
-			return o.swift.SendErrorResponse(ctx, err.Error())
-		}
+		// if err := o.swift.Broadcast(ctx, packet); err != nil {
+		// 	return o.swift.SendErrorResponse(ctx, err.Error())
+		// }
 
 		responseData, err = json.Marshal(map[string]string{"ok": "true", "msg": "successfully broadcast transaction"})
 
@@ -381,6 +385,57 @@ func (o *Oracle) registerPacketHandlers() {
 		return o.swift.Send(ctx, response)
 	})
 
+	o.swift.RegisterHandler(swift.PacketTypeReplicateBlockRequest, func(ctx context.Context, packet *swift.Packet) error {
+		o.mu.Lock()
+		defer o.mu.Unlock()
+
+		fmt.Println("replicate block request: ", string(packet.Payload))
+		block, err := storage.ParseBlock(packet.Payload)
+
+		if err != nil {
+			return o.swift.SendErrorResponse(ctx, err.Error())
+		}
+
+		err = o.machine.Commit(block)
+		if err != nil {
+			return o.swift.SendErrorResponse(ctx, err.Error())
+		}
+
+		responseData, err := json.Marshal(map[string]string{"status": "success"})
+		if err != nil {
+			return o.swift.SendErrorResponse(ctx, err.Error())
+		}
+
+		response := &swift.Packet{
+			Type:    swift.PacketTypeReplicateBlockResponse,
+			Payload: responseData,
+		}
+
+		return o.swift.Send(ctx, response)
+	})
+
+	o.swift.RegisterHandler(swift.PacketTypeRegisterReplicaRequest, func(ctx context.Context, packet *swift.Packet) error {
+		responseData, err := json.Marshal(map[string]string{"status": "connected"})
+		if err != nil {
+			return err
+		}
+
+		var payload map[string]string
+		err = json.Unmarshal(packet.Payload, &payload)
+		if err != nil {
+			return err
+		}
+
+		fmt.Println("payload: ", payload)
+		o.RegisterReplica(payload["targetAddr"])
+
+		response := &swift.Packet{
+			Type:    swift.PacketTypeRegisterReplicaResponse,
+			Payload: responseData,
+		}
+		return o.swift.Send(ctx, response)
+	})
+
 	// handshake request handler
 	o.swift.RegisterHandler(swift.PacketTypeHandshakeCMDRequest, func(ctx context.Context, packet *swift.Packet) error {
 		var payload struct {
@@ -414,4 +469,54 @@ func (o *Oracle) registerPacketHandlers() {
 
 func (o *Oracle) Shutdown() error {
 	return util.TerminateProcess(storage.DataRootDir(), "oracle")
+}
+
+func (o *Oracle) RegisterReplica(targetAddr string) error {
+	err := o.swift.Connect(targetAddr)
+	if err != nil {
+		return err
+	}
+
+	lastheight := storage.LastHeight()
+	o.Replicas[targetAddr] = int64(lastheight)
+
+	logger.Info("registered replica",
+		zap.String("target_address", targetAddr),
+	)
+
+	fmt.Println("registered replica: ", o.Replicas)
+
+	return nil
+}
+
+func (o *Oracle) BroadcastBlock(block *model.Block) error {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+
+	// Skip if no replicas
+	if len(o.Replicas) == 0 {
+		return nil
+	}
+
+	// Prepare block data for replication
+	blockData := block.Ser("full")
+
+	// Create replication packet
+	packet := &swift.Packet{
+		Type:    swift.PacketTypeReplicateBlockRequest,
+		Payload: json.RawMessage(blockData),
+	}
+
+	peers := make([]string, 0, len(o.Replicas))
+	for peer := range o.Replicas {
+		peers = append(peers, peer)
+	}
+
+	// Broadcast to all replicas
+	logger.Info("broadcasting block to replicas",
+		zap.Int("replica_count", len(o.Replicas)),
+		zap.Int64("block_height", int64(block.Height)),
+	)
+
+	return o.swift.BroadcastPeers(peers, packet)
 }

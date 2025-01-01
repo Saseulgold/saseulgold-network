@@ -60,7 +60,7 @@ func Submit() *Method {
 
 	lastRewarded := abi.ReadUniversal("lastRewarded", from, "0")
 	abi.PreciseMul(lastRewarded, REWARD_PER_SECOND, "0")
-	method.AddExecution(abi.WriteUniversal("lastRewarded", ZERO_ADDRESS, util.UTime()))
+	method.AddExecution(abi.WriteUniversal("lastRewarded", ZERO_ADDRESS, util.Utime()))
 
 	return method
 }

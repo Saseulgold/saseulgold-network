@@ -18,9 +18,13 @@ import (
 	"hello/pkg/core/storage"
 	"hello/pkg/core/vm"
 	"hello/pkg/util"
+
+	"go.uber.org/zap"
 )
 
 type PacketHandler func(ctx context.Context, packet *Packet) error
+
+var logger = util.GetLogger()
 
 type RetryConfig struct {
 	RetryDelay time.Duration
@@ -110,17 +114,17 @@ func (s *Server) Start() error {
 	if err != nil {
 		return err
 	}
-
+	/**
 	isRunning := util.ServiceIsRunning(storage.DataRootDir(), "swift")
 
 	if isRunning {
 		return fmt.Errorf("swift is already running")
 	}
+	**/
 
 	s.listener = listener
 
 	go s.acceptConnections()
-	go s.processJobQueue()
 	go s.collectMetrics()
 
 	err = util.ProcessStart(storage.DataRootDir(), "swift", os.Getpid())
@@ -140,22 +144,6 @@ func (s *Server) acceptConnections() {
 		}
 
 		go s.HandleConnection(conn)
-	}
-}
-
-func (s *Server) processJobQueue() {
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			if s.priorityQueue.Len() > 0 {
-				if job := s.priorityQueue.Pop(); job != nil {
-					// job processing logic
-				}
-			}
-		}
 	}
 }
 
@@ -185,10 +173,9 @@ func (s *Server) HandleConnection(conn net.Conn) error {
 			}
 			return fmt.Errorf("failed to read header: %v", err)
 		}
-		SwiftInfoLog("received header: %v\n", header)
-
 		// get packet length
 		packetLen := binary.BigEndian.Uint32(header)
+		s.metrics.AddBytesReceived(uint64(packetLen))
 
 		// read packet data
 		packetBytes := make([]byte, packetLen)
@@ -229,6 +216,14 @@ func (s *Server) HandleConnection(conn net.Conn) error {
 				return fmt.Errorf("failed to send peer response: %v", err)
 			}
 			continue
+		case PacketTypeMetricsRequest:
+			metrics := s.metrics.GetStats()
+			metricsJSON, err := json.Marshal(metrics)
+			if err != nil {
+				return fmt.Errorf("failed to marshal metrics: %v", err)
+			}
+			s.Send(ctx, &Packet{Type: PacketTypeMetricsResponse, Payload: metricsJSON})
+			continue
 		default:
 			if handler, ok := s.handlers[packet.Type]; ok {
 				err := handler(ctx, &packet)
@@ -256,6 +251,76 @@ func (s *Server) Close(peer string) error {
 
 func (s *Server) CloseConnection(conn net.Conn) error {
 	return conn.Close()
+}
+
+func (s *Server) BroadcastPeers(peers []string, packet *Packet) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	var broadcastErrors []error
+
+	for _, peer := range peers {
+		start := s.metrics.BroadcastStart()
+
+		// Create new connection with timeout
+		dialer := net.Dialer{Timeout: 5 * time.Second}
+		conn, err := dialer.DialContext(ctx, "tcp", peer)
+		if err != nil {
+			logger.Info("failed to connect to peer when broadcasting",
+				zap.String("peer", peer),
+				zap.Error(err),
+			)
+			s.metrics.BroadcastEnd(start, packet.Payload)
+			broadcastErrors = append(broadcastErrors, fmt.Errorf("failed to connect to %s: %v", peer, err))
+			continue
+		}
+
+		// Ensure connection is closed after we're done
+		defer conn.Close()
+
+		// TCP Keep Alive to detect connection problems
+		if tcpConn, ok := conn.(*net.TCPConn); ok {
+			tcpConn.SetKeepAlive(true)
+			tcpConn.SetKeepAlivePeriod(3 * time.Second)
+		}
+
+		// Set write deadline
+		if err := conn.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
+			logger.Info("failed to set write deadline",
+				zap.String("peer", peer),
+				zap.Error(err),
+			)
+			s.metrics.BroadcastEnd(start, packet.Payload)
+			broadcastErrors = append(broadcastErrors, fmt.Errorf("failed to set deadline for %s: %v", peer, err))
+			continue
+		}
+
+		connCtx := context.WithValue(ctx, "connection", conn)
+
+		// Send packet with error checking
+		if err := s.Send(connCtx, packet); err != nil {
+			logger.Info("failed to send packet to peer when broadcasting",
+				zap.String("peer", peer),
+				zap.Error(err),
+			)
+			s.metrics.BroadcastEnd(start, packet.Payload)
+			broadcastErrors = append(broadcastErrors, fmt.Errorf("failed to send to %s: %v", peer, err))
+			continue
+		}
+
+		// Successfully sent to this peer
+		logger.Info("successfully broadcasted to peer",
+			zap.String("peer", peer),
+		)
+		s.metrics.BroadcastEnd(start, packet.Payload)
+	}
+
+	// If any errors occurred during broadcast, return them
+	if len(broadcastErrors) > 0 {
+		return fmt.Errorf("broadcast errors: %v", broadcastErrors)
+	}
+
+	return nil
 }
 
 // BroadcastBlock은 블록을 모든 피어에게 전송합니다
@@ -291,6 +356,8 @@ func (s *Server) Send(ctx context.Context, packet *Packet) error {
 	if err != nil {
 		return fmt.Errorf("failed to serialize packet: %v", err)
 	}
+
+	s.metrics.AddBytesSent(uint64(len(packetBytes)))
 
 	header := make([]byte, 4)
 	binary.BigEndian.PutUint32(header, uint32(len(packetBytes)))

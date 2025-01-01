@@ -12,7 +12,7 @@ import (
 func CreateGenesisTransaction(privateKey string, publicKey string) (*model.SignedTransaction, error) {
 	txData := structure.NewOrderedMap()
 	txData.Set("type", "Genesis")
-	txData.Set("timestamp", util.UTime())
+	txData.Set("timestamp", util.Utime())
 
 	tx, err := model.FromRawData(txData, privateKey, publicKey)
 	if err != nil {
