@@ -1,7 +1,6 @@
 package vm
 
 import (
-	"fmt"
 	. "hello/pkg/core/abi"
 	"hello/pkg/util"
 )
@@ -216,7 +215,6 @@ func OpPreciseSqrt(i *Interpreter, vars interface{}) interface{} {
 	if result == nil {
 		return "0"
 	}
-	fmt.Println("OpPreciseSqrt", "input:", vars, "result:", *result)
 	return *result
 }
 
@@ -273,18 +271,14 @@ func OpMax(i *Interpreter, vars interface{}) interface{} {
 			// If both are numeric strings, compare as numbers
 			if util.IsNumeric(aStr) && util.IsNumeric(bStr) {
 				if result := util.Compare(aStr, bStr, 0); result >= 0 {
-					fmt.Println("OpMax: ", aStr)
 					return aStr
 				}
-				fmt.Println("OpMax: ", bStr)
 				return bStr
 			}
 			// If both are regular strings, compare lexicographically
 			if aStr >= bStr {
-				fmt.Println("OpMax: ", aStr)
 				return aStr
 			}
-			fmt.Println("OpMax: ", bStr)
 			return bStr
 		}
 	}
@@ -314,15 +308,12 @@ func OpMin(i *Interpreter, vars interface{}) interface{} {
 				if result := util.Compare(aStr, bStr, 0); result <= 0 {
 					return aStr
 				}
-				fmt.Println("OpMin: ", bStr)
 				return bStr
 			}
 			// If both are regular strings, compare lexicographically
 			if aStr <= bStr {
-				fmt.Println("OpMin: ", aStr)
 				return aStr
 			}
-			fmt.Println("OpMin: ", bStr)
 			return bStr
 		}
 	}

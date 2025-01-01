@@ -34,6 +34,7 @@ func CreateMintTokenCmd() *cobra.Command {
 			}
 
 			address := crypto.GetAddress(crypto.GetXpub(privateKey))
+			supply = util.MulByE18(supply)
 
 			payload.Set("type", "Mint")
 			payload.Set("name", name)
@@ -91,6 +92,7 @@ func CreateTransferTokenCmd() *cobra.Command {
 			}
 
 			address := crypto.GetAddress(crypto.GetXpub(privateKey))
+			amount = util.MulByE18(amount)
 
 			payload.Set("type", "Transfer")
 			payload.Set("token_address", token_address)
@@ -199,7 +201,9 @@ func CreateBalanceOfCmd() *cobra.Command {
 			}
 
 			rstr := FormatResponse(&response.Payload)
-			fmt.Println("balance: ", rstr)
+
+			frstr := util.DivideByE18(rstr)
+			fmt.Println("balance: ", frstr)
 		},
 	}
 
@@ -270,6 +274,8 @@ func CreateProvideLiquidityCmd() *cobra.Command {
 			}
 
 			address := crypto.GetAddress(crypto.GetXpub(privateKey))
+			amount_a = util.MulByE18(amount_a)
+			amount_b = util.MulByE18(amount_b)
 
 			payload.Set("type", "LiquidityProvide")
 			payload.Set("token_address_a", token_address_a)
@@ -305,7 +311,7 @@ func CreateProvideLiquidityCmd() *cobra.Command {
 	return cmd
 }
 
-func CreateWithdrawLiquidityCmd() *cobra.Command {
+func CreateLiquidityWithdrawCmd() *cobra.Command {
 	var peer string
 	var token_address_a string
 	var token_address_b string
@@ -329,8 +335,9 @@ func CreateWithdrawLiquidityCmd() *cobra.Command {
 			}
 
 			address := crypto.GetAddress(crypto.GetXpub(privateKey))
+			lp_amount = util.MulByE18(lp_amount)
 
-			payload.Set("type", "WithdrawLiquidity")
+			payload.Set("type", "LiquidityWithdraw")
 			payload.Set("token_address_a", token_address_a)
 			payload.Set("token_address_b", token_address_b)
 			payload.Set("lp_amount", lp_amount)
@@ -373,8 +380,8 @@ func CreateSwapCmd() *cobra.Command {
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			logger.Info("Swap token",
-				zap.String("token_address_a", token_address_a),
-				zap.String("token_address_b", token_address_b),
+				zap.String("token_address_in", token_address_a),
+				zap.String("token_address_out", token_address_b),
 				zap.String("amount_in", amount_in))
 
 			payload := structure.NewOrderedMap()
@@ -385,10 +392,11 @@ func CreateSwapCmd() *cobra.Command {
 			}
 
 			address := crypto.GetAddress(crypto.GetXpub(privateKey))
+			amount_in = util.MulByE18(amount_in)
 
 			payload.Set("type", "Swap")
-			payload.Set("token_address_a", token_address_a)
-			payload.Set("token_address_b", token_address_b)
+			payload.Set("token_address_in", token_address_a)
+			payload.Set("token_address_out", token_address_b)
 			payload.Set("amount_in", amount_in)
 			payload.Set("timestamp", util.Utime())
 			payload.Set("from", address)
@@ -407,9 +415,9 @@ func CreateSwapCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to connect")
-	cmd.Flags().StringVarP(&token_address_a, "token_a", "a", "", "first token address")
+	cmd.Flags().StringVarP(&token_address_a, "token_a", "i", "", "input token address")
 	cmd.MarkFlagRequired("token_a")
-	cmd.Flags().StringVarP(&token_address_b, "token_b", "b", "", "second token address")
+	cmd.Flags().StringVarP(&token_address_b, "token_b", "o", "", "outputtoken address")
 	cmd.MarkFlagRequired("token_b")
 	cmd.Flags().StringVarP(&amount_in, "amount_in", "x", "", "amount of first token")
 	cmd.MarkFlagRequired("amount_in")
@@ -429,7 +437,7 @@ func CreateDexCmd() *cobra.Command {
 		CreateBalanceOfCmd(),
 		CreateTokenInfoCmd(),
 		CreateProvideLiquidityCmd(),
-		CreateWithdrawLiquidityCmd(),
+		CreateLiquidityWithdrawCmd(),
 		CreateSwapCmd(),
 		CreateBalanceOfLPCmd(),
 	)

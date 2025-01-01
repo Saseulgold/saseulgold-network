@@ -120,7 +120,6 @@ func OpIf(i *Interpreter, vars interface{}) interface{} {
 		result = falseVal
 	}
 
-	fmt.Println("OpIf", "input:", vars, "result:", result)
 	return result
 }
 
