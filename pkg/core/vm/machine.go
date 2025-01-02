@@ -143,11 +143,7 @@ func (m *Machine) TxValidity(tx *SignedTransaction) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-
 	m.Init(lastBlock)
-
-	// txHash := tx.GetTxHash()
-	//m.SetTransactions(map[string]*SignedTransaction{ txHash: tx, })
 
 	if err := m.PreCommitOne(tx); err != nil {
 		return false, err

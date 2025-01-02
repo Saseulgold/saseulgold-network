@@ -61,7 +61,6 @@ func OpIsInt(i *Interpreter, vars interface{}) interface{} {
 func OpAsString(i *Interpreter, vars interface{}) interface{} {
 	value := Unpack1(vars)
 	result := reflect.ValueOf(value).String()
-	OperatorLog("OpAsString", "input:", vars, "result:", result)
 	return result
 }
 

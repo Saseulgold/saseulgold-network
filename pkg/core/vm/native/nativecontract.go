@@ -16,7 +16,7 @@ func Genesis() *Method {
 		"writer":  ZERO_ADDRESS,
 	})
 
-	genesis := abi.ReadLocal("genesis", "00", nil)
+	genesis := abi.ReadUniversal("genesis", "00", nil)
 
 	method.AddExecution(abi.Condition(
 		abi.Ne(genesis, true),
@@ -74,13 +74,13 @@ func Register() *Method {
 
 	codeID := abi.IDHash(name, nonce)
 
-	contractInfo := abi.DecodeJSON(abi.ReadLocal("contract", codeID, nil))
-	requestInfo := abi.DecodeJSON(abi.ReadLocal("request", codeID, nil))
+	contractInfo := abi.DecodeJSON(abi.ReadUniversal("contract", codeID, nil))
+	requestInfo := abi.DecodeJSON(abi.ReadUniversal("request", codeID, nil))
 
 	contractVersion := abi.Get(contractInfo, "version", "0")
 	requestVersion := abi.Get(requestInfo, "version", "0")
 
-	isNetworkManager := abi.ReadLocal("network_manager", from, nil)
+	isNetworkManager := abi.ReadUniversal("network_manager", from, nil)
 	method.AddExecution(abi.Condition(
 		abi.Eq(isNetworkManager, true),
 		"You are not network manager.",
@@ -133,10 +133,10 @@ func Register() *Method {
 
 	update := abi.If(
 		abi.Eq(codeType, "contract"),
-		abi.WriteLocal("contract", codeID, code),
+		abi.WriteUniversal("contract", codeID, code),
 		abi.If(
 			abi.Eq(codeType, "request"),
-			abi.WriteLocal("request", codeID, code),
+			abi.WriteUniversal("request", codeID, code),
 			nil,
 		),
 	)
@@ -155,14 +155,14 @@ func Revoke() *Method {
 	})
 
 	from := abi.Param("from")
-	isNetworkManager := abi.ReadLocal("network_manager", from, nil)
+	isNetworkManager := abi.ReadUniversal("network_manager", from, nil)
 
 	method.AddExecution(abi.Condition(
 		abi.Eq(isNetworkManager, true),
 		"You are not network manager.",
 	))
 
-	method.AddExecution(abi.WriteLocal("network_manager", from, false))
+	method.AddExecution(abi.WriteUniversal("network_manager", from, false))
 
 	return method
 }
@@ -175,6 +175,27 @@ func Send() *Method {
 		"space":   RootSpace(),
 		"writer":  ZERO_ADDRESS,
 	})
+
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "from",
+		"type":         "string",
+		"maxlength":    64,
+		"requirements": true,
+	}))
+
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "to",
+		"type":         "string",
+		"maxlength":    64,
+		"requirements": true,
+	}))
+
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "amount",
+		"type":         "string",
+		"maxlength":    256,
+		"requirements": true,
+	}))
 
 	from := abi.Param("from")
 	to := abi.Param("to")
@@ -235,10 +256,10 @@ func Publish() *Method {
 
 	codeID := abi.Hash(writer, space, name)
 
-	contractInfo := abi.ReadLocal("contract", codeID, nil)
+	contractInfo := abi.ReadUniversal("contract", codeID, nil)
 	contractInfo = abi.DecodeJSON(contractInfo)
 
-	requestInfo := abi.ReadLocal("request", codeID, nil)
+	requestInfo := abi.ReadUniversal("request", codeID, nil)
 	requestInfo = abi.DecodeJSON(requestInfo)
 
 	contractVersion := abi.Get(contractInfo, "v", "0")
@@ -295,10 +316,10 @@ func Publish() *Method {
 
 	method.AddExecution(abi.If(
 		abi.Eq(codeType, "contract"),
-		abi.WriteLocal("contract", codeID, code),
+		abi.WriteUniversal("contract", codeID, code),
 		abi.If(
 			abi.Eq(codeType, "request"),
-			abi.WriteLocal("request", codeID, code),
+			abi.WriteUniversal("request", codeID, code),
 			false,
 		),
 	))

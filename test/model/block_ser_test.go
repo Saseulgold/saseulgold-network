@@ -17,7 +17,7 @@ func TestSerializationDeserialization(t *testing.T) {
 
 	// Comment: Initialize test environment
 	machine := GetMachineInstance()
-	machine.GetInterpreter().Reset()
+	machine.GetInterpreter().Reset(true)
 
 	// Comment: Create test transaction data
 	txData := createTestTransaction(t)
@@ -50,7 +50,6 @@ func TestSerializationDeserialization(t *testing.T) {
 	}
 	originalBlock.Init()
 
-	fmt.Println("transaction obj: ", tx.BaseObj())
 	txSer, err := (*originalBlock.Transactions)[txHash].Ser()
 	if err != nil {
 		t.Error(err)

@@ -44,6 +44,8 @@ func NativeContracts() map[string]map[string]*Method {
 	contracts[rootCid]["LiquidityWithdraw"] = native.LiquidityWithdraw()
 	contracts[rootCid]["Swap"] = native.Swap()
 
+	contracts[rootCid]["Mining"] = native.Mining()
+
 	contracts[rootCid]["Count"] = native.Count()
 
 	return contracts

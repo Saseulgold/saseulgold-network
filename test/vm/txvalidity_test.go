@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"fmt"
 	C "hello/pkg/core/config"
 	"hello/pkg/core/model"
 	S "hello/pkg/core/structure"
@@ -11,11 +12,12 @@ import (
 )
 
 func TestTxValidity(t *testing.T) {
-	C.CORE_TEST_MODE = true
-	C.DATA_TEST_ROOT_DIR = "genesis_test_2"
+	// C.CORE_TEST_MODE = true
+	// C.DATA_TEST_ROOT_DIR = "genesis_test_2"
+	C.DATA_TEST_ROOT_DIR = "data"
 
 	machine := GetMachineInstance()
-	machine.GetInterpreter().Reset()
+	machine.GetInterpreter().Reset(true)
 
 	data := S.NewOrderedMap()
 	txData := S.NewOrderedMap()
@@ -31,6 +33,8 @@ func TestTxValidity(t *testing.T) {
 
 	tx0, err := model.NewSignedTransaction(data)
 	// 테스트용 트랜잭션 생성
+
+	fmt.Println("tx0: ", tx0.Data.Ser())
 
 	valid, err := machine.TxValidity(&tx0)
 	assert.NoError(t, err)

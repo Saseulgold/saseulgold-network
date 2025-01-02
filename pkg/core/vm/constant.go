@@ -50,6 +50,8 @@ var OperatorFunctions = map[string]map[string]MethodFunc{
 		"$id_hash":     OpIdHash,
 		"$sign_verify": OpSignVerify,
 		"$set":         OpSet,
+		"$era":         OpEra,
+		"$as_string":   OpAsString,
 	},
 	"CastOperator": {
 		"$get_type":   OpGetType,

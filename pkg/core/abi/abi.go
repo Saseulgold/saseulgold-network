@@ -424,3 +424,17 @@ func Max(a, b interface{}) ABI {
 		Value: []interface{}{a, b},
 	}
 }
+
+func Era(mined interface{}) ABI {
+	return ABI{
+		Key:   "$era",
+		Value: []interface{}{mined},
+	}
+}
+
+func AsString(target interface{}) ABI {
+	return ABI{
+		Key:   "$as_string",
+		Value: []interface{}{target},
+	}
+}
