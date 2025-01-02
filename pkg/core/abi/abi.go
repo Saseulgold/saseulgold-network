@@ -438,3 +438,10 @@ func AsString(target interface{}) ABI {
 		Value: []interface{}{target},
 	}
 }
+
+func SUtime() ABI {
+	return ABI{
+		Key:   "$sutime",
+		Value: []interface{}{},
+	}
+}

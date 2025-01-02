@@ -245,6 +245,17 @@ func LiquidityProvide() *Method {
 	method.AddExecution(abi.WriteUniversal(pairAddress, "total_liquidity", newTotalLiquidity))
 	method.AddExecution(abi.WriteUniversal(pairAddress, "exists", true))
 
+	avg_return := abi.ReadUniversal(pairAddress, "accumulated_reward_per_unit", "0")
+	
+	new_avg_return := abi.PreciseDiv(
+		abi.PreciseMul(avg_return, totalLiquidity, "0"),
+		newTotalLiquidity,
+		"0",
+	)
+
+	updateAvgReturn := abi.WriteUniversal(pairAddress, "accumulated_reward_per_unit", new_avg_return)
+	method.AddExecution(updateAvgReturn)
+
 	return method
 }
 

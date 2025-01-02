@@ -22,7 +22,6 @@ func createGenesisCmd() *cobra.Command {
 		Short: "get genesis block information",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-
 			isRunning := util.ServiceIsRunning(storage.DataRootDir(), "oracle")
 			if isRunning {
 				fmt.Println("oracle is already running. stop it first.")

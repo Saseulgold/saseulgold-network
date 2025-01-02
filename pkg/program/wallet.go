@@ -139,6 +139,10 @@ func CreateSetWalletCmd() *cobra.Command {
 
 func CreateGetBalanceCmd() *cobra.Command {
 	var peer string
+	var address string
+
+	privateKey, err := GetPrivateKey()
+	_address := crypto.GetAddress(crypto.GetXpub(privateKey))
 
 	cmd := &cobra.Command{
 		Use:   "balance",
@@ -146,13 +150,12 @@ func CreateGetBalanceCmd() *cobra.Command {
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			payload := structure.NewOrderedMap()
-			privateKey, err := GetPrivateKey()
+			fmt.Println("address: ", address)
 
 			if err != nil {
 				log.Fatalf("Failed to get private key: %v", err)
 			}
 
-			address := crypto.GetAddress(crypto.GetXpub(privateKey))
 
 			payload.Set("type", "GetBalance")
 			payload.Set("address", address)
@@ -173,6 +176,7 @@ func CreateGetBalanceCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to get balance")
+	cmd.Flags().StringVarP(&address, "address", "a", _address, "peer to get balance")
 
 	return cmd
 }
