@@ -82,8 +82,20 @@ func Mining() *Method {
 
 	timeDiff = abi.Check(timeDiff, "timeDiff")
 
-	reward := abi.PreciseMul(timeDiff, REWARD_PER_SECOND, "0")
+	total_supply := abi.ReadUniversal("network_supply", ZERO_ADDRESS, "0")
+	era := abi.Era(abi.PreciseDiv(total_supply, MULTIPLIER, "0"))
+	era = abi.AsString(era)
+	era = abi.Check(era, "era")
+
+	unit := abi.PreciseDiv(REWARD_PER_SECOND, abi.PrecisePow("2", era, "0"), "0")
+	unit = abi.Check(unit, "unit")
+
+	method.AddExecution(abi.Check(unit, "unit"))
+
+	reward := abi.PreciseMul(timeDiff, unit, "0")
 	reward = abi.PreciseDiv(reward, "1000", "0")
+	reward = abi.Check(reward, "reward")
+
 	reward = abi.Check(reward, "reward")
 
 	method.AddExecution(
@@ -100,18 +112,12 @@ func Mining() *Method {
 	method.AddExecution(abi.WriteUniversal("lastRewarded", ZERO_ADDRESS, current))
 
 	method.AddExecution(abi.WriteUniversal("lastRewarded", ZERO_ADDRESS, current))
-
-	total_supply := abi.ReadUniversal("network_supply", ZERO_ADDRESS, "0")
 	new_total_supply := abi.PreciseAdd(total_supply, reward, "0")
 
 	method.AddExecution(abi.WriteUniversal("network_supply", ZERO_ADDRESS, new_total_supply))
-	
-	// era := abi.Era(abi.PreciseDiv(total_supply, MULTIPLIER, "0"))
-	era := abi.Era("2900000000")
-	method.AddExecution(abi.Check(era, "era"))
 
-	// miningUnit := abi.AsString(abi.MiningUnit(era))
-	// method.AddExecution(abi.Check(miningUnit, "mining_unit"))
+	era = abi.Check(era, "era")
+	method.AddExecution(abi.Check(era, "era"))
 
 	return method
 }

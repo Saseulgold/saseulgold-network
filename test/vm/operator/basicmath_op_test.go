@@ -247,3 +247,74 @@ func TestMinMaxOperators(t *testing.T) {
 			expectedMaxHash, executionsSwapped[1])
 	}
 }
+
+func TestPowOperator(t *testing.T) {
+	// Initialize interpreter
+	interpreter := vm.NewInterpreter()
+	interpreter.Init("transaction")
+	post := &Method{}
+
+	// Test method definition
+	methodTest := &Method{
+		Parameters: Parameters{
+			"base": NewParameter(map[string]interface{}{
+				"name":         "base",
+				"requirements": true,
+			}),
+			"exponent": NewParameter(map[string]interface{}{
+				"name":         "exponent",
+				"requirements": true,
+			}),
+		},
+		Executions: []Execution{
+			// Test basic power operation
+			abi.PrecisePow(abi.Param("base"), abi.Param("exponent"), "0"),
+
+			// Test power with zero exponent
+			abi.PrecisePow(abi.Param("base"), "0", "0"),
+
+			// Test power with negative exponent
+			abi.PrecisePow(abi.Param("base"), "-2", "0"),
+		},
+	}
+
+	// Test data setup
+	signedData := NewSignedData()
+	signedData.SetAttribute("base", "2")
+	signedData.SetAttribute("exponent", "3")
+
+	// Execute
+	interpreter.Reset(true)
+	interpreter.SetSignedData(signedData)
+	interpreter.SetCode(methodTest)
+	interpreter.SetPostProcess(post)
+	_, err := interpreter.Execute()
+
+	if err != nil {
+		t.Errorf("Execution error: %v", err)
+	}
+
+	executions := methodTest.GetExecutions()
+
+	// Verify basic power operation (2^3 = 8)
+	expectedPow := "8"
+	if executions[0] != expectedPow {
+		t.Errorf("Basic power test failed.\nExpected: %s\nGot: %v",
+			expectedPow, executions[0])
+	}
+
+	// Verify power with zero exponent (2^0 = 1)
+	expectedZeroPow := "1"
+	if executions[1] != expectedZeroPow {
+		t.Errorf("Power with zero exponent test failed.\nExpected: %s\nGot: %v",
+			expectedZeroPow, executions[1])
+	}
+
+	// Verify power with negative exponent (2^-2 = 0.25)
+	// because of scale is 0, so result is 0
+	expectedNegPow := "0"
+	if executions[2] != expectedNegPow {
+		t.Errorf("Power with negative exponent test failed.\nExpected: %s\nGot: %v",
+			expectedNegPow, executions[2])
+	}
+}

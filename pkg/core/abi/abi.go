@@ -126,6 +126,13 @@ func PreciseDiv(a1, b interface{}, scale interface{}) ABI {
 	}
 }
 
+func PrecisePow(a1, b interface{}, scale interface{}) ABI {
+	return ABI{
+		Key:   "$precise_pow",
+		Value: []interface{}{a1, b, scale},
+	}
+}
+
 func PreciseMul(a1, b interface{}, scale interface{}) ABI {
 	return ABI{
 		Key:   "$precise_mul",

@@ -25,6 +25,7 @@ var OperatorFunctions = map[string]map[string]MethodFunc{
 		"$sub":          OpSub,
 		"$mul":          OpMul,
 		"$div":          OpDiv,
+		"$precise_pow":  OpPrecisePow,
 		"$precise_add":  OpPreciseAdd,
 		"$precise_sub":  OpPreciseSub,
 		"$precise_mul":  OpPreciseMul,
@@ -52,7 +53,7 @@ var OperatorFunctions = map[string]map[string]MethodFunc{
 		"$set":         OpSet,
 		"$era":         OpEra,
 		"$as_string":   OpAsString,
-		"$sutime": 	OpSUtime,
+		"$sutime":      OpSUtime,
 	},
 	"CastOperator": {
 		"$get_type":   OpGetType,

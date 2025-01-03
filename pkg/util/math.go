@@ -78,7 +78,12 @@ func Div(a, b string, scale *int) *string {
 }
 
 // Pow raises a to the power of b
-func Pow(a, b string) string {
+func Pow(a, b string, scale *int) *string {
+	s := MaxScale(a, b)
+	if scale != nil {
+		s = *scale
+	}
+
 	af := new(big.Float)
 	bf := new(big.Float)
 	af.SetString(a)
@@ -87,7 +92,8 @@ func Pow(a, b string) string {
 	afloat, _ := af.Float64()
 	bfloat, _ := bf.Float64()
 	result := new(big.Float).SetFloat64(math.Pow(afloat, bfloat))
-	return FormatFloat(result, MaxScale(a, b))
+	rstr := FormatFloat(result, s)
+	return &rstr
 }
 
 // Mod returns modulo of a divided by b

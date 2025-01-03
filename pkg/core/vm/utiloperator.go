@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"hello/pkg/util"
 	"regexp"
-	"strings"
 	"strconv"
-	"math"
+	"strings"
+	// "math"
 )
 
 func OpSet(i *Interpreter, vars interface{}) interface{} {

@@ -331,3 +331,48 @@ func OpMin(i *Interpreter, vars interface{}) interface{} {
 	DebugLog("OpMin: incompatible types or invalid values")
 	return nil
 }
+
+func OpPrecisePow(i *Interpreter, vars interface{}) interface{} {
+	base, exp, scaleVal := Unpack2Or3(vars)
+
+	baseStr := "0"
+	expStr := "0"
+	scale := 0
+
+	// Convert base to string and validate
+	if str, ok := base.(string); ok && util.IsNumeric(str) {
+		baseStr = str
+	} else {
+		DebugLog("OpPrecisePow: base value is not numeric")
+		return "0"
+	}
+
+	// Convert exponent to string and validate
+	if str, ok := exp.(string); ok && util.IsNumeric(str) {
+		expStr = str
+	} else {
+		DebugLog("OpPrecisePow: exponent value is not numeric")
+		return "0"
+	}
+
+	// Set scale if provided
+	if scaleVal != nil {
+		if val, ok := scaleVal.(int); ok {
+			scale = val
+		}
+	}
+
+	// Validate scale range
+	if scale < 0 || scale > 10 {
+		scale = 0
+	}
+
+	// Calculate power with specified precision
+	if result := util.Pow(baseStr, expStr, &scale); result != nil {
+		OperatorLog("OpPrecisePow", "input:", vars, "result:", *result)
+		return *result
+	}
+
+	DebugLog("OpPrecisePow: calculation failed")
+	return "0"
+}
