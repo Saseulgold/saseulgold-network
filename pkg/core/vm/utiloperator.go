@@ -4,12 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"hello/pkg/util"
-	"math/big"
 	"regexp"
-	"strconv"
 	"strings"
-
-	C "hello/pkg/core/config"
+	"strconv"
 )
 
 func OpSet(i *Interpreter, vars interface{}) interface{} {
@@ -167,28 +164,20 @@ func OpDecodeJson(i *Interpreter, item interface{}) interface{} {
 func OpHashLimit(i *Interpreter, vars interface{}) interface{} {
 	arr, ok := vars.([]interface{})
 	if !ok || len(arr) == 0 {
-		return nil
+		OperatorLog("OpHashLimit", "input:", vars, "result:", "")
+		return ""
 	}
 
 	difficulty, ok := arr[0].(string)
 	if !ok {
-		return nil
+		OperatorLog("OpHashLimit", "input:", vars, "result:", "")
+		return ""
 	}
 
-	diff, err := strconv.ParseInt(difficulty, 16, 64)
-	if err != nil {
-		return nil
-	}
-
-	hashCount := new(big.Int)
-	hashCount.SetString(C.HASH_COUNT, 16)
-
-	result := hashCount.Div(hashCount, big.NewInt(int64(diff)))
-
-	// Convert to hexadecimal and pad with zeros to 64 characters
-	hexStr := fmt.Sprintf("%x", result)
-	paddedHexStr := fmt.Sprintf("%078s", hexStr)
-	return strings.ReplaceAll(paddedHexStr, " ", "0")
+	// TODO: Implement hash limit logic
+	OperatorLog("OpHashLimit", "input:", vars, "result:", difficulty)
+	return difficulty
+	// return crypto.HashLimit(difficulty)
 }
 
 func OpHashMany(i *Interpreter, vars interface{}) interface{} {
@@ -296,34 +285,15 @@ func OpLen(i *Interpreter, vars interface{}) interface{} {
 }
 
 func OpEra(i *Interpreter, vars interface{}) interface{} {
-	mined := Unpack1(vars)
-	// Total supply: 3.7 billion (3,700,000,000)
-
-	era0 := "1850000000"
-	era1 := "2775000000"
-	era2 := "3237500000"
-	era3 := "3700000000"
-
-	minedInt, ok := mined.(string)
-	if !ok {
-		OperatorLog("OpEra", "input:", vars, "result:", 0)
-		return 0
-	}
-
-	var era int
-	switch {
-	case minedInt < era0:
-		era = 0
-	case minedInt < era1:
-		era = 1
-	case minedInt < era2:
-		era = 2
-	case minedInt < era3:
-		era = 3
-	default:
-		era = 4
-	}
-
-	OperatorLog("OpEra", "input:", vars, "result:", era)
-	return era
+	mined_total_hash := ""
+	mined := i.GetUniversalStatus(mined_total_hash, nil)
+	return mined
 }
+
+
+func OpSUtime(i *Interpreter, vars interface{}) interface{} {
+	time := util.Utime()
+	return strconv.FormatInt(time, 10)
+}
+
+

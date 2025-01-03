@@ -15,19 +15,22 @@ import (
 )
 
 func CreateRequestCmd() *cobra.Command {
-	var requestType string
 	var peer string
 	var privateKey string
 	var payload string
-	var pubKey string
+
+	_privateKey, _ := GetPrivateKey()
 
 	cmd := &cobra.Command{
 		Use:   "rawrequest",
 		Short: "get raw request",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-
 			data, err := structure.ParseOrderedMap(payload)
+			address := crypto.GetAddress(crypto.GetXpub(privateKey))
+
+			data.Set("timestamp", util.Utime())
+			data.Set("from", address)
 
 			if err != nil {
 				log.Fatalf("Failed to parse payload: %v", err)
@@ -38,7 +41,6 @@ func CreateRequestCmd() *cobra.Command {
 			if err != nil {
 				log.Fatalf("Failed to serialize signed request: %v", err)
 			}
-			fmt.Println(payload)
 
 			req := rpc.CreateRequest(payload, peer)
 			response, err := network.CallRawRequest(req)
@@ -47,16 +49,15 @@ func CreateRequestCmd() *cobra.Command {
 				log.Fatalf("Failed to call raw request: %v", err)
 			}
 
-			fmt.Println(response)
+			rstr := FormatResponse(&response.Payload)
+			fmt.Println(rstr)
 		},
 	}
 
-	cmd.Flags().StringVarP(&requestType, "type", "t", "", "type of raw request")
-	cmd.Flags().StringVarP(&peer, "peer", "p", "", "peer to get balance")
-	cmd.Flags().StringVarP(&privateKey, "privatekey", "k", "", "private key to sign the request")
+	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to get balance")
+	cmd.Flags().StringVarP(&privateKey, "privatekey", "k", _privateKey, "private key to sign the request")
 	cmd.Flags().StringVarP(&payload, "payload", "l", "", "payload to sign")
-	cmd.Flags().StringVarP(&pubKey, "pubkey", "u", "", "public key to sign the request")
-	cmd.MarkFlagRequired("peer")
+	cmd.MarkFlagRequired("payload")
 
 	return cmd
 }

@@ -72,12 +72,15 @@ func Mining() *Method {
 	lastRewarded := abi.ReadUniversal("lastRewarded", ZERO_ADDRESS, "0")
 	lastRewarded = abi.Check(lastRewarded, "lastRewarded")
 
-	// current := abi.AsString(util.Utime())
-	// current = abi.Check(current, "current")
-	current := "1735782161068000"
+	// current := abi.AsString(Utime())
+	current := abi.SUtime()
+	current = abi.Check(current, "current")
 
 	timeDiff := abi.PreciseSub(current, lastRewarded, "0")
-	timeDiff = abi.Min(timeDiff, "100000")
+	timeDiff = abi.PreciseDiv(timeDiff, "1000", "0")
+
+	timeDiff = abi.Min(timeDiff, "1000")
+
 	timeDiff = abi.Check(timeDiff, "timeDiff")
 
 	reward := abi.PreciseMul(timeDiff, REWARD_PER_SECOND, "0")
@@ -96,6 +99,13 @@ func Mining() *Method {
 
 	method.AddExecution(abi.WriteUniversal("balance", from, newBalance))
 	method.AddExecution(abi.WriteUniversal("lastRewarded", ZERO_ADDRESS, current))
+
+	method.AddExecution(abi.WriteUniversal("lastRewarded", ZERO_ADDRESS, current))
+
+	total_supply := abi.ReadUniversal("network_supply", ZERO_ADDRESS, "0")
+	new_total_supply := abi.PreciseAdd(total_supply, reward, "0")
+
+	method.AddExecution(abi.WriteUniversal("network_supply", ZERO_ADDRESS, new_total_supply))
 
 	return method
 }
