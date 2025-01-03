@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"strconv"
+	"math"
 )
 
 func OpSet(i *Interpreter, vars interface{}) interface{} {
@@ -285,15 +286,13 @@ func OpLen(i *Interpreter, vars interface{}) interface{} {
 }
 
 func OpEra(i *Interpreter, vars interface{}) interface{} {
-	mined_total_hash := ""
-	mined := i.GetUniversalStatus(mined_total_hash, nil)
-	return mined
-}
+	mined_total := Unpack1(vars)
 
+	era := util.GetEra(mined_total.(string))
+	return int(era)
+}
 
 func OpSUtime(i *Interpreter, vars interface{}) interface{} {
 	time := util.Utime()
 	return strconv.FormatInt(time, 10)
 }
-
-

@@ -2,6 +2,7 @@ package util
 
 import (
 	"time"
+	"strconv"
 	// "fmt"
 )
 
@@ -9,13 +10,14 @@ func Time() int64 {
 	return time.Now().Unix()
 }
 
-func GetEra(amount float64) int {
-	var maxSupply float64
+func GetEra(astr string) int {
+	amount, _ := strconv.ParseInt(astr, 10, 64)
+	var maxSupply  float64
 	var checkpoint float64
 
-	maxSupply =  3500000000
-	checkpoint = 1750000000
-	a := amount
+	maxSupply  = 3500000000
+	checkpoint = maxSupply / 2
+	a := float64(amount)
 	era := 0
 
 	for a > maxSupply - checkpoint {

@@ -313,10 +313,10 @@ func Set(obj, key, value interface{}) ABI {
 
 }
 
-func Concat(vars interface{}) ABI {
+func Concat(vars ...interface{}) ABI {
 	return ABI{
 		Key:   "$concat",
-		Value: []interface{}{vars},
+		Value: vars,
 	}
 }
 

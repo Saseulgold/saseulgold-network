@@ -205,30 +205,36 @@ func (s *StatusIndex) SearchLocalIndexes(item []interface{}) map[string]StorageI
 	return indexes
 }
 
-func (s *StatusIndex) SearchUniversalIndexes(prefix string, page int, count int) map[string]StorageIndexCursor {
-	fmt.Println(s.universalIndexes)
-	indexes := make(map[string]StorageIndexCursor)
+func (s *StatusIndex) SearchUniversalIndexes(prefix string, page int, count int) []string {
+	keys := []string{}
+	offset := (page-1) * count
+
+	var start int
+	var end int
 
 	if _, ok := s.universalIndexes[prefix]; ok {
-		offset := page * count
-		keys := make([]string, 0, len(s.universalIndexes[prefix]))
-		for k := range s.universalIndexes[prefix] {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
 
-		end := offset + count
-		if end > len(keys) {
-			end = len(keys)
-		}
-		if offset < len(keys) {
-			for _, k := range keys[offset:end] {
-				indexes[prefix+k] = s.universalIndexes[prefix][k]
+		for k := range s.universalIndexes[prefix] {
+			if len(keys) >= offset + count {
+				break
 			}
+
+			fmt.Println(k)
+			keys = append(keys, k)
 		}
 	}
 
-	return indexes
+	start = offset
+	end = offset + count
+
+	if len(keys) < end {
+		end = len(keys)
+	}
+	if len(keys) < start {
+		start = len(keys)
+	}
+
+	return keys[start:end]
 }
 
 func (s *StatusIndex) CountUniversalIndexes(prefix string) int {

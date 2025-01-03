@@ -215,8 +215,6 @@ func CreateSearchCmd() *cobra.Command {
 				Payload: []byte(fmt.Sprintf(`{"prefix": "%s", "page": %d, "count": %d}`, prefix, page, count)),
 			}
 
-			fmt.Println(peer)
-
 			response, err := network.CallRPC(peer, packet)
 			if err != nil {
 				log.Fatalf("Failed to send request: %v", err)

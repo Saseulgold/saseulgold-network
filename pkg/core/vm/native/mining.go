@@ -78,8 +78,7 @@ func Mining() *Method {
 
 	timeDiff := abi.PreciseSub(current, lastRewarded, "0")
 	timeDiff = abi.PreciseDiv(timeDiff, "1000", "0")
-
-	timeDiff = abi.Min(timeDiff, "1000")
+	timeDiff = abi.Min(timeDiff, "10000000")
 
 	timeDiff = abi.Check(timeDiff, "timeDiff")
 
@@ -106,6 +105,13 @@ func Mining() *Method {
 	new_total_supply := abi.PreciseAdd(total_supply, reward, "0")
 
 	method.AddExecution(abi.WriteUniversal("network_supply", ZERO_ADDRESS, new_total_supply))
+	
+	// era := abi.Era(abi.PreciseDiv(total_supply, MULTIPLIER, "0"))
+	era := abi.Era("2900000000")
+	method.AddExecution(abi.Check(era, "era"))
+
+	// miningUnit := abi.AsString(abi.MiningUnit(era))
+	// method.AddExecution(abi.Check(miningUnit, "mining_unit"))
 
 	return method
 }

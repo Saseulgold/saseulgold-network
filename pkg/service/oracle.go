@@ -479,12 +479,21 @@ func (o *Oracle) registerPacketHandlers() {
 			return err
 		}
 
-		fmt.Println("payload: ", payload)
+		keys := o.storageIndex.SearchUniversalIndexes(payload.Prefix, payload.Page, payload.Count)
+		responseData, err := json.Marshal(keys)
 
-		indexes := o.storageIndex.SearchUniversalIndexes(payload.Prefix, payload.Page, payload.Count)
-		fmt.Println("indexes: ", indexes)
+		if err != nil {
+			return fmt.Errorf("failed to create response: %v", err)
+		}
 
-		return nil
+		swift.SwiftInfoLog("handshake response: %s", string(responseData))
+
+		response := &swift.Packet{
+			Type:    swift.PacketTypeSearchResponse,
+			Payload: responseData,
+		}
+
+		return o.swift.Send(ctx, response)
 	})
 
 }

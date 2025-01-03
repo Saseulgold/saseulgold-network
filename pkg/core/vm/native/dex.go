@@ -82,6 +82,9 @@ func Mint() *Method {
 
 	method.AddExecution(cond1)
 
+	update_token_list := abi.WriteUniversal("tokens", token_address, symbol)
+	method.AddExecution(update_token_list)
+
 	update_owner := abi.WriteUniversal(token_address, "owner", from)
 	method.AddExecution(update_owner)
 
@@ -244,6 +247,11 @@ func LiquidityProvide() *Method {
 
 	method.AddExecution(abi.WriteUniversal(pairAddress, "total_liquidity", newTotalLiquidity))
 	method.AddExecution(abi.WriteUniversal(pairAddress, "exists", true))
+
+	symbolA := abi.ReadUniversal(tokenA, "symbol", "")
+	symbolB := abi.ReadUniversal(tokenB, "symbol", "")
+
+	method.AddExecution(abi.WriteUniversal("pairs", pairAddress, abi.Concat(symbolA, "/", symbolB)))
 
 	avg_return := abi.ReadUniversal(pairAddress, "accumulated_reward_per_unit", "0")
 	
