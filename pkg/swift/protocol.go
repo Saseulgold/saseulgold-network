@@ -44,6 +44,9 @@ const (
 	PacketTypeMetricsRequest  // Metrics request
 	PacketTypeMetricsResponse // Metrics response
 
+	PacketTypeSearchRequest  // Search request
+	PacketTypeSearchResponse // Search response
+
 	// FOR DEV
 	PacketTypeGetStatusBundleRequest  // Get status bundle
 	PacketTypeGetStatusBundleResponse // Get status bundle

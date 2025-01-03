@@ -7,6 +7,7 @@ import (
 	"hello/pkg/core/structure"
 	"hello/pkg/crypto"
 	"hello/pkg/rpc"
+	"hello/pkg/swift"
 	"hello/pkg/util"
 	"log"
 
@@ -196,6 +197,45 @@ func CreatePairInfoRequestCmd() *cobra.Command {
 	return cmd
 }
 
+func CreateSearchCmd() *cobra.Command {
+	var peer string
+	var prefix string
+	var page int
+	var count int
+
+	cmd := &cobra.Command{
+		Use:   "search",
+		Short: "search cli tool",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+
+			packet := swift.Packet{
+				Type:    swift.PacketTypeSearchRequest,
+				Payload: []byte(fmt.Sprintf(`{"prefix": "%s", "page": %d, "count": %d}`, prefix, page, count)),
+			}
+
+			fmt.Println(peer)
+
+			response, err := network.CallRPC(peer, packet)
+			if err != nil {
+				log.Fatalf("Failed to send request: %v", err)
+			}
+
+			rstr := FormatResponse(&response.Payload)
+			fmt.Println(rstr)
+		},
+	}
+
+	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer")
+	cmd.Flags().StringVarP(&prefix, "prefix", "k", "", "prefix")
+	cmd.Flags().IntVarP(&page, "page", "a", 1, "page")
+	cmd.Flags().IntVarP(&count, "count", "c", 10, "count")
+
+	cmd.MarkFlagRequired("prefix")
+
+	return cmd
+}
+
 func CreateApiCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "api",
@@ -207,6 +247,7 @@ func CreateApiCmd() *cobra.Command {
 		CreateListBlockCmd(),
 		CreateListTransactionCmd(),
 		CreatePairInfoRequestCmd(),
+		CreateSearchCmd(),
 	)
 
 	return cmd

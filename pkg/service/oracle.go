@@ -465,6 +465,28 @@ func (o *Oracle) registerPacketHandlers() {
 
 		return o.swift.Send(ctx, response)
 	})
+
+	o.swift.RegisterHandler(swift.PacketTypeSearchRequest, func(ctx context.Context, packet *swift.Packet) error {
+		var payload struct {
+			Prefix string `json:"prefix"`
+			Page   int    `json:"page"`
+			Count  int    `json:"count"`
+		}
+
+		err := json.Unmarshal(packet.Payload, &payload)
+
+		if err != nil {
+			return err
+		}
+
+		fmt.Println("payload: ", payload)
+
+		indexes := o.storageIndex.SearchUniversalIndexes(payload.Prefix, payload.Page, payload.Count)
+		fmt.Println("indexes: ", indexes)
+
+		return nil
+	})
+
 }
 
 func (o *Oracle) Shutdown() error {

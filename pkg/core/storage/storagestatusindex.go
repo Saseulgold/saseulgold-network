@@ -205,23 +205,11 @@ func (s *StatusIndex) SearchLocalIndexes(item []interface{}) map[string]StorageI
 	return indexes
 }
 
-func (s *StatusIndex) SearchUniversalIndexes(item []interface{}) map[string]StorageIndexCursor {
+func (s *StatusIndex) SearchUniversalIndexes(prefix string, page int, count int) map[string]StorageIndexCursor {
+	fmt.Println(s.universalIndexes)
 	indexes := make(map[string]StorageIndexCursor)
-	if len(item) == 0 {
-		return indexes
-	}
 
-	prefix := item[0].(string)
 	if _, ok := s.universalIndexes[prefix]; ok {
-		page := 0
-		count := 50
-		if len(item) > 1 {
-			page = item[1].(int)
-		}
-		if len(item) > 2 {
-			count = item[2].(int)
-		}
-
 		offset := page * count
 		keys := make([]string, 0, len(s.universalIndexes[prefix]))
 		for k := range s.universalIndexes[prefix] {
