@@ -118,7 +118,7 @@ func (p *Parameter) StructureValidity(value interface{}) error {
 }
 
 func (p *Parameter) TypeValidity(value interface{}) error {
-	if !p.Requirements {
+	if !p.Requirements && value == nil {
 		return nil
 	}
 

@@ -228,6 +228,21 @@ func LiquidityProvide() *Method {
 
 	exists := abi.ReadUniversal(pairAddress, "exists", nil)
 
+	pair_a := abi.If(
+		abi.Eq(exists, nil),
+		abi.WriteUniversal(pairAddress, "token_address_a", tokenA),
+		abi.Check(tokenA, "tokenA"),
+	)
+
+	pair_b := abi.If(
+		abi.Eq(exists, nil),
+		abi.WriteUniversal(pairAddress, "token_address_b", tokenB),
+		abi.Check(tokenB, "tokenB"),
+	)
+
+	method.AddExecution(pair_a)
+	method.AddExecution(pair_b)
+
 	liquidity := abi.If(
 		abi.Eq(exists, nil),
 		abi.PreciseSqrt(abi.PreciseMul(amountA, amountB, "0"), "0"),
@@ -254,7 +269,7 @@ func LiquidityProvide() *Method {
 	method.AddExecution(abi.WriteUniversal("pairs", pairAddress, abi.Concat(symbolA, "/", symbolB)))
 
 	avg_return := abi.ReadUniversal(pairAddress, "accumulated_reward_per_unit", "0")
-	
+
 	new_avg_return := abi.PreciseDiv(
 		abi.PreciseMul(avg_return, totalLiquidity, "0"),
 		newTotalLiquidity,
@@ -410,23 +425,62 @@ func GetPairInfo() *Method {
 	})
 
 	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "pair_address",
+		"type":         "string",
+		"maxlength":    64,
+		"requirements": false,
+	}))
+
+	method.AddParameter(NewParameter(map[string]interface{}{
 		"name":         "token_address_a",
 		"type":         "string",
 		"maxlength":    64,
-		"requirements": true,
+		"requirements": false,
 	}))
 
 	method.AddParameter(NewParameter(map[string]interface{}{
 		"name":         "token_address_b",
 		"type":         "string",
 		"maxlength":    64,
-		"requirements": true,
+		"requirements": false,
 	}))
 
 	tokenA := abi.Param("token_address_a")
 	tokenB := abi.Param("token_address_b")
 
-	pairAddress := abi.HashMany("qrc_20_pair", abi.Min(tokenA, tokenB), abi.Max(tokenA, tokenB))
+	tokenA = abi.If(
+		abi.Ne(abi.Param("pair_address"), nil),
+		abi.ReadUniversal(abi.Param("pair_address"), "token_address_a", nil),
+		tokenA,
+	)
+
+	tokenB = abi.If(
+		abi.Ne(abi.Param("pair_address"), nil),
+		abi.ReadUniversal(abi.Param("pair_address"), "token_address_b", nil),
+		tokenB,
+	)
+
+	tokenA = abi.Min(tokenA, tokenB)
+	tokenB = abi.Max(tokenA, tokenB)
+
+	method.AddExecution(
+		abi.Condition(
+			abi.Or(
+				abi.And(
+					abi.Ne(tokenA, nil),
+					abi.Ne(tokenB, nil),
+				),
+				abi.Ne(abi.Param("pair_address"), nil),
+			),
+			"Token addresses or pair address must be provided",
+		),
+	)
+
+	pairAddress := abi.If(
+		abi.Eq(abi.Param("pair_address"), nil),
+		abi.HashMany("qrc_20_pair", tokenA, tokenB),
+		abi.Param("pair_address"),
+	)
 
 	// Check if pair exists first
 	exists := abi.ReadUniversal(pairAddress, "exists", nil)
@@ -807,7 +861,7 @@ func Swap() *Method {
 	currentRewardPerUnit := abi.ReadUniversal(pairAddress, "accumulated_reward_per_unit", "0")
 
 	newRewardPerUnit := abi.PreciseDiv(
-		abi.PreciseMul(fee,MULTIPLIER, "0"),
+		abi.PreciseMul(fee, MULTIPLIER, "0"),
 		totalLiquidity,
 		"0",
 	)

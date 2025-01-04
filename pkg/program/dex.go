@@ -416,9 +416,7 @@ func CreateSwapCmd() *cobra.Command {
 
 	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to connect")
 	cmd.Flags().StringVarP(&token_address_a, "token_a", "i", "", "input token address")
-	cmd.MarkFlagRequired("token_a")
-	cmd.Flags().StringVarP(&token_address_b, "token_b", "o", "", "outputtoken address")
-	cmd.MarkFlagRequired("token_b")
+	cmd.Flags().StringVarP(&token_address_b, "token_b", "o", "", "output token address")
 	cmd.Flags().StringVarP(&amount_in, "amount_in", "x", "", "amount of first token")
 	cmd.MarkFlagRequired("amount_in")
 

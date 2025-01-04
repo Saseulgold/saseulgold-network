@@ -151,6 +151,7 @@ func CreateListBlockCmd() *cobra.Command {
 
 func CreatePairInfoRequestCmd() *cobra.Command {
 	var peer string
+	var pair_address string
 	var address_a string
 	var address_b string
 
@@ -169,8 +170,13 @@ func CreatePairInfoRequestCmd() *cobra.Command {
 			address := crypto.GetAddress(crypto.GetXpub(privateKey))
 
 			payload.Set("type", "GetPairInfo")
-			payload.Set("token_address_a", address_a)
-			payload.Set("token_address_b", address_b)
+
+			if pair_address != "" {
+				payload.Set("pair_address", pair_address)
+			} else {
+				payload.Set("token_address_a", address_a)
+				payload.Set("token_address_b", address_b)
+			}
 
 			payload.Set("timestamp", util.Utime())
 			payload.Set("from", address)
@@ -189,11 +195,9 @@ func CreatePairInfoRequestCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer")
-
 	cmd.Flags().StringVarP(&address_a, "address_a", "a", "", "")
-	cmd.MarkFlagRequired("address_a")
 	cmd.Flags().StringVarP(&address_b, "address_b", "b", "", "")
-	cmd.MarkFlagRequired("address_b")
+	cmd.Flags().StringVarP(&pair_address, "pair_address", "i", "", "pair address")
 
 	return cmd
 }
