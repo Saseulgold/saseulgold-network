@@ -283,6 +283,15 @@ func serialize(builder *strings.Builder, value interface{}) error {
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	case nil:
 		builder.WriteString("null")
+	case []interface{}:
+		builder.WriteString("[")
+		for i, item := range v {
+			if i > 0 {
+				builder.WriteString(",")
+			}
+			serialize(builder, item)
+		}
+		builder.WriteString("]")
 	default:
 		panic(fmt.Sprintf("unsupported value type for serialization: %T", v))
 		return fmt.Errorf("unsupported value type for serialization: %T", v)

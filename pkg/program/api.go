@@ -9,10 +9,53 @@ import (
 	"hello/pkg/rpc"
 	"hello/pkg/swift"
 	"hello/pkg/util"
+	"hello/sample"
 	"log"
 
 	"github.com/spf13/cobra"
 )
+
+func CreatePublishCmd() *cobra.Command {
+	var peer string
+	var method string
+	_privateKey, _ := GetPrivateKey()
+	address := crypto.GetAddress(crypto.GetXpub(_privateKey))
+
+	cmd := &cobra.Command{
+		Use:   "publish",
+		Short: "publish method",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			// TODO: Get contract from sample pakcage following the method name
+			code := sample.NftMint("sample_nft_space", address)
+			publishCode := code.GetCode()
+
+			payload := structure.NewOrderedMap()
+
+			payload.Set("type", "Publish")
+			payload.Set("from", address)
+			payload.Set("timestamp", util.Utime())
+			payload.Set("code", publishCode)
+
+			req := CreateWalletTransaction(peer, payload.Ser())
+
+			response, err := network.CallTransactionRequest(req)
+			if err != nil {
+				log.Fatalf("Failed to send request: %v", err)
+			}
+
+			rstr := FormatResponse(&response.Payload)
+			fmt.Println(rstr)
+
+			fmt.Println(code)
+		},
+	}
+
+	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer")
+	cmd.Flags().StringVarP(&method, "method", "m", "", "method")
+
+	return cmd
+}
 
 func CreateRequestCmd() *cobra.Command {
 	var peer string
@@ -251,6 +294,7 @@ func CreateApiCmd() *cobra.Command {
 		CreateListTransactionCmd(),
 		CreatePairInfoRequestCmd(),
 		CreateSearchCmd(),
+		CreatePublishCmd(),
 	)
 
 	return cmd

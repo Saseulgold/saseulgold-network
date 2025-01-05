@@ -452,3 +452,10 @@ func SUtime() ABI {
 		Value: []interface{}{},
 	}
 }
+
+func SpaceID(writer, space interface{}) ABI {
+	return ABI{
+		Key:   "$space_id",
+		Value: []interface{}{writer, space},
+	}
+}

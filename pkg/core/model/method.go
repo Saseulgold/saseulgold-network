@@ -3,6 +3,7 @@ package model
 import (
 	"encoding/json"
 	. "hello/pkg/core/abi"
+	"hello/pkg/core/structure"
 	F "hello/pkg/util"
 )
 
@@ -236,4 +237,107 @@ func (m *Method) Copy() *Method {
 
 	copy(newMethod.Executions, m.Executions)
 	return newMethod
+}
+
+func ParseMethod(code string) *Method {
+	omap, err := structure.ParseOrderedMap(code)
+	if err != nil {
+		return nil
+	}
+
+	newMethod := &Method{
+		Parameters: make(Parameters),
+	}
+
+	executions, _ := omap.Get("e")
+	writer, _ := omap.Get("w")
+	space, _ := omap.Get("s")
+	version, _ := omap.Get("v")
+	name, _ := omap.Get("n")
+	machine, _ := omap.Get("m")
+	methodtype, _ := omap.Get("t")
+	parameters, _ := omap.Get("p")
+
+	newMethod.SetMachine(machine.(string))
+	newMethod.SetName(name.(string))
+	newMethod.SetVersion(version.(string))
+	newMethod.SetSpace(space.(string))
+	newMethod.SetWriter(writer.(string))
+	newMethod.SetType(methodtype.(string))
+
+	for _, key := range parameters.(*structure.OrderedMap).Keys() {
+		paramMap, _ := parameters.(*structure.OrderedMap)
+		param, _ := paramMap.Get(key)
+
+		newMethod.AddParameter(ParseParameter(param.(*structure.OrderedMap)))
+	}
+
+	for _, execution := range executions.([]interface{}) {
+		executionMap := execution.(*structure.OrderedMap)
+		key, _ := executionMap.Get("Key")
+		value, _ := executionMap.Get("Value")
+
+		// Convert to ABI
+		abiExecution := ABI{
+			Key:   key.(string),
+			Value: parseABIValue(value),
+		}
+
+		newMethod.AddExecution(abiExecution)
+	}
+
+	return newMethod
+}
+
+// Helper function to parse ABI values recursively
+func parseABIValue(value interface{}) []interface{} {
+	switch v := value.(type) {
+	case []interface{}:
+		result := make([]interface{}, len(v))
+		for i, item := range v {
+			// If item is a map, it might be another ABI
+			if mapItem, ok := item.(*structure.OrderedMap); ok {
+				key, _ := mapItem.Get("Key")
+				nestedValue, _ := mapItem.Get("Value")
+				result[i] = ABI{
+					Key:   key.(string),
+					Value: parseABIValue(nestedValue),
+				}
+			} else {
+				// For primitive types (string, number, etc)
+				result[i] = item
+			}
+		}
+		return result
+	default:
+		// Single value should still be wrapped in array
+		return []interface{}{value}
+	}
+}
+
+func ParseParameter(paramMap *structure.OrderedMap) Parameter {
+	param := Parameter{
+		Name:         "",
+		ParamType:    "any", // default value
+		MaxLength:    0,
+		Requirements: false,
+		DefaultVal:   nil,
+	}
+
+	name, _ := paramMap.Get("name")
+	param.Name = name.(string)
+
+	paramType, _ := paramMap.Get("type")
+	param.ParamType = paramType.(string)
+
+	maxLength, _ := paramMap.Get("maxlength")
+	param.MaxLength = int(maxLength.(int64))
+
+	requirements, _ := paramMap.Get("requirements")
+	param.Requirements = requirements.(bool)
+
+	defaultVal, _ := paramMap.Get("default")
+	param.DefaultVal = defaultVal
+
+	return param
 }

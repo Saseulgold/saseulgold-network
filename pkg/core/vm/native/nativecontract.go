@@ -45,128 +45,6 @@ func Faucet() *Method {
 	return method
 }
 
-func Register() *Method {
-	method := NewMethod(map[string]interface{}{
-		"type":    "contract",
-		"name":    "Register",
-		"version": "1",
-		"space":   RootSpace(),
-		"writer":  ZERO_ADDRESS,
-	})
-
-	method.AddParameter(NewParameter(map[string]interface{}{
-		"name":         "code",
-		"type":         "string",
-		"maxlength":    65536,
-		"requirements": true,
-	}))
-
-	from := abi.Param("from")
-	code := abi.Param("code")
-
-	decodedCode := abi.DecodeJSON(code)
-
-	codeType := abi.Get(decodedCode, "type", nil)
-	name := abi.Param("name")
-	nonce := abi.Get(decodedCode, "nonce", "")
-	version := abi.Get(decodedCode, "version", nil)
-	writer := abi.Get(decodedCode, "writer", nil)
-
-	codeID := abi.IDHash(name, nonce)
-
-	contractInfo := abi.DecodeJSON(abi.ReadUniversal("contract", codeID, nil))
-	requestInfo := abi.DecodeJSON(abi.ReadUniversal("request", codeID, nil))
-
-	contractVersion := abi.Get(contractInfo, "version", "0")
-	requestVersion := abi.Get(requestInfo, "version", "0")
-
-	isNetworkManager := abi.ReadUniversal("network_manager", from, nil)
-	method.AddExecution(abi.Condition(
-		abi.Eq(isNetworkManager, true),
-		"You are not network manager.",
-	))
-
-	method.AddExecution(abi.Condition(
-		abi.Eq(writer, ZERO_ADDRESS),
-		"Writer must be zero address",
-	))
-
-	method.AddExecution(abi.Condition(
-		abi.IsString(codeType),
-		"Invalid type",
-	))
-
-	method.AddExecution(abi.Condition(
-		abi.In(codeType, []interface{}{"contract", "request"}),
-		"Type must be one of the following: contract, request",
-	))
-
-	method.AddExecution(abi.Condition(
-		abi.IsString(name),
-		"Invalid name",
-	))
-
-	method.AddExecution(abi.Condition(
-		abi.RegMatch("^[A-Za-z_0-9]+$", name),
-		"The name must consist of A-Za-z_0-9.",
-	))
-
-	method.AddExecution(abi.Condition(
-		abi.IsNumeric([]interface{}{version}),
-		"Invalid version",
-	))
-
-	versionCheck := abi.If(
-		abi.Eq(codeType, "contract"),
-		abi.Gt(version, contractVersion),
-		abi.If(
-			abi.Eq(codeType, "request"),
-			abi.Gt(version, requestVersion),
-			false,
-		),
-	)
-
-	method.AddExecution(abi.Condition(
-		versionCheck,
-		"Only new versions of code can be registered.",
-	))
-
-	update := abi.If(
-		abi.Eq(codeType, "contract"),
-		abi.WriteUniversal("contract", codeID, code),
-		abi.If(
-			abi.Eq(codeType, "request"),
-			abi.WriteUniversal("request", codeID, code),
-			nil,
-		),
-	)
-	method.AddExecution(update)
-
-	return method
-}
-
-func Revoke() *Method {
-	method := NewMethod(map[string]interface{}{
-		"type":    "contract",
-		"name":    "Revoke",
-		"version": "1",
-		"space":   RootSpace(),
-		"writer":  ZERO_ADDRESS,
-	})
-
-	from := abi.Param("from")
-	isNetworkManager := abi.ReadUniversal("network_manager", from, nil)
-
-	method.AddExecution(abi.Condition(
-		abi.Eq(isNetworkManager, true),
-		"You are not network manager.",
-	))
-
-	method.AddExecution(abi.WriteUniversal("network_manager", from, false))
-
-	return method
-}
-
 func Send() *Method {
 	method := NewMethod(map[string]interface{}{
 		"type":    "contract",
@@ -240,7 +118,14 @@ func Publish() *Method {
 	method.AddParameter(NewParameter(map[string]interface{}{
 		"name":         "code",
 		"type":         "string",
-		"maxlength":    65536,
+		"maxlength":    16384,
+		"requirements": true,
+	}))
+
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "from",
+		"type":         "string",
+		"maxlength":    44,
 		"requirements": true,
 	}))
 
@@ -254,75 +139,102 @@ func Publish() *Method {
 	version := abi.Get(decodedCode, "v", nil)
 	writer := abi.Get(decodedCode, "w", nil)
 
-	codeID := abi.Hash(writer, space, name)
+	spaceID := abi.SpaceID(writer, abi.Hash(space))
+	contractID := abi.HashMany(spaceID, name)
 
-	contractInfo := abi.ReadUniversal("contract", codeID, nil)
-	contractInfo = abi.DecodeJSON(contractInfo)
-
-	requestInfo := abi.ReadUniversal("request", codeID, nil)
-	requestInfo = abi.DecodeJSON(requestInfo)
-
-	contractVersion := abi.Get(contractInfo, "v", "0")
-	requestVersion := abi.Get(requestInfo, "v", "0")
+	exists := abi.If(
+		abi.Eq(codeType, "contract"),
+		abi.ReadUniversal("contract", contractID, nil),
+		abi.ReadUniversal("request", contractID, nil),
+	)
 
 	method.AddExecution(abi.Condition(
 		abi.Eq(writer, from),
-		"Writer must be the same as the from address",
+		abi.EncodeJSON("Writer must be the same as the from address"),
 	))
 
 	method.AddExecution(abi.Condition(
 		abi.IsString(codeType),
-		abi.Concat([]interface{}{"Invalid type: ", codeType}),
+		abi.EncodeJSON(abi.Concat("Invalid type: ", codeType)),
 	))
 
 	method.AddExecution(abi.Condition(
-		abi.In(codeType, []interface{}{"contract", "request"}),
-		"Type must be one of the following: contract, request",
+		abi.Or(
+			abi.Eq(codeType, "contract"),
+			abi.Eq(codeType, "request"),
+		),
+		abi.EncodeJSON("Type must be one of the following: contract, request"),
 	))
 
 	method.AddExecution(abi.Condition(
 		abi.IsString(name),
-		abi.Concat([]interface{}{"Invalid name: ", name}),
+		abi.EncodeJSON(abi.Concat("Invalid name: ", name)),
 	))
 
 	method.AddExecution(abi.Condition(
 		abi.RegMatch("/^[A-Za-z_0-9]+$/", name),
-		"The name must consist of A-Za-z_0-9",
+		abi.EncodeJSON("The name must consist of A-Za-z_0-9"),
 	))
 
 	method.AddExecution(abi.Condition(
 		abi.IsNumeric(version),
-		abi.Concat([]interface{}{"Invalid version: ", version}),
+		abi.EncodeJSON(abi.Concat("Invalid version: ", version)),
 	))
 
 	method.AddExecution(abi.Condition(
 		abi.IsString(space),
-		"invalid nonce",
-		// abi.Concat([]interface{}{"Invalid nonce: ", space}),
+		abi.EncodeJSON("invalid space"),
 	))
 
+	fee := abi.PreciseMul(
+		abi.AsString(abi.Len(code)),
+		PUBLISH_FEE_PER_BYTE,
+		"0",
+	)
+
+	fee = abi.Check(fee, "publish_fee")
+	userBalance := abi.ReadUniversal("balance", from, "0")
+
+	method.AddExecution(
+		abi.Condition(
+			abi.Gte(userBalance, fee),
+			abi.EncodeJSON("Balance is not enough"),
+		),
+	)
+
+	info := abi.ReadUniversal(spaceID, name, nil)
+	info = abi.DecodeJSON(info)
+	deployedVersion := abi.Get(info, "v", "0")
+
 	method.AddExecution(abi.Condition(
-		abi.If(
-			abi.Eq(codeType, "contract"),
-			abi.Gt(version, contractVersion),
+		abi.Or(
+			abi.Eq(exists, nil),
 			abi.If(
-				abi.Eq(codeType, "request"),
-				abi.Gt(version, requestVersion),
-				false,
+				abi.Eq(codeType, "contract"),
+				abi.Gt(version, deployedVersion),
+				abi.If(
+					abi.Eq(codeType, "request"),
+					abi.Gt(version, deployedVersion),
+					false,
+				),
 			),
 		),
-		"Only new versions of code can be registered",
+		abi.EncodeJSON("Only new versions of code can be registered"),
 	))
 
 	method.AddExecution(abi.If(
 		abi.Eq(codeType, "contract"),
-		abi.WriteUniversal("contract", codeID, code),
+		abi.WriteUniversal("contract", contractID, from),
 		abi.If(
 			abi.Eq(codeType, "request"),
-			abi.WriteUniversal("request", codeID, code),
+			abi.WriteUniversal("request", contractID, from),
 			false,
 		),
 	))
+
+	method.AddExecution(abi.WriteUniversal(spaceID, name, code))
+	method.AddExecution(abi.WriteUniversal("balance", from, abi.PreciseSub(userBalance, fee, 0)))
+	method.AddExecution(abi.WriteUniversal("network_fee_reserve", ZERO_ADDRESS, fee))
 
 	return method
 }

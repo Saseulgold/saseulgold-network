@@ -296,3 +296,8 @@ func OpSUtime(i *Interpreter, vars interface{}) interface{} {
 	time := util.Utime()
 	return strconv.FormatInt(time, 10)
 }
+
+func OpSpaceID(i *Interpreter, vars interface{}) interface{} {
+	writer, space := Unpack2(vars)
+	return util.SpaceID(writer.(string), space.(string))
+}

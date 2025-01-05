@@ -57,6 +57,9 @@ func (m *Machine) Init(previousBlock *Block) {
 	m.interpreter.Init("transaction")
 
 	m.previousBlock = previousBlock
+
+	m.loadContracts()
+	m.loadRequests()
 }
 
 func (m *Machine) ValidateTxTimestamp(tx *SignedTransaction) bool {
@@ -160,6 +163,31 @@ func (m *Machine) loadContracts() {
 	m.contracts = rpc.NativeContracts()
 }
 
+func (m *Machine) loadRequests() {
+	m.requests = rpc.NativeRequests()
+}
+
+func (m *Machine) loadUserDefinedContract(cid string, name string) *Method {
+	contractKey := cid + util.FillHashSuffix(name)
+	si := storage.GetStatusFileInstance()
+
+	cursor, ok := si.CachedUniversalIndexes[contractKey]
+	fmt.Println("contractKey:", contractKey)
+	fmt.Println("cursor:", cursor)
+	if !ok {
+		return nil
+	}
+
+	data, err := si.ReadUniversalStatus(cursor)
+	if err != nil {
+		return nil
+	}
+
+	contract := ParseMethod(data.(string))
+
+	return contract
+}
+
 func (m *Machine) deleteTransaction(txHash string, err error) {
 	delete(*m.transactions, txHash)
 
@@ -234,10 +262,18 @@ func (m *Machine) MountContract(tx SignedTransaction) error {
 		return fmt.Errorf("transaction type not found")
 	}
 	name := txType.(string)
+	var code *Method
 
-	code, ok := m.contracts[cid][name]
-	if !ok {
-		return fmt.Errorf("contract not found for cid %s and method %s", cid, name)
+	if cid == util.RootSpaceId() {
+		code = m.contracts[cid][name]
+		if code == nil {
+			return fmt.Errorf("contract not found for cid %s and method %s", cid, name)
+		}
+
+		m.interpreter.Set(tx.GetTxData(), code.Copy(), new(Method))
+		return nil
+	} else {
+		code = m.loadUserDefinedContract(cid, name)
 	}
 
 	if code == nil {
@@ -344,10 +380,6 @@ func (m *Machine) Response(request SignedRequest) (interface{}, error) {
 	fmt.Println("result:", result)
 
 	return result, nil
-}
-
-func (m *Machine) loadRequests() {
-	m.requests = rpc.NativeRequests()
 }
 
 func (m *Machine) suitedRequest(request SignedRequest) *Method {

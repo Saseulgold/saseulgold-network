@@ -33,8 +33,6 @@ func NativeContracts() map[string]map[string]*Method {
 
 	contracts[rootCid] = make(map[string]*Method)
 	contracts[rootCid]["Genesis"] = native.Genesis()
-	contracts[rootCid]["Register"] = native.Register()
-	contracts[rootCid]["Revoke"] = native.Revoke()
 	contracts[rootCid]["Faucet"] = native.Faucet()
 	contracts[rootCid]["Publish"] = native.Publish()
 	contracts[rootCid]["Send"] = native.Send()
@@ -45,7 +43,6 @@ func NativeContracts() map[string]map[string]*Method {
 	contracts[rootCid]["Swap"] = native.Swap()
 
 	contracts[rootCid]["Mining"] = native.Mining()
-
 	contracts[rootCid]["Count"] = native.Count()
 
 	return contracts

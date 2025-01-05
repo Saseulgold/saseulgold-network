@@ -324,6 +324,7 @@ func (o *Oracle) registerPacketHandlers() {
 		}
 
 		cursor, ok := o.storage.CachedUniversalIndexes[payload["key"]]
+		fmt.Println("key:", payload["key"])
 		if !ok {
 			return fmt.Errorf("status bundle not found")
 		}
