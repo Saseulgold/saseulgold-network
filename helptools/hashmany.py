@@ -5,7 +5,7 @@ def op_hash_many(vars):
         raise Exception("OpHashMany: input is not an array")
 
     # Join strings with commas
-    result = ','.join(str(v) for v in vars if isinstance(v, str)) + ","
+    result = ','.join(str(v) for v in vars if isinstance(v, str)) #+ ","
 
     # Calculate SHA256 hash and return as hex string
     print(result)
@@ -18,5 +18,6 @@ def op_hash_many(vars):
 
 # 테스트
 # test_input = ["hello", "world", "test"]
-test_input = ["hello", "world" ]
+test_input = ["blk-1", "4975" ]
+
 print(op_hash_many(test_input))

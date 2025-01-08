@@ -445,8 +445,8 @@ func GetPairInfo() *Method {
 		"requirements": false,
 	}))
 
-	tokenA := abi.Param("token_address_a")
-	tokenB := abi.Param("token_address_b")
+	tokenA := abi.Min(abi.Param("token_address_a"), abi.Param("token_address_b"))
+	tokenB := abi.Max(abi.Param("token_address_a"), abi.Param("token_address_b"))
 
 	tokenA = abi.If(
 		abi.Ne(abi.Param("pair_address"), nil),
@@ -459,9 +459,6 @@ func GetPairInfo() *Method {
 		abi.ReadUniversal(abi.Param("pair_address"), "token_address_b", nil),
 		tokenB,
 	)
-
-	tokenA = abi.Min(tokenA, tokenB)
-	tokenB = abi.Max(tokenA, tokenB)
 
 	method.AddExecution(
 		abi.Condition(

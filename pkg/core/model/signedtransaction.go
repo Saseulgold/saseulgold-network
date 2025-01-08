@@ -188,6 +188,7 @@ func (tx SignedTransaction) Validate() error {
 		return fmt.Errorf("the signed transaction must contain the transaction parameter")
 	}
 
+	// TODO handle exception for convert type
 	txType, ok := transaction.(*S.OrderedMap).Get("type")
 	if !ok || txType == nil {
 		return fmt.Errorf("the signed transaction must contain the transaction.type parameter")

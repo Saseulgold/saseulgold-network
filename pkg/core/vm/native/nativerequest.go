@@ -130,17 +130,18 @@ func GetTokenInfo() *Method {
 	supply_univ := abi.ReadUniversal(token_address, "supply", nil)
 	owner_univ := abi.ReadUniversal(token_address, "owner", nil)
 	symbol_univ := abi.ReadUniversal(token_address, "symbol", nil)
+	name_univ := abi.ReadUniversal(token_address, "name", nil)
 
 	response = abi.Set(response, "token_address", token_address)
 	response = abi.Set(response, "owner", owner_univ)
 	response = abi.Set(response, "symbol", symbol_univ)
 	response = abi.Set(response, "supply", supply_univ)
+	response = abi.Set(response, "name", name_univ)
 
 	response = abi.EncodeJSON(response)
 	method.AddExecution(abi.Response(response))
 
 	return method
-
 }
 
 func ListTransaction() *Method {
