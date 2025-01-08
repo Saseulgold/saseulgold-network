@@ -3,7 +3,8 @@ package config
 const VERSION = "2.1.9.6"
 
 const SWIFT_PORT = "9002"
-const SWIFT_HOST = "localhost"
+const SWIFT_HOST = "0.0.0.0"
+const CLI_DEFAULT_REQUEST = "3.36.127.229:9001"
 
 const SG_HARDFORK_START_HEIGHT = 1274818
 
