@@ -4,6 +4,7 @@ package program
 import (
 	"fmt"
 	"hello/pkg/core/network"
+	"hello/pkg/core/storage"
 	C "hello/pkg/core/config"
 	"hello/pkg/crypto"
 	"hello/pkg/util"
@@ -135,8 +136,22 @@ func CreateStartMiningCmd() *cobra.Command {
 		Short: "start mining",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
+
+			isRunning := util.ServiceIsRunning(storage.DataRootDir(), "mining")
+
+			if isRunning {
+				fmt.Println("mining is already running")
+			}
+
+
 			if child == "c" {
+				err:= util.ProcessStart(storage.DataRootDir(), "mining", os.Getpid())
+
 				for true {
+					if err != nil {
+						fmt.Println(err)
+					}
+
 					miningProcess()
 				}
 			} else {
@@ -168,6 +183,21 @@ func CreateStartMiningCmd() *cobra.Command {
 }
 
 
+func CreateStopMiningCMD() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "stop",
+		Short: "stop mining",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			util.TerminateProcess(storage.DataRootDir(), "mining")
+		},
+	}
+
+	return cmd
+}
+
+
+
 func CreateMiningCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "mining",
@@ -177,6 +207,7 @@ func CreateMiningCmd() *cobra.Command {
 	cmd.AddCommand(
 		CreateSubmitMiningCmd(),
 		CreateStartMiningCmd(),
+		CreateStopMiningCMD(),
 	)
 
 	return cmd

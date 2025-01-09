@@ -26,7 +26,7 @@ func ProcessStart(rootDir, processName string, pid int) error {
 	if err := os.MkdirAll(procDir, 0755); err != nil {
 		return fmt.Errorf("failed to create process directory: %v", err)
 	}
-
+	fmt.Println("write pid file: ", pidFile)
 	return os.WriteFile(pidFile, []byte(strconv.Itoa(pid)), 0644)
 }
 
