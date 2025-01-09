@@ -95,7 +95,7 @@ func Mining() *Method {
 
 	reward := abi.PreciseMul(timeDiff, unit, "0")
 	reward = abi.PreciseDiv(reward, "1000", "0")
-	reward = abi.Check(reward, "reward")
+	reward = abi.Min(reward, "1680000000000000000000000")
 
 	reward = abi.Check(reward, "reward")
 
