@@ -19,6 +19,7 @@ var OperatorFunctions = map[string]map[string]MethodFunc{
 		"$gte": OpGte,
 		"$lt":  OpLt,
 		"$lte": OpLte,
+		"$hash_limit_ok": OpHashLimitOk,
 	},
 	"ArithmeticOperator": {
 		"$add":          OpAdd,

@@ -3,6 +3,7 @@ package native
 import (
 	abi "hello/pkg/core/abi"
 	. "hello/pkg/core/config"
+	C "hello/pkg/core/config"
 	. "hello/pkg/core/model"
 	. "hello/pkg/util"
 )
@@ -38,13 +39,6 @@ func Mining() *Method {
 		"requirements": true,
 	}))
 
-	method.AddParameter(NewParameter(map[string]interface{}{
-		"name":         "mining_start",
-		"type":         "string",
-		"maxlength":    256,
-		"requirements": true,
-	}))
-
 	// Get parameters and read states
 	from := abi.Param("from")
 	epoch := abi.Param("epoch")
@@ -53,8 +47,7 @@ func Mining() *Method {
 	calculatedHash := abi.Param("calculated_hash")
 	// difficulty := abi.ReadUniversal("network_difficulty", ZERO_ADDRESS, "1")
 
-	// Validate hash
-	// limit := abi.HashLimit(difficulty)
+	limit := C.NETWORK_DIFF
 	dhash := abi.HashMany(epoch, nonce)
 
 	method.AddExecution(abi.Condition(
@@ -62,19 +55,24 @@ func Mining() *Method {
 		"Invalid nonce and hash.",
 	))
 
-	/**
 	method.AddExecution(abi.Condition(
-		abi.Lt(calculatedHash, limit),
+		abi.HashLimitOk(calculatedHash, limit),
 		"Hash limit was not satisfied.",
 	))
-	*/
+
+	addressLastRewarded := abi.ReadUniversal("lastRewarded", from, "0")
 
 	lastRewarded := abi.ReadUniversal("lastRewarded", ZERO_ADDRESS, "0")
 	lastRewarded = abi.Check(lastRewarded, "lastRewarded")
 
-	// current := abi.AsString(Utime())
 	current := abi.SUtime()
 	current = abi.Check(current, "current")
+
+	method.AddExecution(abi.Condition(
+		abi.HashLimitOk(abi.PreciseSub(current, addressLastRewarded, "0"), "50000"),
+		"Queue is empty.",
+	))
+
 
 	timeDiff := abi.PreciseSub(current, lastRewarded, "0")
 	timeDiff = abi.PreciseDiv(timeDiff, "1000", "0")

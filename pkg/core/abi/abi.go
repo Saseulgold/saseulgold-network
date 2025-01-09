@@ -459,3 +459,10 @@ func SpaceID(writer, space interface{}) ABI {
 		Value: []interface{}{writer, space},
 	}
 }
+
+func HashLimitOk(left, right interface{}) ABI {
+	return ABI{
+		Key:   "$hash_limit_ok",
+		Value: []interface{}{left, right},
+	}
+}

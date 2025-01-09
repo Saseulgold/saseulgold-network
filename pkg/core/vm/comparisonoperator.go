@@ -2,6 +2,8 @@ package vm
 
 import (
 	"strconv"
+	 "math/big"
+
 )
 
 func OpEq(i *Interpreter, vars interface{}) interface{} {
@@ -46,6 +48,52 @@ func OpGte(i *Interpreter, vars interface{}) interface{} {
 	default:
 		return false
 	}
+}
+
+func isValidHex(s string) bool {
+    if len(s) == 0 {
+        return false
+    }
+    for _, c := range s {
+        if !((c >= '0' && c <= '9') ||
+            (c >= 'a' && c <= 'f') ||
+            (c >= 'A' && c <= 'F')) {
+            return false
+        }
+    }
+    return true
+}
+
+
+func OpHashLimitOk(i *Interpreter, vars interface{}) interface{} {
+	left, right := Unpack2(vars)
+
+    leftStr, ok1 := left.(string)
+    rightStr, ok2 := right.(string)
+    if !ok1 || !ok2 {
+        return false
+    }
+
+    // 해시 문자열이 유효한 16진수인지 확인
+    if !isValidHex(leftStr) || !isValidHex(rightStr) {
+        return false
+    }
+
+    // 큰 정수로 변환
+    leftInt := new(big.Int)
+    _, ok := leftInt.SetString(leftStr, 16)
+    if !ok {
+        return false
+    }
+
+    rightInt := new(big.Int)
+    _, ok = rightInt.SetString(rightStr, 16)
+    if !ok {
+        return false
+    }
+
+    // 비교
+    return leftInt.Cmp(rightInt) < 0
 }
 
 func OpLt(i *Interpreter, vars interface{}) interface{} {
