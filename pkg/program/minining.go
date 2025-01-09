@@ -16,6 +16,7 @@ import (
 	"strings"
     	"os"
     	"syscall"
+	"strconv"
  
 	"go.uber.org/zap"
 )
@@ -35,8 +36,12 @@ func miningProcess() {
 	lastHeight := strings.TrimSpace(lastHeightOut.String()) // 결과값에서 공백 제거
 	miningLogger.Info("last height:", zap.String("height", lastHeight))
 
-	// Step 2: execute mine binary
-	mineCmd := exec.Command("./mine/cmine", lastHeight)
+	ts := strconv.Itoa(int(util.Utime()))
+	seed := "blk-" + lastHeight + "," + ts
+
+	mineCmd := exec.Command("./mine/cmine", lastHeight, ts)
+	fmt.Println(seed)
+
 	var mineOut bytes.Buffer
 	mineCmd.Stdout = &mineOut
 	if err := mineCmd.Run(); err != nil {
@@ -44,7 +49,7 @@ func miningProcess() {
 		return
 	}
 	mineResult := strings.TrimSpace(mineOut.String()) // 결과값에서 공백 제거
-	// fmt.Printf("%s\n", mineResult)
+	fmt.Printf("%s\n", mineResult)
 
 	lines := strings.Split(mineResult, "\n")
 	if len(lines) < 2 {
@@ -57,7 +62,7 @@ func miningProcess() {
 	miningLogger.Info("calculate hash:", zap.String("hash", hash), zap.String("nonce", nonce))
 
 	submitCmd := exec.Command("go", "run", "main.go", "mining", "submit",
-		"-c", hash, "-e", fmt.Sprint("blk-", lastHeight), "-n", nonce)
+		"-c", hash, "-e", seed, "-n", nonce)
 	var submitOut bytes.Buffer
 	submitCmd.Stdout = &submitOut
 	if err := submitCmd.Run(); err != nil {
