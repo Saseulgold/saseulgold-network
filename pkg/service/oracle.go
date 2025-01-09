@@ -390,6 +390,10 @@ func (o *Oracle) registerPacketHandlers() {
 		o.mu.Lock()
 		defer o.mu.Unlock()
 
+		if !C.IS_REPLICA {
+			return o.swift.SendErrorResponse(ctx, "Network is not replica network")
+		}
+
 		fmt.Println("replicate block request: ", string(packet.Payload))
 		block, err := storage.ParseBlock(packet.Payload)
 
