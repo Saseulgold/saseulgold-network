@@ -167,12 +167,10 @@ func (o *Oracle) Run() error {
 }
 
 func (o *Oracle) OnStartUp(config swift.SecurityConfig, port string) error {
-	/**
 	isRunning := util.ServiceIsRunning(storage.DataRootDir(), "oracle")
 	if isRunning {
 		return fmt.Errorf("oracle is already running")
 	}
-	**/
 
 	o.chain.Touch()
 	o.storage.Touch()

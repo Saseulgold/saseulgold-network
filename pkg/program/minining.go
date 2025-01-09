@@ -31,6 +31,7 @@ func miningProcess() {
 	var lastHeightOut bytes.Buffer
 	lastHeightCmd.Stdout = &lastHeightOut
 	if err := lastHeightCmd.Run(); err != nil {
+		fmt.Println(err)
 		return
 	}
 	lastHeight := strings.TrimSpace(lastHeightOut.String()) // 결과값에서 공백 제거
@@ -40,20 +41,18 @@ func miningProcess() {
 	seed := "blk-" + lastHeight + "," + ts
 
 	mineCmd := exec.Command("./mine/cmine", lastHeight, ts)
-	fmt.Println(seed)
 
 	var mineOut bytes.Buffer
 	mineCmd.Stdout = &mineOut
 	if err := mineCmd.Run(); err != nil {
-		// fmt.Printf("Error running mine: %s\n", err)
+		fmt.Printf("Error running mine: %s\n", err)
 		return
 	}
 	mineResult := strings.TrimSpace(mineOut.String()) // 결과값에서 공백 제거
-	fmt.Printf("%s\n", mineResult)
 
 	lines := strings.Split(mineResult, "\n")
 	if len(lines) < 2 {
-		// fmt.Println("Error: Invalid mine result format")
+		fmt.Println("Error: Invalid mine result format")
 		return
 	}
 	nonce := lines[0]
@@ -136,7 +135,6 @@ func CreateStartMiningCmd() *cobra.Command {
 		Short: "start mining",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-
 			if child == "c" {
 				for true {
 					miningProcess()
