@@ -270,6 +270,27 @@ func CreateFaucetTransactionCmd() *cobra.Command {
 	return cmd
 }
 
+func CreateWallet() *cobra.Command {
+	var peer string
+
+	cmd := &cobra.Command{
+		Use:   "create",
+		Short: "create new wallet",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			privateKey, publicKey := crypto.GenerateKeyPair()
+			address := crypto.GetAddress(publicKey)
+
+			fmt.Println("prviate key: ", privateKey)
+			fmt.Println("public key: ", publicKey)
+			fmt.Println("address: ", address)
+		},
+	}
+
+	cmd.Flags().StringVarP(&peer, "peer", "p", C.CLI_DEFAULT_REQUEST, "peer to get balance")
+	return cmd
+}
+
 func CreateCountTransactionCmd() *cobra.Command {
 	var peer string
 
@@ -320,6 +341,7 @@ func CreateWalletCmd() *cobra.Command {
 		CreateFaucetTransactionCmd(),
 		CreateSendTransactionCmd(),
 		CreateCountTransactionCmd(),
+		CreateWallet(),
 	)
 
 	return cmd

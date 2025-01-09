@@ -79,7 +79,7 @@ func Mining() *Method {
 
 	timeDiff := abi.PreciseSub(current, lastRewarded, "0")
 	timeDiff = abi.PreciseDiv(timeDiff, "1000", "0")
-	timeDiff = abi.Min(timeDiff, "10000000")
+	// timeDiff = abi.Min(timeDiff, "10000000")
 
 	timeDiff = abi.Check(timeDiff, "timeDiff")
 	total_supply := abi.ReadUniversal("network_supply", ZERO_ADDRESS, C.INITIAL_SUPPLY)
