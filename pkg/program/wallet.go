@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"hello/pkg/core/config"
+	C "hello/pkg/core/config"
 	"hello/pkg/core/model"
 	"hello/pkg/core/network"
 	"hello/pkg/crypto"
@@ -175,7 +176,7 @@ func CreateGetBalanceCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to get balance")
+	cmd.Flags().StringVarP(&peer, "peer", "p", C.CLI_DEFAULT_REQUEST, "peer to get balance")
 	cmd.Flags().StringVarP(&address, "address", "a", _address, "peer to get balance")
 
 	return cmd
@@ -219,7 +220,7 @@ func CreateSendTransactionCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to get balance")
+	cmd.Flags().StringVarP(&peer, "peer", "p", C.CLI_DEFAULT_REQUEST, "peer to get balance")
 	cmd.Flags().StringVarP(&toaddress, "toaddress", "t", "", "to address")
 	cmd.MarkFlagRequired("toaddress")
 	cmd.Flags().StringVarP(&amount, "amount", "a", "", "amount")
@@ -264,7 +265,7 @@ func CreateFaucetTransactionCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to get balance")
+	cmd.Flags().StringVarP(&peer, "peer", "p", C.CLI_DEFAULT_REQUEST, "peer to get balance")
 
 	return cmd
 }
@@ -303,7 +304,7 @@ func CreateCountTransactionCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to get balance")
+	cmd.Flags().StringVarP(&peer, "peer", "p", C.CLI_DEFAULT_REQUEST, "peer to get balance")
 	return cmd
 }
 

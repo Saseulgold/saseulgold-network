@@ -47,6 +47,9 @@ const (
 	PacketTypeSearchRequest  // Search request
 	PacketTypeSearchResponse // Search response
 
+	PacketTypeLastHeightRequest
+	PacketTypeLastHeightResponse
+
 	// FOR DEV
 	PacketTypeGetStatusBundleRequest  // Get status bundle
 	PacketTypeGetStatusBundleResponse // Get status bundle

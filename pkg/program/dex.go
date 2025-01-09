@@ -3,6 +3,7 @@ package program
 import (
 	"fmt"
 	"hello/pkg/core/network"
+	C "hello/pkg/core/config"
 	"hello/pkg/crypto"
 	"hello/pkg/util"
 	"log"
@@ -60,7 +61,7 @@ func CreateMintTokenCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to connect")
+	cmd.Flags().StringVarP(&peer, "peer", "p", C.CLI_DEFAULT_REQUEST, "peer to connect")
 	cmd.Flags().StringVarP(&name, "name", "n", "", "token name")
 	cmd.MarkFlagRequired("name")
 	cmd.Flags().StringVarP(&symbol, "symbol", "s", "", "token symbol")
@@ -114,7 +115,7 @@ func CreateTransferTokenCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to connect")
+	cmd.Flags().StringVarP(&peer, "peer", "p", C.CLI_DEFAULT_REQUEST, "peer to connect")
 	cmd.Flags().StringVarP(&token_address, "token_address", "t", "", "token address")
 	cmd.MarkFlagRequired("token_address")
 	cmd.Flags().StringVarP(&to, "to", "o", "", "recipient address")
@@ -161,7 +162,7 @@ func CreateBalanceOfLPCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to connect")
+	cmd.Flags().StringVarP(&peer, "peer", "p", C.CLI_DEFAULT_REQUEST, "peer to connect")
 	cmd.Flags().StringVarP(&pair_address, "pair_address", "a", "", "token address")
 	cmd.MarkFlagRequired("pair_address")
 
@@ -207,7 +208,7 @@ func CreateBalanceOfCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to connect")
+	cmd.Flags().StringVarP(&peer, "peer", "p", C.CLI_DEFAULT_REQUEST, "peer to connect")
 	cmd.Flags().StringVarP(&token_address, "token_address", "t", "", "token address")
 	cmd.MarkFlagRequired("token_address")
 
@@ -241,7 +242,7 @@ func CreateTokenInfoCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to connect")
+	cmd.Flags().StringVarP(&peer, "peer", "p", C.CLI_DEFAULT_REQUEST, "peer to connect")
 	cmd.Flags().StringVarP(&token_address, "token_address", "t", "", "token address")
 	cmd.MarkFlagRequired("token_address")
 
@@ -298,7 +299,7 @@ func CreateProvideLiquidityCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to connect")
+	cmd.Flags().StringVarP(&peer, "peer", "p", C.CLI_DEFAULT_REQUEST, "peer to connect")
 	cmd.Flags().StringVarP(&token_address_a, "token_a", "a", "", "first token address")
 	cmd.MarkFlagRequired("token_a")
 	cmd.Flags().StringVarP(&token_address_b, "token_b", "b", "", "second token address")
@@ -357,7 +358,7 @@ func CreateLiquidityWithdrawCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to connect")
+	cmd.Flags().StringVarP(&peer, "peer", "p", C.CLI_DEFAULT_REQUEST, "peer to connect")
 	cmd.Flags().StringVarP(&token_address_a, "token_a", "a", "", "first token address")
 	cmd.MarkFlagRequired("token_a")
 	cmd.Flags().StringVarP(&token_address_b, "token_b", "b", "", "second token address")
@@ -414,7 +415,7 @@ func CreateSwapCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to connect")
+	cmd.Flags().StringVarP(&peer, "peer", "p", C.CLI_DEFAULT_REQUEST, "peer to connect")
 	cmd.Flags().StringVarP(&token_address_a, "token_a", "i", "", "input token address")
 	cmd.Flags().StringVarP(&token_address_b, "token_b", "o", "", "output token address")
 	cmd.Flags().StringVarP(&amount_in, "amount_in", "x", "", "amount of first token")

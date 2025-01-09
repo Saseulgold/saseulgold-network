@@ -415,6 +415,24 @@ func (o *Oracle) registerPacketHandlers() {
 		return o.swift.Send(ctx, response)
 	})
 
+	o.swift.RegisterHandler(swift.PacketTypeLastHeightRequest, func(ctx context.Context, packet *swift.Packet) error {
+		lastHeight := storage.LastHeight()
+		fmt.Println("lastHeight: ", lastHeight)
+		responseData, err := json.Marshal(lastHeight)
+
+		if err != nil {
+			return err
+		}
+
+
+		response := &swift.Packet{
+			Type:    swift.PacketTypeLastHeightResponse,
+			Payload: responseData,
+		}
+		return o.swift.Send(ctx, response)
+
+	})
+
 	o.swift.RegisterHandler(swift.PacketTypeRegisterReplicaRequest, func(ctx context.Context, packet *swift.Packet) error {
 		responseData, err := json.Marshal(map[string]string{"status": "connected"})
 		if err != nil {

@@ -184,17 +184,21 @@ func RunNetworkCMD() *cobra.Command {
 
 	rootCmd.AddCommand(networkCmd)
 
+	walletCmd := CreateWalletCmd()
+	dexCmd := CreateDexCmd()
+	apiCmd := CreateApiCmd()
+	miningCmd := CreateMiningCmd()
+
+	//TODO remove dev commands in production
 	nodeCmd := createNodeCmd()
 	scriptCmd := createScriptCmd()
-	walletCmd := CreateWalletCmd()
-	apiCmd := CreateApiCmd()
-	dexCmd := CreateDexCmd()
 
 	rootCmd.AddCommand(nodeCmd)
 	rootCmd.AddCommand(scriptCmd)
 	rootCmd.AddCommand(walletCmd)
 	rootCmd.AddCommand(apiCmd)
 	rootCmd.AddCommand(dexCmd)
+	rootCmd.AddCommand(miningCmd)
 
 	return rootCmd
 }

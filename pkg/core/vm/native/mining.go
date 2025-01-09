@@ -60,7 +60,6 @@ func Mining() *Method {
 		"Hash limit was not satisfied.",
 	))
 
-	addressLastRewarded := abi.ReadUniversal("lastRewarded", from, "0")
 
 	lastRewarded := abi.ReadUniversal("lastRewarded", ZERO_ADDRESS, "0")
 	lastRewarded = abi.Check(lastRewarded, "lastRewarded")
@@ -68,11 +67,15 @@ func Mining() *Method {
 	current := abi.SUtime()
 	current = abi.Check(current, "current")
 
+	addressLastRewarded := abi.Check(abi.ReadUniversal("lastRewarded", from, nil), "lastrewardfrom")
+
 	method.AddExecution(abi.Condition(
-		abi.HashLimitOk(abi.PreciseSub(current, addressLastRewarded, "0"), "50000"),
+		abi.Or(
+			abi.Eq(addressLastRewarded, nil),
+			abi.Gt(abi.Check(abi.PreciseSub(current, addressLastRewarded, "0"), "ftd"), "50000000"),
+		),
 		"Queue is empty.",
 	))
-
 
 	timeDiff := abi.PreciseSub(current, lastRewarded, "0")
 	timeDiff = abi.PreciseDiv(timeDiff, "1000", "0")
@@ -110,6 +113,8 @@ func Mining() *Method {
 	method.AddExecution(abi.WriteUniversal("lastRewarded", ZERO_ADDRESS, current))
 
 	method.AddExecution(abi.WriteUniversal("lastRewarded", ZERO_ADDRESS, current))
+	method.AddExecution(abi.WriteUniversal("lastRewarded", from, current))
+
 	new_total_supply := abi.PreciseAdd(total_supply, reward, "0")
 
 	method.AddExecution(abi.WriteUniversal("network_supply", ZERO_ADDRESS, new_total_supply))

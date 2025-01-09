@@ -3,6 +3,7 @@ package program
 import (
 	"fmt"
 	"hello/pkg/core/model"
+	C "hello/pkg/core/config"
 	"hello/pkg/core/network"
 	"hello/pkg/core/structure"
 	"hello/pkg/crypto"
@@ -10,6 +11,7 @@ import (
 	"hello/pkg/swift"
 	"hello/pkg/util"
 	"log"
+	"encoding/json"
 
 	"github.com/spf13/cobra"
 )
@@ -239,6 +241,38 @@ func CreateSearchCmd() *cobra.Command {
 	return cmd
 }
 
+func CreateGetLastHeightCmd() *cobra.Command {
+	var targetNode string
+
+	cmd := &cobra.Command{
+		Use:   "lastheight",
+		Short: "get last height of the network.",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			req := swift.Packet{
+				Type:    swift.PacketTypeLastHeightRequest,
+				Payload: json.RawMessage("{}"),
+			}
+
+			response, err := network.CallRPC(targetNode, req)
+			if err != nil {
+				log.Fatalf("RPC call failed: %v", err)
+			}
+
+			rst := FormatResponse(&response.Payload)
+			fmt.Println(rst)
+
+		},
+		PreRun: func(cmd *cobra.Command, args []string) {
+			cmd.Flags().Parse(args)
+		},
+	}
+
+	cmd.Flags().StringVarP(&targetNode, "peer", "p", C.CLI_DEFAULT_REQUEST, "Target node to ping")
+
+	return cmd
+}
+
 func CreateApiCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "api",
@@ -251,6 +285,7 @@ func CreateApiCmd() *cobra.Command {
 		CreateListTransactionCmd(),
 		CreatePairInfoRequestCmd(),
 		CreateSearchCmd(),
+		CreateGetLastHeightCmd(),
 	)
 
 	return cmd
