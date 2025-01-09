@@ -191,25 +191,48 @@ __global__ void sha256_nonce_kernel(const char *seed, int seed_len, uint32_t *ou
 }
 
 int main(int argc, char *argv[]) {
-    if (argc != 2) {
-        printf("Usage: %s <epoch>\n", argv[0]);
+	if (argc != 3) {
+        printf("Usage: %s <arg1> <arg2>\n", argv[0]);
         return 1;
     }
 
-    const char *epoch = argv[1];
-    int epoch_len = strlen(epoch);
-    const char seed_prefix[] = "blk-";  // 예시로 seed prefix를 "blk-"로 설정
-    int seed_prefix_len = strlen(seed_prefix);
+    const char *arg1 = argv[1];
+    const char *arg2 = argv[2];
+    int arg1_len = strlen(arg1);
+    int arg2_len = strlen(arg2);
 
-    // seed = seed_prefix + epoch
+    const char seed_prefix[] = "blk-";  // Seed prefix
+    int seed_prefix_len = strlen(seed_prefix);
+    const char separator = ',';         // Separator between arguments
+
+    // Calculate total seed length: prefix + arg1 + separator + arg2
+    int seed_len = seed_prefix_len + arg1_len + 1 + arg2_len;
+    if (seed_len >= 64) { // Ensure seed does not exceed buffer size
+        printf("Seed length exceeds buffer size.\n");
+        return 1;
+    }
+
+    // Construct the seed string: "blk-{arg1}-{arg2}"
     char seed[64] = {0};
-    for(int i=0; i<seed_prefix_len; i++) {
-              seed[i] = seed_prefix[i];
-    }
-    for(int i=0; i<epoch_len; i++) {
-        seed[seed_prefix_len + i] = epoch[i];
-    }
-    int seed_len = seed_prefix_len + epoch_len;
+    int pos = 0;
+
+    // Copy prefix
+    memcpy(seed + pos, seed_prefix, seed_prefix_len);
+    pos += seed_prefix_len;
+
+    // Copy first argument
+    memcpy(seed + pos, arg1, arg1_len);
+    pos += arg1_len;
+
+    // Insert separator
+    seed[pos++] = separator;
+
+    // Copy second argument
+    memcpy(seed + pos, arg2, arg2_len);
+    pos += arg2_len;
+
+    // Null-terminate the seed string
+    seed[pos] = '\0';
 
     const uint64_t num_threads = 1024 * 1024;  // 스레드 수 (예: 1,048,576)
     uint32_t *h_output = (uint32_t *)malloc(8 * sizeof(uint32_t));
