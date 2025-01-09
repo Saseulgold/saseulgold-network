@@ -2,7 +2,7 @@ package util
 
 import (
     "sync"
-
+	"os"
     "go.uber.org/zap"
     "go.uber.org/zap/zapcore"
     "gopkg.in/natefinch/lumberjack.v2"
@@ -44,4 +44,19 @@ func GetLogger() *zap.Logger {
 
     return loggerInstance
 }
+
+func CreateLogger(file *os.File) (*zap.Logger, error) {
+    encoderConfig := zap.NewProductionEncoderConfig()
+    encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+
+    core := zapcore.NewCore(
+        zapcore.NewJSONEncoder(encoderConfig), 
+        zapcore.AddSync(file),                
+        zap.InfoLevel,                       
+    )
+
+    logger := zap.New(core)
+    return logger, nil
+}
+
 

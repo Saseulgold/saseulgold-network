@@ -82,8 +82,8 @@ func Mining() *Method {
 	timeDiff = abi.Min(timeDiff, "10000000")
 
 	timeDiff = abi.Check(timeDiff, "timeDiff")
+	total_supply := abi.ReadUniversal("network_supply", ZERO_ADDRESS, C.INITIAL_SUPPLY)
 
-	total_supply := abi.ReadUniversal("network_supply", ZERO_ADDRESS, "0")
 	era := abi.Era(abi.PreciseDiv(total_supply, MULTIPLIER, "0"))
 	era = abi.AsString(era)
 	era = abi.Check(era, "era")

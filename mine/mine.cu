@@ -246,17 +246,17 @@ int main(int argc, char *argv[]) {
 
         if (h_nonce_found != 0xFFFFFFFFFFFFFFFF) {
             // nonce가 발견됨
-            printf("Final Nonce found: %llu\n", h_nonce_found);
+            printf("%llu\n", h_nonce_found);
             // 해당 nonce의 해시값을 호스트로 복사하여 출력
             cudaMemcpy(h_output, d_output, 8 * sizeof(uint32_t), cudaMemcpyDeviceToHost);
-            printf("Final Hash: %08x %08x %08x %08x %08x %08x %08x %08x\n",
+            printf("%08x%08x%08x%08x%08x%08x%08x%08x\n",
                    h_output[0], h_output[1], h_output[2], h_output[3],
                    h_output[4], h_output[5], h_output[6], h_output[7]);
             found = true;
         } else {
             // nonce가 발견되지 않음, 시작 nonce를 증가시킴
             start_nonce += num_threads;
-            printf("Nonce not found in range %llu to %llu. Trying next range...\n", start_nonce, start_nonce + num_threads - 1);
+            // printf("Nonce not found in range %llu to %llu. Trying next range...\n", start_nonce, start_nonce + num_threads - 1);
         }
     }
 
