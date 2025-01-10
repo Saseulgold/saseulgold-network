@@ -289,6 +289,10 @@ func CreateSyncCmd() *cobra.Command {
 		Short: "Synchronize blocks from target node",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
+			ci := storage.GetChainStorageInstance()
+			sf := storage.GetStatusFileInstance()
+			ci.Touch()
+			sf.Touch()
 			if startHeight == -1 {
 				heightReq := swift.Packet{
 					Type:    swift.PacketTypeLastHeightRequest,
