@@ -537,62 +537,66 @@ func (o *Oracle) registerPacketHandlers() {
 			params.EndHeight = params.StartHeight + 100
 		}
 
-		// Fetch blocks
-		blocks := make([]string, 0)
+		// Create a channel to receive results
+		resultChan := make(chan []string)
+		errorChan := make(chan error)
 
-		for height := params.StartHeight; height <= params.EndHeight; height++ {
-			block, err := o.chain.GetBlock(height)
-			fmt.Println(height, block)
+		// Process blocks in a separate goroutine
+		go func() {
+			blocks := make([]string, 0)
 
+			for height := params.StartHeight; height <= params.EndHeight; height++ {
+				block, err := o.chain.GetBlock(height)
+				if err != nil {
+					logger.Error("failed to get block",
+						zap.Int("height", height),
+						zap.Error(err),
+					)
+					errorChan <- fmt.Errorf("Failed to get block at height %d", height)
+					return
+				}
+
+				if block == nil {
+					break
+				}
+
+				obj := block.Ser("full")
+				blocks = append(blocks, obj)
+			}
+
+			if len(blocks) == 0 {
+				errorChan <- fmt.Errorf("No blocks found in specified range")
+				return
+			}
+
+			resultChan <- blocks
+		}()
+
+		// Wait for result or context cancellation
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("request cancelled")
+		case err := <-errorChan:
+			return o.swift.SendErrorResponse(ctx, err.Error())
+		case blocks := <-resultChan:
+			responseData, err := json.Marshal(blocks)
 			if err != nil {
-				logger.Error("failed to get block",
-					zap.Int("height", height),
-					zap.Error(err),
-				)
-				return o.swift.SendErrorResponse(ctx, "Failed to get block")
+				return o.swift.SendErrorResponse(ctx, "Failed to serialize blocks")
 			}
 
-			obj := block.Ser("full")
-			fmt.Println(string(obj))
-
-			if err != nil {
-				logger.Error("failed to get block",
-					zap.Int("height", height),
-					zap.Error(err),
-				)
-				continue
+			response := &swift.Packet{
+				Type:    swift.PacketTypeSyncBlockResponse,
+				Payload: responseData,
 			}
-			if block == nil {
-				break
-			}
-			blocks = append(blocks, obj)
+
+			logger.Info("sending sync blocks",
+				zap.Int("start_height", params.StartHeight),
+				zap.Int("end_height", params.EndHeight),
+				zap.Int("block_count", len(blocks)),
+			)
+
+			return o.swift.Send(ctx, response)
 		}
-
-		// Return error if no blocks found
-		if len(blocks) == 0 {
-			return o.swift.SendErrorResponse(ctx, "No blocks found in specified range")
-		}
-
-		// Serialize blocks
-		responseData, err := json.Marshal(blocks)
-		if err != nil {
-			return o.swift.SendErrorResponse(ctx, "Failed to serialize blocks")
-		}
-
-		fmt.Println(string(responseData))
-
-		response := &swift.Packet{
-			Type:    swift.PacketTypeSyncBlockResponse,
-			Payload: responseData,
-		}
-
-		logger.Info("sending sync blocks",
-			zap.Int("start_height", params.StartHeight),
-			zap.Int("end_height", params.EndHeight),
-			zap.Int("block_count", len(blocks)),
-		)
-
-		return o.swift.Send(ctx, response)
 	})
 
 }

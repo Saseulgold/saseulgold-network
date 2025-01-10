@@ -14,6 +14,7 @@ import (
 	"hello/pkg/swift"
 	"hello/pkg/util"
 	"log"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -345,7 +346,9 @@ func CreateSyncCmd() *cobra.Command {
 							parsed.Height, err)
 					}
 				}
+
 				fmt.Printf("Height %d-%d synchronized\n", currentStart, currentEnd)
+				time.Sleep(10 * time.Second)
 			}
 
 			fmt.Printf("Full synchronization completed (height %d-%d)\n", startHeight, endHeight)

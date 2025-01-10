@@ -1,77 +1,84 @@
 package program
 
-
 import (
 	"fmt"
+	C "hello/pkg/core/config"
 	"hello/pkg/core/network"
 	"hello/pkg/core/storage"
-	C "hello/pkg/core/config"
+	"hello/pkg/core/structure"
 	"hello/pkg/crypto"
 	"hello/pkg/util"
 	"log"
-	"hello/pkg/core/structure"
+
 	"github.com/spf13/cobra"
 
 	"bytes"
+	"os"
 	"os/exec"
-	"strings"
-    	"os"
-    	"syscall"
 	"strconv"
- 
+	"strings"
+	"syscall"
+
 	"go.uber.org/zap"
 )
 
-
-func miningProcess() {
-   	file1, _ := os.OpenFile("mining.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+func miningProcess() error {
+	file1, _ := os.OpenFile("mining.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	miningLogger, _ := util.CreateLogger(file1)
 
 	// Step 1: Get last height and blockhash
-	lastHeightCmd := exec.Command("go", "run", "main.go", "api", "lastheight")
+	lastHeightCmd := exec.Command("./sg", "api", "lastheight")
 	var lastHeightOut bytes.Buffer
 	lastHeightCmd.Stdout = &lastHeightOut
 	if err := lastHeightCmd.Run(); err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 	lastHeight := strings.TrimSpace(lastHeightOut.String()) // 결과값에서 공백 제거
+	lastHeightInt, _ := strconv.Atoi(lastHeight)
+	nodeLastHeight := storage.LastHeight()
+
+	if nodeLastHeight > lastHeightInt {
+		return fmt.Errorf("node last height is greater than network last height")
+	}
+
+	if lastHeightInt-10 > nodeLastHeight {
+		return fmt.Errorf("block is not synced")
+	}
+
 	miningLogger.Info("last height:", zap.String("height", lastHeight))
 
 	ts := strconv.Itoa(int(util.Utime()))
 	seed := "blk-" + lastHeight + "," + ts
 
 	mineCmd := exec.Command("./mine/cmine", lastHeight, ts)
-
 	var mineOut bytes.Buffer
+
 	mineCmd.Stdout = &mineOut
 	if err := mineCmd.Run(); err != nil {
 		fmt.Printf("Error running mine: %s\n", err)
-		return
+		return err
 	}
 	mineResult := strings.TrimSpace(mineOut.String()) // 결과값에서 공백 제거
 
 	lines := strings.Split(mineResult, "\n")
 	if len(lines) < 2 {
 		fmt.Println("Error: Invalid mine result format")
-		return
+		return fmt.Errorf("invalid mine result format")
 	}
 	nonce := lines[0]
 	hash := lines[1]
 
 	miningLogger.Info("calculate hash:", zap.String("hash", hash), zap.String("nonce", nonce))
 
-	submitCmd := exec.Command("go", "run", "main.go", "mining", "submit",
+	submitCmd := exec.Command("./sg", "mining", "submit",
 		"-c", hash, "-e", seed, "-n", nonce)
 	var submitOut bytes.Buffer
 	submitCmd.Stdout = &submitOut
 	if err := submitCmd.Run(); err != nil {
-		// fmt.Printf("Error submitting result: %s\n", err)
-		return
+		return fmt.Errorf("error submitting result: %s", err)
 	}
-	// fmt.Printf("Submit result: %s\n", submitOut.String())
+	return nil
 }
-
 
 // FormatResponse(payload *json.RawMessage) string {
 // CreateWalletTransaction(peer string, payload string) *rpc.TransactionRequest {
@@ -143,35 +150,39 @@ func CreateStartMiningCmd() *cobra.Command {
 				fmt.Println("mining is already running")
 			}
 
-
 			if child == "c" {
-				err:= util.ProcessStart(storage.DataRootDir(), "mining", os.Getpid())
+				err := util.ProcessStart(storage.DataRootDir(), "mining", os.Getpid())
 
 				for true {
 					if err != nil {
 						fmt.Println(err)
+						os.Exit(1)
 					}
 
-					miningProcess()
+					err = miningProcess()
+					if err != nil {
+						fmt.Println(err)
+						os.Exit(1)
+					}
 				}
 			} else {
-				    cmd := exec.Command("./sg", "mining", "start", "-c", "c")
+				cmd := exec.Command("./sg", "mining", "start", "-c", "c")
 
-				    cmd.Stdout = os.Stdout
-				    cmd.Stderr = os.Stderr
-				    cmd.Stdin = os.Stdin
+				cmd.Stdout = os.Stdout
+				cmd.Stderr = os.Stderr
+				cmd.Stdin = os.Stdin
 
-				    cmd.SysProcAttr = &syscall.SysProcAttr{
-					 Setsid: true,
-				    }
+				cmd.SysProcAttr = &syscall.SysProcAttr{
+					Setsid: true,
+				}
 
-				    err := cmd.Start()
-				    if err != nil {
+				err := cmd.Start()
+				if err != nil {
 					fmt.Printf("Failed to start command: %s\n", err)
-					return
-				    }
+					os.Exit(1)
+				}
 
-				    fmt.Printf("Started mining process with PID %d\n", cmd.Process.Pid)
+				fmt.Printf("Started mining process with PID %d\n", cmd.Process.Pid)
 
 			}
 		},
@@ -181,7 +192,6 @@ func CreateStartMiningCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&child, "child", "c", "", "")
 	return cmd
 }
-
 
 func CreateStopMiningCMD() *cobra.Command {
 	cmd := &cobra.Command{
@@ -195,8 +205,6 @@ func CreateStopMiningCMD() *cobra.Command {
 
 	return cmd
 }
-
-
 
 func CreateMiningCmd() *cobra.Command {
 	cmd := &cobra.Command{

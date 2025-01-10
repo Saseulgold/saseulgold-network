@@ -165,7 +165,9 @@ func (s *Server) HandleConnection(conn net.Conn) error {
 	ctx := context.WithValue(context.Background(), "connection", conn)
 
 	for {
-		SwiftInfoLog("new connection request: %s\n", conn.RemoteAddr().String())
+		logger.Info("new connection request",
+			zap.String("remote_addr", conn.RemoteAddr().String()),
+		)
 		header := make([]byte, 4)
 		if _, err := io.ReadFull(conn, header); err != nil {
 			if err == io.EOF {
