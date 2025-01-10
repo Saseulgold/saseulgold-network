@@ -6,6 +6,7 @@ import (
 	C "hello/pkg/core/config"
 	"hello/pkg/core/model"
 	"hello/pkg/core/network"
+	"hello/pkg/core/storage"
 	"hello/pkg/core/structure"
 	"hello/pkg/core/vm"
 	"hello/pkg/crypto"
@@ -327,18 +328,22 @@ func CreateSyncCmd() *cobra.Command {
 						currentStart, currentEnd, err)
 				}
 
-				var blocks []*model.Block
+				var blocks []string
 				if err := json.Unmarshal(response.Payload, &blocks); err != nil {
 					log.Fatalf("Failed to parse block data: %v", err)
 				}
 
 				machine := vm.GetMachineInstance()
 				for _, block := range blocks {
-					if err := machine.Commit(block); err != nil {
-						log.Fatalf("Failed to commit block (height %d): %v",
-							block.Height, err)
+					parsed, err := storage.ParseBlock([]byte(block))
+					if err != nil {
+						log.Fatalf("Failed to parse block data: %v", err)
 					}
-					fmt.Printf("Block %d synchronized\n", block.Height)
+					if err := machine.Commit(parsed); err != nil {
+						log.Fatalf("Failed to commit block (height %d): %v",
+							parsed.Height, err)
+					}
+					fmt.Printf("Block %d synchronized\n", parsed.Height)
 				}
 
 				fmt.Printf("Height %d-%d synchronized\n", currentStart, currentEnd)

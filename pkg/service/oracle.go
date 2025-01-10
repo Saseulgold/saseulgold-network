@@ -538,9 +538,11 @@ func (o *Oracle) registerPacketHandlers() {
 		}
 
 		// Fetch blocks
-		blocks := make([]*model.Block, 0)
+		blocks := make([]string, 0)
 		for height := params.StartHeight; height <= params.EndHeight; height++ {
 			block, err := o.chain.GetBlock(height)
+			obj := block.Ser("full")
+
 			if err != nil {
 				logger.Error("failed to get block",
 					zap.Int("height", height),
@@ -551,7 +553,7 @@ func (o *Oracle) registerPacketHandlers() {
 			if block == nil {
 				break
 			}
-			blocks = append(blocks, block)
+			blocks = append(blocks, obj)
 		}
 
 		// Return error if no blocks found
