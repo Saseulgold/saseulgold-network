@@ -50,6 +50,9 @@ const (
 	PacketTypeLastHeightRequest
 	PacketTypeLastHeightResponse
 
+	PacketTypeSyncBlockRequest
+	PacketTypeSyncBlockResponse
+
 	// FOR DEV
 	PacketTypeGetStatusBundleRequest  // Get status bundle
 	PacketTypeGetStatusBundleResponse // Get status bundle

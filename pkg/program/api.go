@@ -1,17 +1,18 @@
 package program
 
 import (
+	"encoding/json"
 	"fmt"
-	"hello/pkg/core/model"
 	C "hello/pkg/core/config"
+	"hello/pkg/core/model"
 	"hello/pkg/core/network"
 	"hello/pkg/core/structure"
+	"hello/pkg/core/vm"
 	"hello/pkg/crypto"
 	"hello/pkg/rpc"
 	"hello/pkg/swift"
 	"hello/pkg/util"
 	"log"
-	"encoding/json"
 
 	"github.com/spf13/cobra"
 )
@@ -273,6 +274,87 @@ func CreateGetLastHeightCmd() *cobra.Command {
 	return cmd
 }
 
+func CreateSyncCmd() *cobra.Command {
+	const SYNC_BATCH_SIZE = 100
+	const SYNC_BATCH_LIMIT = SYNC_BATCH_SIZE - 1
+
+	var targetNode string
+	var startHeight int
+	var endHeight int
+
+	cmd := &cobra.Command{
+		Use:   "sync",
+		Short: "Synchronize blocks from target node",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			if startHeight == -1 {
+				heightReq := swift.Packet{
+					Type:    swift.PacketTypeLastHeightRequest,
+					Payload: json.RawMessage("{}"),
+				}
+
+				response, err := network.CallRPC(targetNode, heightReq)
+				if err != nil {
+					log.Fatalf("Failed to get last height: %v", err)
+				}
+
+				var lastHeight int
+				if err := json.Unmarshal(response.Payload, &lastHeight); err != nil {
+					log.Fatalf("Failed to parse height: %v", err)
+				}
+
+				startHeight = 0
+				endHeight = lastHeight
+			}
+
+			for currentStart := startHeight; currentStart <= endHeight; currentStart += SYNC_BATCH_SIZE {
+				currentEnd := currentStart + SYNC_BATCH_LIMIT
+				if currentEnd > endHeight {
+					currentEnd = endHeight
+				}
+
+				syncReq := swift.Packet{
+					Type: swift.PacketTypeSyncBlockRequest,
+					Payload: json.RawMessage(fmt.Sprintf(`{
+						"start_height": %d,
+						"end_height": %d
+					}`, currentStart, currentEnd)),
+				}
+
+				response, err := network.CallRPC(targetNode, syncReq)
+				if err != nil {
+					log.Fatalf("Failed to sync blocks (height %d-%d): %v",
+						currentStart, currentEnd, err)
+				}
+
+				var blocks []*model.Block
+				if err := json.Unmarshal(response.Payload, &blocks); err != nil {
+					log.Fatalf("Failed to parse block data: %v", err)
+				}
+
+				machine := vm.GetMachineInstance()
+				for _, block := range blocks {
+					if err := machine.Commit(block); err != nil {
+						log.Fatalf("Failed to commit block (height %d): %v",
+							block.Height, err)
+					}
+					fmt.Printf("Block %d synchronized\n", block.Height)
+				}
+
+				fmt.Printf("Height %d-%d synchronized\n", currentStart, currentEnd)
+			}
+
+			fmt.Printf("Full synchronization completed (height %d-%d)\n", startHeight, endHeight)
+		},
+	}
+
+	cmd.Flags().StringVarP(&targetNode, "peer", "p", C.CLI_DEFAULT_REQUEST, "Target node to sync from")
+	cmd.Flags().IntVarP(&startHeight, "start", "s", -1, "Start height (default: 0)")
+	cmd.Flags().IntVarP(&endHeight, "end", "e", -1, "End height (default: latest block)")
+
+	return cmd
+}
+
 func CreateApiCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "api",
@@ -286,6 +368,7 @@ func CreateApiCmd() *cobra.Command {
 		CreatePairInfoRequestCmd(),
 		CreateSearchCmd(),
 		CreateGetLastHeightCmd(),
+		CreateSyncCmd(),
 	)
 
 	return cmd

@@ -188,8 +188,14 @@ func (tx SignedTransaction) Validate() error {
 		return fmt.Errorf("the signed transaction must contain the transaction parameter")
 	}
 
-	// TODO handle exception for convert type
-	txType, ok := transaction.(*S.OrderedMap).Get("type")
+	// Add type assertion check for OrderedMap
+	txMap, ok := transaction.(*S.OrderedMap)
+	if !ok {
+		return fmt.Errorf("transaction must be of type Map")
+	}
+
+	// Update subsequent code to use txMap
+	txType, ok := txMap.Get("type")
 	if !ok || txType == nil {
 		return fmt.Errorf("the signed transaction must contain the transaction.type parameter")
 	}
@@ -198,7 +204,7 @@ func (tx SignedTransaction) Validate() error {
 		return fmt.Errorf("Parameter transaction.type must be of string type")
 	}
 
-	timestamp, ok := transaction.(*S.OrderedMap).Get("timestamp")
+	timestamp, ok := txMap.Get("timestamp")
 	if !ok || timestamp == nil {
 		return fmt.Errorf("the signed transaction must contain the transaction.timestamp parameter")
 	}
