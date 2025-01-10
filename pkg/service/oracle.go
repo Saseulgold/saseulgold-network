@@ -539,9 +539,21 @@ func (o *Oracle) registerPacketHandlers() {
 
 		// Fetch blocks
 		blocks := make([]string, 0)
+
 		for height := params.StartHeight; height <= params.EndHeight; height++ {
 			block, err := o.chain.GetBlock(height)
+			fmt.Println(height, block)
+
+			if err != nil {
+				logger.Error("failed to get block",
+					zap.Int("height", height),
+					zap.Error(err),
+				)
+				return o.swift.SendErrorResponse(ctx, "Failed to get block")
+			}
+
 			obj := block.Ser("full")
+			fmt.Println(string(obj))
 
 			if err != nil {
 				logger.Error("failed to get block",
@@ -567,7 +579,8 @@ func (o *Oracle) registerPacketHandlers() {
 			return o.swift.SendErrorResponse(ctx, "Failed to serialize blocks")
 		}
 
-		// Send response
+		fmt.Println(string(responseData))
+
 		response := &swift.Packet{
 			Type:    swift.PacketTypeSyncBlockResponse,
 			Payload: responseData,

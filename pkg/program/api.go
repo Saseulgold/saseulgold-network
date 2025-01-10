@@ -304,7 +304,7 @@ func CreateSyncCmd() *cobra.Command {
 					log.Fatalf("Failed to parse height: %v", err)
 				}
 
-				startHeight = 0
+				startHeight = 1
 				endHeight = lastHeight
 			}
 
@@ -329,6 +329,7 @@ func CreateSyncCmd() *cobra.Command {
 				}
 
 				var blocks []string
+
 				if err := json.Unmarshal(response.Payload, &blocks); err != nil {
 					log.Fatalf("Failed to parse block data: %v", err)
 				}
@@ -343,9 +344,7 @@ func CreateSyncCmd() *cobra.Command {
 						log.Fatalf("Failed to commit block (height %d): %v",
 							parsed.Height, err)
 					}
-					fmt.Printf("Block %d synchronized\n", parsed.Height)
 				}
-
 				fmt.Printf("Height %d-%d synchronized\n", currentStart, currentEnd)
 			}
 
