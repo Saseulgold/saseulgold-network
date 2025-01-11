@@ -236,6 +236,10 @@ func Publish() *Method {
 	method.AddExecution(abi.WriteUniversal("balance", from, abi.PreciseSub(userBalance, fee, 0)))
 	method.AddExecution(abi.WriteUniversal("network_fee_reserve", ZERO_ADDRESS, fee))
 
+	difficulty := abi.ReadUniversal("network_difficulty", ZERO_ADDRESS, "0")
+	difficulty = abi.PreciseSub(difficulty, "8", "0")
+	method.AddExecution(abi.WriteUniversal("network_difficulty", ZERO_ADDRESS, difficulty))
+
 	return method
 }
 

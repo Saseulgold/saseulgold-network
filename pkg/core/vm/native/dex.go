@@ -528,6 +528,10 @@ func GetPairInfo() *Method {
 	totalLiquidity := abi.ReadUniversal(pairAddress, "total_liquidity", "0")
 	response = abi.Set(response, "total_liquidity", totalLiquidity)
 
+	// Get volume
+	volume := abi.ReadUniversal(pairAddress, "volume", "0")
+	response = abi.Set(response, "volume", volume)
+
 	// Get accumulated rewards per unit
 	accumulatedRewardPerUnit := abi.ReadUniversal(pairAddress, "accumulated_reward_per_unit", "0")
 	response = abi.Set(response, "accumulated_reward_per_unit", accumulatedRewardPerUnit)
@@ -868,5 +872,15 @@ func Swap() *Method {
 	// Store accumulated reward per unit
 	method.AddExecution(abi.WriteUniversal(pairAddress, "accumulated_reward_per_unit", accumulatedRewardPerUnit))
 
+	volume := abi.If(
+		isAToB,
+		amountIn,
+		outputAmount,
+	)
+
+	acc := abi.ReadUniversal(pairAddress, "volume", "0")
+	acc = abi.PreciseAdd(acc, volume, "0")
+
+	method.AddExecution(abi.WriteUniversal(pairAddress, "volume", acc))
 	return method
 }

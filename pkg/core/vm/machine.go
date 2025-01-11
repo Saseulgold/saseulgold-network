@@ -196,7 +196,7 @@ func (m *Machine) deleteTransaction(txHash string, err error) {
 	}
 }
 
-func (m *Machine) PreCommit() error {
+func (m *Machine) PreCommit() (string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -232,9 +232,10 @@ func (m *Machine) PreCommit() error {
 
 		m.interpreter.Read()
 	}
-
+	difficultyHash := util.NetworkStatusHash("network_difficulty", C.ZERO_ADDRESS)
+	m.interpreter.AddUniversalLoads(difficultyHash)
 	m.interpreter.LoadUniversalStatus()
-	//m.interpreter.LoadLocalStatus()
+
 	txs = util.SortedValueK[*SignedTransaction](*m.transactions)
 
 	for _, transaction := range txs {
@@ -250,7 +251,9 @@ func (m *Machine) PreCommit() error {
 		m.deleteTransaction(hash, err)
 	}
 
-	return err
+	c := m.interpreter.GetUniversalStatus(difficultyHash, "2250")
+	fmt.Println("c:", c)
+	return c.(string), err
 }
 
 func (m *Machine) MountContract(tx SignedTransaction) error {
@@ -321,7 +324,7 @@ func (m *Machine) GetPreviousBlock() *Block {
 	return m.previousBlock
 }
 
-func (m *Machine) ExpectedBlock() *Block {
+func (m *Machine) ExpectedBlock(difficulty string) *Block {
 	previousBlock := m.GetPreviousBlock()
 
 	var previousBlockhash string
@@ -342,6 +345,7 @@ func (m *Machine) ExpectedBlock() *Block {
 		UniversalUpdates:  m.interpreter.GetUniversalUpdates(),
 		LocalUpdates:      m.interpreter.GetLocalUpdates(),
 		PreviousBlockhash: previousBlockhash,
+		Difficulty:        difficulty,
 	}
 
 	return expectedBlock

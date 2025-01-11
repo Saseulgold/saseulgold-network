@@ -90,12 +90,13 @@ func (o *Oracle) Commit(txs map[string]*model.SignedTransaction) (*model.Block, 
 
 	o.machine.Init(previousBlock)
 	o.machine.SetTransactions(txs)
-	o.machine.PreCommit()
+	difficulty, _ := o.machine.PreCommit()
 
 	block := model.NewBlock(storage.LastHeight()+1, previousBlockhash)
 	block.SetTimestamp(int64(util.Utime()))
+	block.SetDifficulty(difficulty)
 
-	expectedBlock := o.machine.ExpectedBlock()
+	expectedBlock := o.machine.ExpectedBlock(difficulty)
 
 	if expectedBlock.GetTransactionCount() == 0 {
 		OracleLog("no transactions to commit. invalid block.")

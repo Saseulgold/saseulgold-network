@@ -74,9 +74,16 @@ func ParseBlock(data []byte) (*Block, error) {
 
 	blockDifficulty, _ := om.Get("difficulty")
 	if blockDifficulty == nil {
-		block.Difficulty = 0
+		block.Difficulty = "0"
 	} else {
-		block.Difficulty = int(blockDifficulty.(int64))
+		switch v := blockDifficulty.(type) {
+		case int64:
+			block.Difficulty = strconv.FormatInt(v, 10)
+		case string:
+			block.Difficulty = v
+		default:
+			block.Difficulty = fmt.Sprintf("%v", v)
+		}
 	}
 
 	if universalUpdatesRaw, exists := om.Get("universal_updates"); exists {

@@ -27,10 +27,9 @@ type Block struct {
 	LocalUpdates      UpdateMap
 	PreviousBlockhash string `json:"previous_blockhash"`
 	Timestamp_s       int64  `json:"s_timestamp"`
-	Vout              string `json:"vout"`
-	Nonce             string `json:"nonce"`
-	RewardAddress     string `json:"reward_address"`
-	Difficulty        int    `json:"difficulty"`
+	//Vout              string `json:"vout"`
+	RewardAddress string `json:"reward_address"`
+	Difficulty    string `json:"difficulty"`
 }
 
 func NewBlock(height int, previous_blockhash string) Block {
@@ -43,32 +42,12 @@ func NewBlock(height int, previous_blockhash string) Block {
 	}
 }
 
-func CreateBlock(
-	height int,
-	transactions TransactionMap,
-	universalUpdates UpdateMap,
-	localUpdates UpdateMap,
-	previousBlockhash string,
-	timestamp_s int64,
-	vout string,
-	nonce string,
-	rewardAddress string,
-) Block {
-	return Block{
-		Height:            height,
-		Transactions:      transactions,
-		UniversalUpdates:  universalUpdates,
-		LocalUpdates:      localUpdates,
-		PreviousBlockhash: previousBlockhash,
-		Timestamp_s:       timestamp_s,
-		Vout:              vout,
-		Nonce:             nonce,
-		RewardAddress:     rewardAddress,
-	}
-}
-
 func (block *Block) SetTimestamp(timestamp int64) {
 	block.Timestamp_s = timestamp
+}
+
+func (block *Block) SetDifficulty(difficulty string) {
+	block.Difficulty = difficulty
 }
 
 func (block *Block) AppendTransaction(tx SignedTransaction) error {
@@ -149,8 +128,8 @@ func (block Block) BaseObj() *structure.OrderedMap {
 	om.Set("blockhash", block.BlockHash())
 	om.Set("difficulty", block.Difficulty)
 	om.Set("reward_address", block.RewardAddress)
-	om.Set("vout", block.Vout)
-	om.Set("nonce", block.Nonce)
+	// om.Set("vout", block.Vout)
+	// om.Set("nonce", block.Nonce)
 
 	return om
 }

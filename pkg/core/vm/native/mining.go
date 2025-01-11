@@ -60,7 +60,6 @@ func Mining() *Method {
 		"Hash limit was not satisfied.",
 	))
 
-
 	lastRewarded := abi.ReadUniversal("lastRewarded", ZERO_ADDRESS, "0")
 	lastRewarded = abi.Check(lastRewarded, "lastRewarded")
 
@@ -118,6 +117,10 @@ func Mining() *Method {
 	new_total_supply := abi.PreciseAdd(total_supply, reward, "0")
 
 	method.AddExecution(abi.WriteUniversal("network_supply", ZERO_ADDRESS, new_total_supply))
+
+	difficulty := abi.ReadUniversal("network_difficulty", ZERO_ADDRESS, "2000")
+	difficulty = abi.Min(abi.PreciseAdd(difficulty, "12", "0"), "4875")
+	method.AddExecution(abi.WriteUniversal("network_difficulty", ZERO_ADDRESS, difficulty))
 
 	era = abi.Check(era, "era")
 	method.AddExecution(abi.Check(era, "era"))
