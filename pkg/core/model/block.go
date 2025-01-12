@@ -121,12 +121,12 @@ func (block Block) BlockHash() string {
 func (block Block) BaseObj() *structure.OrderedMap {
 	om := structure.NewOrderedMap()
 
-	// 순서가 보장되도록 순차적으로 추가
 	om.Set("height", block.Height)
 	om.Set("s_timestamp", block.Timestamp_s)
 	om.Set("previous_blockhash", block.PreviousBlockhash)
 	om.Set("blockhash", block.BlockHash())
 	om.Set("difficulty", block.Difficulty)
+	om.Set("transaction_count", len(*block.Transactions))
 	// om.Set("reward_address", block.RewardAddress)
 	// om.Set("vout", block.Vout)
 	// om.Set("nonce", block.Nonce)
