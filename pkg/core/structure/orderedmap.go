@@ -160,8 +160,21 @@ func readString(i *int, jsonStr string) (string, error) {
 				result.WriteByte('\r')
 			case 't':
 				result.WriteByte('\t')
+			case 'u':
+				// Handle unicode escape sequence
+				if *i+4 > len(jsonStr) {
+					return "", errors.New("incomplete unicode escape sequence")
+				}
+				hexStr := jsonStr[*i : *i+4]
+				*i += 4
+				// Parse 4 hex digits
+				unicode, err := strconv.ParseUint(hexStr, 16, 16)
+				if err != nil {
+					return "", fmt.Errorf("invalid unicode escape sequence: \\u%s", hexStr)
+				}
+				result.WriteRune(rune(unicode))
 			default:
-				return "", errors.New(fmt.Sprintf("invalid escape character in string %s", jsonStr))
+				return "", fmt.Errorf("invalid escape character in string: \\%c", escaped)
 			}
 		} else {
 			result.WriteByte(ch)

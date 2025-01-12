@@ -320,7 +320,7 @@ func (c *ChainStorage) WriteData(height int, key string, data []byte) error {
 	}
 
 	if height != lastHeight+1 {
-		return nil
+		return fmt.Errorf("height is not valid, last height: %d, current height: %d", lastHeight, height)
 	}
 
 	var fileID string
