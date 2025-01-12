@@ -21,19 +21,33 @@ func OpGetBlock(i *Interpreter, vars interface{}) interface{} {
 }
 
 func OpListBlock(i *Interpreter, vars interface{}) interface{} {
-	page, count := Unpack2(vars)
+	page, count, responseType := Unpack3(vars)
 	blocks := make(map[string]interface{})
 	cs := storage.GetChainStorageInstance()
+	lastHeight := cs.GetLastHeight()
 
-	pageNum := int(page.(int))
-	countNum := int(count.(int))
+	var pageNum, countNum int
 
-	max := pageNum * countNum
-	min := int(math.Max(float64(max-countNum), 1))
+	switch v := page.(type) {
+	case int:
+		pageNum = v
+	case int64:
+		pageNum = int(v)
+	}
+
+	switch v := count.(type) {
+	case int:
+		countNum = v
+	case int64:
+		countNum = int(v)
+	}
+
+	max := int(math.Min(float64(pageNum*countNum), float64(lastHeight)))
+	min := int(math.Max(float64(max-countNum)+1, 1))
 
 	for i := min; i <= int(max); i++ {
 		block, _ := cs.GetBlock(int(i))
-		blocks[block.BlockHash()] = block.Ser("full")
+		blocks[block.BlockHash()] = block.Ser(responseType.(string))
 	}
 
 	return blocks

@@ -381,8 +381,6 @@ func (m *Machine) Response(request SignedRequest) (interface{}, error) {
 
 	_, result := m.interpreter.Execute()
 
-	fmt.Println("result:", result)
-
 	return result, nil
 }
 

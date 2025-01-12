@@ -131,8 +131,11 @@ func CreateListBlockCmd() *cobra.Command {
 
 			payload.Set("type", "ListBlock")
 			payload.Set("address", address)
+			payload.Set("page", page)
+			payload.Set("count", count)
 			payload.Set("timestamp", util.Utime())
 			payload.Set("from", address)
+			fmt.Println(payload.Ser())
 
 			req := CreateWalletRequest(peer, payload.Ser())
 

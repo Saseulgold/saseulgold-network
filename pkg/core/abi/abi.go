@@ -404,10 +404,10 @@ func Check(obj, key interface{}) ABI {
 	}
 }
 
-func ListBlock(page, count interface{}) ABI {
+func ListBlock(page, count, responseType interface{}) ABI {
 	return ABI{
 		Key:   "$list_block",
-		Value: []interface{}{page, count},
+		Value: []interface{}{page, count, responseType},
 	}
 }
 

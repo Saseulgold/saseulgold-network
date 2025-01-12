@@ -127,7 +127,7 @@ func (block Block) BaseObj() *structure.OrderedMap {
 	om.Set("previous_blockhash", block.PreviousBlockhash)
 	om.Set("blockhash", block.BlockHash())
 	om.Set("difficulty", block.Difficulty)
-	om.Set("reward_address", block.RewardAddress)
+	// om.Set("reward_address", block.RewardAddress)
 	// om.Set("vout", block.Vout)
 	// om.Set("nonce", block.Nonce)
 

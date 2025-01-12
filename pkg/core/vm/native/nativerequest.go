@@ -68,15 +68,23 @@ func ListBlock() *Method {
 		"default":   -1,
 	}))
 
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":      "responseType",
+		"type":      "string",
+		"maxlength": 5,
+		"default":   "base",
+	}))
+
 	page := abi.Param("page")
 	count := abi.Param("count")
+	responseType := abi.Param("responseType")
 
 	method.AddExecution(abi.Condition(
 		abi.Lte(count, 100),
 		abi.EncodeJSON("The parameter 'count' must be less than or equal to 100."),
 	))
 
-	blocks := abi.ListBlock(page, count)
+	blocks := abi.ListBlock(page, count, responseType)
 	response := abi.EncodeJSON(blocks)
 
 	method.AddExecution(abi.Response(response))

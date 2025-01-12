@@ -1,7 +1,6 @@
 package util
 
 import (
-	"fmt"
 	"math"
 	"math/big"
 	"strings"
@@ -72,7 +71,6 @@ func Div(a, b string, scale *int) *string {
 	bf.SetString(b)
 
 	result := new(big.Float).SetPrec(256).Quo(af, bf)
-	fmt.Println("result:", result)
 	str := FormatFloat(result, s)
 	return &str
 }
