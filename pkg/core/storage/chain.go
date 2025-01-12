@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 type ChainStorage struct{}
@@ -34,11 +35,24 @@ func MainChain() string {
 }
 
 func LastHeight() int {
-	data, _ := os.ReadFile(ChainInfo())
-	height := 0
-	if len(data) > 0 {
-		height, _ = strconv.Atoi(string(data))
+	data, err := os.ReadFile(ChainInfo())
+	if err != nil {
+		fmt.Println("Error reading file:", err)
+		return 0
 	}
+
+	rawData := string(data)
+	trimmedData := strings.TrimSpace(rawData)
+
+	fmt.Println("Raw data:", rawData)
+	fmt.Println("Trimmed data:", trimmedData)
+
+	height, err := strconv.Atoi(trimmedData)
+	if err != nil {
+		fmt.Println("Error converting to integer:", err)
+		return 0
+	}
+
 	return height
 }
 

@@ -28,7 +28,6 @@ func Genesis() *Method {
 	return method
 }
 
-/**
 func Faucet() *Method {
 	// For testing
 	method := NewMethod(map[string]interface{}{
@@ -41,11 +40,16 @@ func Faucet() *Method {
 
 	from := abi.Param("from")
 	balance := "100000000000000000000000000"
+
+	method.AddExecution(abi.Condition(
+		abi.Eq(IS_TESTNET, true),
+		abi.EncodeJSON("faucet is not supported in mainnet"),
+	))
+
 	method.AddExecution(abi.WriteUniversal("balance", from, balance))
 
 	return method
 }
-**/
 
 func Send() *Method {
 	method := NewMethod(map[string]interface{}{

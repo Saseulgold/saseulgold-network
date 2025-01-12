@@ -17,23 +17,24 @@ func GetBlock() *Method {
 	})
 
 	method.AddParameter(NewParameter(map[string]interface{}{
-		"name":      "target",
-		"type":      "string",
-		"maxlength": TIME_HASH_SIZE,
+		"name": "target",
+		"type": "int",
 	}))
 
 	method.AddParameter(NewParameter(map[string]interface{}{
-		"name":      "full",
-		"type":      "boolean",
+		"name":      "responseType",
+		"type":      "string",
 		"maxlength": 5,
-		"default":   false,
+		"default":   "full",
 	}))
 
 	target := abi.Param("target")
-	full := abi.Param("full")
-	method.AddExecution(abi.Response(map[string]interface{}{
-		"$get_block": []interface{}{target, full},
-	}))
+	responseType := abi.Param("responseType")
+
+	block := abi.GetBlock(target, responseType)
+	response := abi.EncodeJSON(block)
+
+	method.AddExecution(abi.Response(response))
 
 	return method
 }
@@ -139,12 +140,14 @@ func GetTokenInfo() *Method {
 	owner_univ := abi.ReadUniversal(token_address, "owner", nil)
 	symbol_univ := abi.ReadUniversal(token_address, "symbol", nil)
 	name_univ := abi.ReadUniversal(token_address, "name", nil)
+	icon_url_univ := abi.ReadUniversal(token_address, "icon_url", nil)
 
 	response = abi.Set(response, "token_address", token_address)
 	response = abi.Set(response, "owner", owner_univ)
 	response = abi.Set(response, "symbol", symbol_univ)
 	response = abi.Set(response, "supply", supply_univ)
 	response = abi.Set(response, "name", name_univ)
+	response = abi.Set(response, "icon_url", icon_url_univ)
 
 	response = abi.EncodeJSON(response)
 	method.AddExecution(abi.Response(response))

@@ -39,19 +39,26 @@ func Mint() *Method {
 		"requirements": true,
 	}))
 
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "icon_url",
+		"type":         "string",
+		"maxlength":    256,
+		"default":      "",
+		"requirements": false,
+	}))
+
 	from := abi.Param("from")
 	supply := abi.Param("supply")
 	symbol := abi.Param("symbol")
 	name := abi.Param("name")
+	icon_url := abi.Param("icon_url")
 
-	/**
 	owner_balance_sg := abi.ReadUniversal("balance", from, "0")
 
 	method.AddExecution(abi.Condition(
 		abi.Gte(owner_balance_sg, MINT_FEE),
 		"Balance is not enough for mint fee",
 	))
-	*/
 
 	token_address := abi.HashMany("qrc_20", abi.Param("from"), abi.Param("symbol"))
 
@@ -97,13 +104,19 @@ func Mint() *Method {
 	update_symbol := abi.WriteUniversal(token_address, "symbol", symbol)
 	method.AddExecution(update_symbol)
 
+	update_icon_url := abi.WriteUniversal(token_address, "icon_url", icon_url)
+	method.AddExecution(update_icon_url)
+
 	balance_address := abi.HashMany(token_address, "balance")
 	update_balance := abi.WriteUniversal(balance_address, from, supply)
 
 	method.AddExecution(update_balance)
 
+	owner_balance_update := abi.WriteUniversal("balance", from, abi.PreciseSub(owner_balance_sg, MINT_FEE, "0"))
+	method.AddExecution(owner_balance_update)
+
 	network_fee_reserve := abi.ReadUniversal("network_fee_reserve", ZERO_ADDRESS, "0")
-	network_fee_reserve_update := abi.WriteUniversal("network_fee_reserve", ZERO_ADDRESS, abi.PreciseAdd(network_fee_reserve, MINT_FEE, 0))
+	network_fee_reserve_update := abi.WriteUniversal("network_fee_reserve", ZERO_ADDRESS, abi.PreciseAdd(network_fee_reserve, MINT_FEE, "0"))
 
 	method.AddExecution(network_fee_reserve_update)
 

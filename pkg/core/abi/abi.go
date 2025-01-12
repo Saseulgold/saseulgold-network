@@ -411,6 +411,13 @@ func ListBlock(page, count, responseType interface{}) ABI {
 	}
 }
 
+func GetBlock(target, responseType interface{}) ABI {
+	return ABI{
+		Key:   "$get_block",
+		Value: []interface{}{target, responseType},
+	}
+}
+
 func ListTransaction(count interface{}) ABI {
 	return ABI{
 		Key:   "$list_transaction",

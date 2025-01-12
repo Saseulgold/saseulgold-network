@@ -114,7 +114,7 @@ func CreateListBlockCmd() *cobra.Command {
 	var peer string
 	var page int
 	var count int
-
+	var responseType string
 	cmd := &cobra.Command{
 		Use:   "listblk",
 		Short: "list transactions",
@@ -130,9 +130,9 @@ func CreateListBlockCmd() *cobra.Command {
 			address := crypto.GetAddress(crypto.GetXpub(privateKey))
 
 			payload.Set("type", "ListBlock")
-			payload.Set("address", address)
 			payload.Set("page", page)
 			payload.Set("count", count)
+			payload.Set("responseType", responseType)
 			payload.Set("timestamp", util.Utime())
 			payload.Set("from", address)
 
@@ -152,6 +152,7 @@ func CreateListBlockCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to get balance")
 	cmd.Flags().IntVarP(&page, "page", "a", 1, "page to get balance")
 	cmd.Flags().IntVarP(&count, "count", "c", 1, "count to get balance")
+	cmd.Flags().StringVarP(&responseType, "responseType", "r", "base", "response type")
 
 	return cmd
 }
@@ -368,6 +369,51 @@ func CreateSyncCmd() *cobra.Command {
 	return cmd
 }
 
+func CreateGetBlockCmd() *cobra.Command {
+	var peer string
+	var target int
+	var responseType string
+
+	cmd := &cobra.Command{
+		Use:   "getblk",
+		Short: "get block",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			payload := structure.NewOrderedMap()
+			privateKey, err := GetPrivateKey()
+
+			if err != nil {
+				log.Fatalf("Failed to get private key: %v", err)
+			}
+
+			address := crypto.GetAddress(crypto.GetXpub(privateKey))
+
+			payload.Set("type", "GetBlock")
+			payload.Set("target", target)
+			payload.Set("responseType", responseType)
+			payload.Set("timestamp", util.Utime())
+			payload.Set("from", address)
+
+			req := CreateWalletRequest(peer, payload.Ser())
+
+			response, err := network.CallRawRequest(req)
+
+			if err != nil {
+				log.Fatalf("Failed to send request: %v", err)
+			}
+
+			rstr := FormatResponse(&response.Payload)
+			fmt.Println(rstr)
+		},
+	}
+
+	cmd.Flags().StringVarP(&peer, "peer", "p", "localhost:9001", "peer to get balance")
+	cmd.Flags().IntVarP(&target, "target", "t", 1, "target to get balance")
+	cmd.Flags().StringVarP(&responseType, "responseType", "r", "base", "response type")
+
+	return cmd
+}
+
 func CreateApiCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "api",
@@ -382,6 +428,7 @@ func CreateApiCmd() *cobra.Command {
 		CreateSearchCmd(),
 		CreateGetLastHeightCmd(),
 		CreateSyncCmd(),
+		CreateGetBlockCmd(),
 	)
 
 	return cmd

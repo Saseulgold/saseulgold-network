@@ -2,8 +2,8 @@ package program
 
 import (
 	"fmt"
-	"hello/pkg/core/network"
 	C "hello/pkg/core/config"
+	"hello/pkg/core/network"
 	"hello/pkg/crypto"
 	"hello/pkg/util"
 	"log"
@@ -21,7 +21,7 @@ func CreateMintTokenCmd() *cobra.Command {
 	var name string
 	var symbol string
 	var supply string
-
+	var icon_url string
 	cmd := &cobra.Command{
 		Use:   "mint",
 		Short: "mint new token",
@@ -41,6 +41,7 @@ func CreateMintTokenCmd() *cobra.Command {
 			payload.Set("name", name)
 			payload.Set("symbol", symbol)
 			payload.Set("supply", supply)
+			payload.Set("icon_url", icon_url)
 			payload.Set("timestamp", util.Utime())
 			payload.Set("from", address)
 			fmt.Println(payload.Ser())
@@ -68,6 +69,7 @@ func CreateMintTokenCmd() *cobra.Command {
 	cmd.MarkFlagRequired("symbol")
 	cmd.Flags().StringVarP(&supply, "supply", "a", "", "token supply amount")
 	cmd.MarkFlagRequired("supply")
+	cmd.Flags().StringVarP(&icon_url, "icon_url", "i", "", "token icon url")
 
 	return cmd
 }

@@ -10,9 +10,22 @@ func OpGetBlock(i *Interpreter, vars interface{}) interface{} {
 	target, objType := Unpack1Or2(vars)
 	cs := storage.GetChainStorageInstance()
 
+	var targetNum int
+
+	switch v := target.(type) {
+	case int:
+		targetNum = int(v)
+	case int64:
+		targetNum = int(v)
+	}
+
+	if targetNum < 1 || targetNum > cs.GetLastHeight() {
+		return nil
+	}
+
 	var block *model.Block
 	if target != nil {
-		block, _ = cs.GetBlock(int(target.(float64)))
+		block, _ = cs.GetBlock(targetNum)
 	} else {
 		block, _ = cs.GetLastBlock()
 	}

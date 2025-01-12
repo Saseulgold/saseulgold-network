@@ -13,12 +13,12 @@ var OperatorFunctions = map[string]map[string]MethodFunc{
 		"$in":         OpIn,
 	},
 	"ComparisonOperator": {
-		"$eq":  OpEq,
-		"$ne":  OpNeq,
-		"$gt":  OpGt,
-		"$gte": OpGte,
-		"$lt":  OpLt,
-		"$lte": OpLte,
+		"$eq":            OpEq,
+		"$ne":            OpNeq,
+		"$gt":            OpGt,
+		"$gte":           OpGte,
+		"$lt":            OpLt,
+		"$lte":           OpLte,
 		"$hash_limit_ok": OpHashLimitOk,
 	},
 	"ArithmeticOperator": {
@@ -78,6 +78,7 @@ var OperatorFunctions = map[string]map[string]MethodFunc{
 		"$write_local":     OpWriteLocal,
 	},
 	"ChainOperator": {
+		"$get_block":        OpGetBlock,
 		"$list_block":       OpListBlock,
 		"$list_transaction": OpListTransaction,
 	},

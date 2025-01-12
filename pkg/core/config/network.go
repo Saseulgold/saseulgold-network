@@ -15,6 +15,7 @@ var (
 	SG_HARDFORK_START_HEIGHT int64
 	INITIAL_SUPPLY           string
 	IS_REPLICA               bool
+	IS_TESTNET               bool
 )
 
 func init() {
@@ -32,6 +33,7 @@ func init() {
 	SG_HARDFORK_START_HEIGHT = network.Key("sg_hardfork_start_height").MustInt64(0)
 	INITIAL_SUPPLY = network.Key("initial_supply").MustString("1000000000000000000")
 	IS_REPLICA = network.Key("is_replica").MustBool(false)
+	IS_TESTNET = network.Key("is_testnet").MustBool(false)
 }
 
 const SEND_FEE = "10000000000000000"
