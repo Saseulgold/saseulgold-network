@@ -33,12 +33,14 @@ func (s *StatusIndex) Load() {
 	statusFile := GetStatusFileInstance()
 	// statusFile.Cache()
 
-	fixedHeight := LastHeight()
-	// bundleHeight := statusFile.BundleHeight()
-	// bundleHeight := C.SG_HARDFORK_START_HEIGHT
-	bundleHeight := 1
+	var bundleHeight int
+	var i int	
+	var fixedHeight int
 
-	for i := bundleHeight; i <= fixedHeight; i++ {
+	fixedHeight = LastHeight()
+	bundleHeight = int(C.SG_HARDFORK_START_HEIGHT)
+
+	for i = bundleHeight; i <= fixedHeight; i++ {
 
 		if i%256 == 0 {
 			fmt.Println(fmt.Sprintf("Commit block: %v", i))

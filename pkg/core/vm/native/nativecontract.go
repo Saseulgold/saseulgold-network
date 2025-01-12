@@ -28,6 +28,7 @@ func Genesis() *Method {
 	return method
 }
 
+/**
 func Faucet() *Method {
 	// For testing
 	method := NewMethod(map[string]interface{}{
@@ -44,6 +45,7 @@ func Faucet() *Method {
 
 	return method
 }
+**/
 
 func Send() *Method {
 	method := NewMethod(map[string]interface{}{
