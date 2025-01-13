@@ -71,7 +71,7 @@ func Mining() *Method {
 	method.AddExecution(abi.Condition(
 		abi.Or(
 			abi.Eq(addressLastRewarded, nil),
-			abi.Gt(abi.Check(abi.PreciseSub(current, addressLastRewarded, "0"), "ftd"), "50000000"),
+			abi.Gt(abi.Check(abi.PreciseSub(current, addressLastRewarded, "0"), "ftd"), "120000000"),
 		),
 		"Queue is empty.",
 	))

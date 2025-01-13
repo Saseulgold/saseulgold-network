@@ -33,7 +33,7 @@ func NativeContracts() map[string]map[string]*Method {
 
 	contracts[rootCid] = make(map[string]*Method)
 	contracts[rootCid]["Genesis"] = native.Genesis()
-	// contracts[rootCid]["Faucet"] = native.Faucet()
+	contracts[rootCid]["Faucet"] = native.Faucet()
 	contracts[rootCid]["Publish"] = native.Publish()
 	contracts[rootCid]["Send"] = native.Send()
 	contracts[rootCid]["Mint"] = native.Mint()

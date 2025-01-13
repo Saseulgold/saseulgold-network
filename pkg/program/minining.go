@@ -20,7 +20,76 @@ import (
 	"syscall"
 
 	"go.uber.org/zap"
+	"net/http"
+	"io"
+	"encoding/json"
+	"io/ioutil"
 )
+
+func getNodeInfo() string {
+	url := "http://ipinfo.io/json"
+
+	// Perform the GET request
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error fetching URL: %v\n", err)
+		os.Exit(1)
+	}
+	// Ensure the response body is closed after function finishes
+	defer resp.Body.Close()
+
+	// Read the response body
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading response body: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Print the response data as a string
+	return string(data)
+}
+
+func IncNodeCount(address string, info interface{}) (*http.Response, error) {
+    url := fmt.Sprintf("https://api.saseulgold.org/mining/v2/%s", address)
+
+    jsonData, err := json.Marshal(info)
+    if err != nil {
+        return nil, fmt.Errorf("failed to marshal info: %v", err)
+    }
+
+    req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+    if err != nil {
+        return nil, fmt.Errorf("failed to create request: %v", err)
+    }
+
+    req.Header.Set("Content-Type", "application/json")
+
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    if err != nil {
+        return nil, fmt.Errorf("request failed: %v", err)
+    }
+
+    if resp.StatusCode != http.StatusOK {
+        bodyBytes, readErr := ioutil.ReadAll(resp.Body)
+        if readErr != nil {
+            return nil, fmt.Errorf("inc failed with status %d and failed to read response body", resp.StatusCode)
+        }
+        fmt.Println(string(bodyBytes))
+        resp.Body.Close()
+        return nil, fmt.Errorf("inc failed with status code: %d", resp.StatusCode)
+    }
+
+    return resp, nil
+}
+
+
+func beforeMiningStart(address string) error {
+	info := getNodeInfo()
+	fmt.Println(info)
+	_, err := IncNodeCount(address, info)
+	return err
+}
 
 func miningProcess() error {
 	file1, _ := os.OpenFile("mining.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -33,10 +102,12 @@ func miningProcess() error {
 	if err := lastHeightCmd.Run(); err != nil {
 		return err
 	}
+
 	lastHeight := strings.TrimSpace(lastHeightOut.String()) // 결과값에서 공백 제거
+	/**
 	lastHeightInt, _ := strconv.Atoi(lastHeight)
 	nodeLastHeight := storage.LastHeight()
-
+	
 	if nodeLastHeight > lastHeightInt {
 		return fmt.Errorf("node last height is greater than network last height")
 	}
@@ -44,6 +115,7 @@ func miningProcess() error {
 	if lastHeightInt-10 > nodeLastHeight {
 		return fmt.Errorf("block is not synced")
 	}
+	**/
 
 	miningLogger.Info("last height:", zap.String("height", lastHeight))
 
@@ -166,6 +238,16 @@ func CreateStartMiningCmd() *cobra.Command {
 					}
 				}
 			} else {
+
+				privateKey, _ := GetPrivateKey()
+				address := crypto.GetAddress(crypto.GetXpub(privateKey))
+
+				err := beforeMiningStart(address)
+
+				if err != nil {
+					fmt.Println(err)
+				}
+				
 				cmd := exec.Command("./sg", "mining", "start", "-c", "c")
 
 				cmd.Stdout = os.Stdout
@@ -176,14 +258,13 @@ func CreateStartMiningCmd() *cobra.Command {
 					Setsid: true,
 				}
 
-				err := cmd.Start()
+				err = cmd.Start()
 				if err != nil {
 					fmt.Printf("Failed to start command: %s\n", err)
 					os.Exit(1)
 				}
 
 				fmt.Printf("Started mining process with PID %d\n", cmd.Process.Pid)
-
 			}
 		},
 	}
