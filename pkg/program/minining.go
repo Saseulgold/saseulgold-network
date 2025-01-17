@@ -84,9 +84,7 @@ func IncNodeCount(address string, info interface{}) (*http.Response, error) {
 }
 
 
-func beforeMiningStart(address string) error {
-	info := getNodeInfo()
-	fmt.Println(info)
+func beforeMiningStart(info interface{}, address string) error {
 	_, err := IncNodeCount(address, info)
 	return err
 }
@@ -222,6 +220,12 @@ func CreateStartMiningCmd() *cobra.Command {
 				fmt.Println("mining is already running")
 			}
 
+			info := getNodeInfo()
+			fmt.Println(info)
+
+			privateKey, _ := GetPrivateKey()
+			address := crypto.GetAddress(crypto.GetXpub(privateKey))
+
 			if child == "c" {
 				err := util.ProcessStart(storage.DataRootDir(), "mining", os.Getpid())
 
@@ -231,6 +235,7 @@ func CreateStartMiningCmd() *cobra.Command {
 						os.Exit(1)
 					}
 
+					err = beforeMiningStart(info, address)
 					err = miningProcess()
 					if err != nil {
 						fmt.Println(err)
@@ -239,10 +244,7 @@ func CreateStartMiningCmd() *cobra.Command {
 				}
 			} else {
 
-				privateKey, _ := GetPrivateKey()
-				address := crypto.GetAddress(crypto.GetXpub(privateKey))
-
-				err := beforeMiningStart(address)
+				err := beforeMiningStart(info, address)
 
 				if err != nil {
 					fmt.Println(err)
