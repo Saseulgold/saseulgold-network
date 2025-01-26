@@ -35,15 +35,15 @@ func Mint() *Method {
 	method.AddParameter(NewParameter(map[string]interface{}{
 		"name":         "supply",
 		"type":         "string",
-		"maxlength":    50,
+		"maxlength":    36,
 		"requirements": true,
 	}))
 
 	method.AddParameter(NewParameter(map[string]interface{}{
 		"name":         "icon_url",
 		"type":         "string",
-		"maxlength":    256,
 		"default":      "",
+		"maxlength":    256,
 		"requirements": false,
 	}))
 
@@ -220,6 +220,16 @@ func LiquidityProvide() *Method {
 	method.AddExecution(abi.Condition(
 		abi.Gte(userBalanceB, amountB),
 		"Insufficient balance for tokenB",
+	))
+
+	method.AddExecution(abi.Condition(
+		abi.Gt(amountB, "0"),
+		"tokenB amount must be greater than 0.",
+	))
+
+	method.AddExecution(abi.Condition(
+		abi.Gt(amountA, "0"),
+		"tokenA amount must be greater than 0.",
 	))
 
 	// Deduct tokens from user's balance
@@ -757,6 +767,11 @@ func Swap() *Method {
 	tokenAddressB := abi.Max(tokenAddressIn, tokenAddressOut)
 
 	amountIn := abi.Param("amount_in")
+
+	method.AddExecution(abi.Condition(
+		abi.Gt(amountIn, "0"),
+		"The amount must be greater than 0.",
+	))
 
 	minimumAmountOut := abi.Param("minimum_amount_out")
 	from := abi.Param("from")

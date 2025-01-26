@@ -155,7 +155,10 @@ func (o *Oracle) Run() error {
 				fmt.Println("transactions: ", transactions, len(transactions))
 
 				block, err := o.Commit(transactions)
-				o.BroadcastBlock(block)
+
+				if block != nil {
+					o.BroadcastBlock(block)
+				}
 
 				o.OnFinishCommit()
 
