@@ -19,11 +19,12 @@ import (
 	"strings"
 	"syscall"
 
-	"go.uber.org/zap"
-	"net/http"
-	"io"
 	"encoding/json"
+	"io"
 	"io/ioutil"
+	"net/http"
+
+	"go.uber.org/zap"
 )
 
 func getNodeInfo() string {
@@ -50,39 +51,38 @@ func getNodeInfo() string {
 }
 
 func IncNodeCount(address string, info interface{}) (*http.Response, error) {
-    url := fmt.Sprintf("https://api.saseulgold.org/mining/v2/%s", address)
+	url := fmt.Sprintf("https://api.saseulgold.org/mining/v2/%s", address)
 
-    jsonData, err := json.Marshal(info)
-    if err != nil {
-        return nil, fmt.Errorf("failed to marshal info: %v", err)
-    }
+	jsonData, err := json.Marshal(info)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal info: %v", err)
+	}
 
-    req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
-    if err != nil {
-        return nil, fmt.Errorf("failed to create request: %v", err)
-    }
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %v", err)
+	}
 
-    req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", "application/json")
 
-    client := &http.Client{}
-    resp, err := client.Do(req)
-    if err != nil {
-        return nil, fmt.Errorf("request failed: %v", err)
-    }
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %v", err)
+	}
 
-    if resp.StatusCode != http.StatusOK {
-        bodyBytes, readErr := ioutil.ReadAll(resp.Body)
-        if readErr != nil {
-            return nil, fmt.Errorf("inc failed with status %d and failed to read response body", resp.StatusCode)
-        }
-        fmt.Println(string(bodyBytes))
-        resp.Body.Close()
-        return nil, fmt.Errorf("inc failed with status code: %d", resp.StatusCode)
-    }
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, readErr := ioutil.ReadAll(resp.Body)
+		if readErr != nil {
+			return nil, fmt.Errorf("inc failed with status %d and failed to read response body", resp.StatusCode)
+		}
+		fmt.Println(string(bodyBytes))
+		resp.Body.Close()
+		return nil, fmt.Errorf("inc failed with status code: %d", resp.StatusCode)
+	}
 
-    return resp, nil
+	return resp, nil
 }
-
 
 func beforeMiningStart(info interface{}, address string) error {
 	_, err := IncNodeCount(address, info)
@@ -93,8 +93,7 @@ func miningProcess() error {
 	file1, _ := os.OpenFile("mining.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	miningLogger, _ := util.CreateLogger(file1)
 
-	// Step 1: Get last height and blockhash
-	lastHeightCmd := exec.Command("./sg", "api", "lastheight")
+	lastHeightCmd := exec.Command(C.BIN_EXEC_ALIAS, "api", "lastheight")
 	var lastHeightOut bytes.Buffer
 	lastHeightCmd.Stdout = &lastHeightOut
 	if err := lastHeightCmd.Run(); err != nil {
@@ -105,7 +104,7 @@ func miningProcess() error {
 	/**
 	lastHeightInt, _ := strconv.Atoi(lastHeight)
 	nodeLastHeight := storage.LastHeight()
-	
+
 	if nodeLastHeight > lastHeightInt {
 		return fmt.Errorf("node last height is greater than network last height")
 	}
@@ -140,7 +139,7 @@ func miningProcess() error {
 
 	miningLogger.Info("calculate hash:", zap.String("hash", hash), zap.String("nonce", nonce))
 
-	submitCmd := exec.Command("./sg", "mining", "submit",
+	submitCmd := exec.Command(C.BIN_EXEC_ALIAS, "mining", "submit",
 		"-c", hash, "-e", seed, "-n", nonce)
 	var submitOut bytes.Buffer
 	submitCmd.Stdout = &submitOut
@@ -249,8 +248,8 @@ func CreateStartMiningCmd() *cobra.Command {
 				if err != nil {
 					fmt.Println(err)
 				}
-				
-				cmd := exec.Command("./sg", "mining", "start", "-c", "c")
+
+				cmd := exec.Command(C.BIN_EXEC_ALIAS, "mining", "start", "-c", "c")
 
 				cmd.Stdout = os.Stdout
 				cmd.Stderr = os.Stderr

@@ -16,6 +16,7 @@ var (
 	INITIAL_SUPPLY           string
 	IS_REPLICA               bool
 	IS_TESTNET               bool
+	BIN_EXEC_ALIAS           string
 )
 
 func init() {
@@ -34,6 +35,7 @@ func init() {
 	INITIAL_SUPPLY = network.Key("initial_supply").MustString("1000000000000000000")
 	IS_REPLICA = network.Key("is_replica").MustBool(false)
 	IS_TESTNET = network.Key("is_testnet").MustBool(false)
+	BIN_EXEC_ALIAS = network.Key("bin_exec_alias").MustString("sg")
 }
 
 const SEND_FEE = "10000000000000000"
