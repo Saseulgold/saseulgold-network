@@ -263,5 +263,9 @@ func Count() *Method {
 	wr := abi.WriteUniversal("count", "count", update)
 	method.AddExecution(wr)
 
+	difficulty := abi.ReadUniversal("network_difficulty", ZERO_ADDRESS, "0")
+	difficulty = abi.PreciseSub(difficulty, "8", "0")
+	method.AddExecution(abi.WriteUniversal("network_difficulty", ZERO_ADDRESS, difficulty))
+
 	return method
 }
