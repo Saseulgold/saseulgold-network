@@ -68,46 +68,119 @@ func MultiSend() *Method {
 	}))
 
 	method.AddParameter(NewParameter(map[string]interface{}{
-		"name":         "to",
+		"name":         "beneficiaries",
 		"type":         "string",
 		"maxlength":    220,
 		"requirements": true,
 	}))
 
 	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "txcount",
+		"type":         "string",
+		"maxlength":    1,
+		"requirements": true,
+	}))
+
+	method.AddParameter(NewParameter(map[string]interface{}{
 		"name":         "amount",
 		"type":         "string",
-		"maxlength":    96,
+		"maxlength":    64,
 		"requirements": true,
 	}))
 
 	from := abi.Param("from")
 	amount := abi.Param("amount")
-	count := 5
-	totalAmount := abi.PreciseMul(amount, abi.AsString(count))
+	txcount := abi.Param("txcount")
+	beneficiaries := abi.Param("beneficiaries")
 
+	beneficiariesLen := abi.Len(beneficiaries)
+
+	method.AddExecution(abi.Condition(
+		abi.Eq(beneficiariesLen, abi.PreciseMul(txcount, "44", "0")),
+		"invalid beneficiaries.",
+	))
+
+	totalAmount := abi.PreciseMul(amount, txcount, "0")
+	totalFee := abi.PreciseMul(SEND_FEE, txcount, "0")
 	fromBalance := abi.ReadUniversal("balance", from, "0")
 
 	method.AddExecution(abi.Condition(
-		abi.Ne(from, to),
-		"Sender and receiver address must be different.",
-	))
-
-	method.AddExecution(abi.Condition(
 		abi.Gt(amount, "0"),
-		"Amount must be greater than zero.",
+		"amount must be greater than zero.",
 	))
 
 	method.AddExecution(abi.Condition(
-		abi.Gt(fromBalance, abi.PreciseAdd(totalAmount, SEND_FEE, 0)),
+		abi.Gt(fromBalance, abi.PreciseAdd(totalAmount, totalFee, 0)),
 		"Balance is not enough.",
 	))
 
-	method.AddExecution(abi.WriteUniversal("balance", from, abi.PreciseSub(fromBalance, abi.PreciseAdd(amount, SEND_FEE, 0), 0)))
-	method.AddExecution(abi.WriteUniversal("balance", to, abi.PreciseAdd(toBalance, amount, 0)))
+	beneficiary0 := abi.Slice(beneficiaries, "0", "44")
+	beneficiary1 := abi.Slice(beneficiaries, "44", "44")
+	beneficiary2 := abi.Slice(beneficiaries, "88", "44")
+	beneficiary3 := abi.Slice(beneficiaries, "132", "44")
+	beneficiary4 := abi.Slice(beneficiaries, "176", "44")
+
+	method.AddExecution(abi.Condition(
+		abi.Ne(from, beneficiary0),
+		"sender address must be different.",
+	))
+	method.AddExecution(abi.Condition(
+		abi.Ne(from, beneficiary1),
+		"Sender address must be different.",
+	))
+	method.AddExecution(abi.Condition(
+		abi.Ne(from, beneficiary2),
+		"Sender address must be different.",
+	))
+	method.AddExecution(abi.Condition(
+		abi.Ne(from, beneficiary3),
+		"Sender address must be different.",
+	))
+	method.AddExecution(abi.Condition(
+		abi.Ne(from, beneficiary4),
+		"Sender address must be different.",
+	))
+
+	method.AddExecution(abi.If(
+		abi.Ne(beneficiary0, nil),
+		abi.WriteUniversal("balance", beneficiary0, abi.PreciseAdd(abi.ReadUniversal("balance", beneficiary0, "0"), amount, 0)),
+		nil,
+	))
+
+	method.AddExecution(abi.If(
+		abi.Ne(beneficiary1, nil),
+		abi.WriteUniversal("balance", beneficiary1, abi.PreciseAdd(abi.ReadUniversal("balance", beneficiary1, "0"), amount, 0)),
+		nil,
+	))
+
+	method.AddExecution(abi.If(
+		abi.Ne(beneficiary2, nil),
+		abi.WriteUniversal("balance", beneficiary2, abi.PreciseAdd(abi.ReadUniversal("balance", beneficiary2, "0"), amount, 0)),
+		nil,
+	))
+
+	method.AddExecution(abi.If(
+		abi.Ne(beneficiary3, nil),
+		abi.WriteUniversal("balance", beneficiary3, abi.PreciseAdd(abi.ReadUniversal("balance", beneficiary3, "0"), amount, 0)),
+		nil,
+	))
+
+	method.AddExecution(abi.If(
+		abi.Ne(beneficiary4, nil),
+		abi.WriteUniversal("balance", beneficiary4, abi.PreciseAdd(abi.ReadUniversal("balance", beneficiary4, "0"), amount, 0)),
+		nil,
+	))
+
+	method.AddExecution(abi.WriteUniversal("balance", from, abi.PreciseSub(fromBalance, abi.PreciseAdd(totalAmount, totalFee, 0), 0)))
 
 	network_fee_reserve := abi.ReadUniversal("network_fee_reserve", ZERO_ADDRESS, "0")
-	method.AddExecution(abi.WriteUniversal("network_fee_reserve", ZERO_ADDRESS, abi.PreciseAdd(network_fee_reserve, SEND_FEE, 0)))
+	method.AddExecution(abi.WriteUniversal("network_fee_reserve", ZERO_ADDRESS, abi.PreciseAdd(network_fee_reserve, totalFee, 0)))
+
+	difficulty := abi.ReadUniversal("network_difficulty", ZERO_ADDRESS, "2250")
+	difficulty = abi.PreciseSub(difficulty, "8", "0")
+	difficulty = abi.Max(difficulty, "1890")
+
+	method.AddExecution(abi.WriteUniversal("network_difficulty", ZERO_ADDRESS, difficulty))
 
 	return method
 }
@@ -303,8 +376,10 @@ func Publish() *Method {
 	method.AddExecution(abi.WriteUniversal("balance", from, abi.PreciseSub(userBalance, fee, 0)))
 	method.AddExecution(abi.WriteUniversal("network_fee_reserve", ZERO_ADDRESS, fee))
 
-	difficulty := abi.ReadUniversal("network_difficulty", ZERO_ADDRESS, "0")
+	difficulty := abi.ReadUniversal("network_difficulty", ZERO_ADDRESS, "2250")
 	difficulty = abi.PreciseSub(difficulty, "8", "0")
+	difficulty = abi.Max(difficulty, "1890")
+
 	method.AddExecution(abi.WriteUniversal("network_difficulty", ZERO_ADDRESS, difficulty))
 
 	return method
@@ -324,8 +399,9 @@ func Count() *Method {
 	wr := abi.WriteUniversal("count", "count", update)
 	method.AddExecution(wr)
 
-	difficulty := abi.ReadUniversal("network_difficulty", ZERO_ADDRESS, "0")
+	difficulty := abi.ReadUniversal("network_difficulty", ZERO_ADDRESS, "2250")
 	difficulty = abi.PreciseSub(difficulty, "8", "0")
+
 	method.AddExecution(abi.WriteUniversal("network_difficulty", ZERO_ADDRESS, difficulty))
 
 	return method

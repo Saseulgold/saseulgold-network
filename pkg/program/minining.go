@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"encoding/json"
 	"io"
@@ -234,11 +235,12 @@ func CreateStartMiningCmd() *cobra.Command {
 						os.Exit(1)
 					}
 
-					err = beforeMiningStart(info, address)
+					beforeMiningStart(info, address)
 					err = miningProcess()
+
 					if err != nil {
 						fmt.Println(err)
-						os.Exit(1)
+						time.Sleep(1 * time.Minute)
 					}
 				}
 			} else {

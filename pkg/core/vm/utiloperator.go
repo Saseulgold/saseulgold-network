@@ -301,3 +301,67 @@ func OpSpaceID(i *Interpreter, vars interface{}) interface{} {
 	writer, space := Unpack2(vars)
 	return util.SpaceID(writer.(string), space.(string))
 }
+
+func OpSlice(i *Interpreter, vars interface{}) interface{} {
+	str, start, length := Unpack3(vars)
+	fmt.Printf("OpSlice input - str: %v, start: %v, length: %v\n", str, start, length)
+
+	inputStr, ok1 := str.(string)
+	if !ok1 {
+		fmt.Println("OpSlice: string conversion failed")
+		return nil
+	}
+
+	// Convert string numbers to integers
+	var startIdx, lengthInt int
+	var err error
+
+	// Handle start parameter
+	switch start := start.(type) {
+	case string:
+		startIdx, err = strconv.Atoi(start)
+		if err != nil {
+			fmt.Println("OpSlice: invalid start number format")
+			return nil
+		}
+	case float64:
+		startIdx = int(start)
+	default:
+		fmt.Println("OpSlice: unsupported start parameter type")
+		return nil
+	}
+
+	// Handle length parameter
+	switch length := length.(type) {
+	case string:
+		lengthInt, err = strconv.Atoi(length)
+		if err != nil {
+			fmt.Println("OpSlice: invalid length number format")
+			return nil
+		}
+	case float64:
+		lengthInt = int(length)
+	default:
+		fmt.Println("OpSlice: unsupported length parameter type")
+		return nil
+	}
+
+	fmt.Printf("OpSlice converted indices - startIdx: %d, length: %d\n", startIdx, lengthInt)
+
+	// Check if start index is out of bounds
+	if startIdx < 0 || startIdx >= len(inputStr) {
+		fmt.Printf("OpSlice invalid start index: %d\n", startIdx)
+		return nil
+	}
+
+	// Calculate end index
+	endIdx := startIdx + lengthInt
+	if endIdx > len(inputStr) {
+		fmt.Printf("OpSlice adjusting end index from %d to %d\n", endIdx, len(inputStr))
+		endIdx = len(inputStr)
+	}
+
+	result := inputStr[startIdx:endIdx]
+	fmt.Printf("OpSlice result: %s\n", result)
+	return result
+}

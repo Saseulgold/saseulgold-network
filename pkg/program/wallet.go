@@ -13,10 +13,13 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"hello/pkg/core/structure"
 
 	"encoding/json"
+
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -157,7 +160,6 @@ func CreateGetBalanceCmd() *cobra.Command {
 				log.Fatalf("Failed to get private key: %v", err)
 			}
 
-
 			payload.Set("type", "GetBalance")
 			payload.Set("address", address)
 			payload.Set("timestamp", util.Utime())
@@ -259,7 +261,7 @@ func CreateFaucetTransactionCmd() *cobra.Command {
 			if err != nil {
 				log.Fatalf("Failed to send request: %v", err)
 			}
-		
+
 			rstr := FormatResponse(&response.Payload)
 			fmt.Println(rstr)
 		},
@@ -329,6 +331,69 @@ func CreateCountTransactionCmd() *cobra.Command {
 	return cmd
 }
 
+func CreateMultiSendCmd() *cobra.Command {
+	var peer string
+	var toaddresses []string
+	var amount string
+
+	cmd := &cobra.Command{
+		Use:   "multisend",
+		Short: "send transaction to multiple addresses",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+
+			// Check for duplicate addresses
+			addressMap := make(map[string]bool)
+			for _, addr := range toaddresses {
+				if addressMap[addr] {
+					log.Fatalf("Duplicate address found: %s", addr)
+				}
+				addressMap[addr] = true
+			}
+
+			payload := structure.NewOrderedMap()
+			privateKey, err := GetPrivateKey()
+
+			if err != nil {
+				log.Fatalf("Failed to get private key: %v", err)
+			}
+
+			address := crypto.GetAddress(crypto.GetXpub(privateKey))
+			amount = util.MulByE18(amount)
+
+			// Concatenate all addresses without separator
+			combinedAddresses := strings.Join(toaddresses, "")
+
+			payload.Set("type", "MultiSend")
+			payload.Set("amount", amount)
+			payload.Set("beneficiaries", combinedAddresses)
+			payload.Set("txcount", strconv.Itoa(len(toaddresses)))
+			payload.Set("from", address)
+			payload.Set("timestamp", util.Utime())
+
+			fmt.Println(payload.Ser())
+
+			req := CreateWalletTransaction(peer, payload.Ser())
+
+			response, err := network.CallTransactionRequest(req)
+			if err != nil {
+				log.Fatalf("Failed to send request: %v", err)
+			}
+
+			rstr := FormatResponse(&response.Payload)
+			fmt.Println(rstr)
+		},
+	}
+
+	cmd.Flags().StringVarP(&peer, "peer", "p", C.CLI_DEFAULT_REQUEST, "peer to send transaction")
+	cmd.Flags().StringArrayVarP(&toaddresses, "toaddresses", "t", []string{}, "list of recipient addresses")
+	cmd.MarkFlagRequired("toaddresses")
+	cmd.Flags().StringVarP(&amount, "amount", "a", "", "amount to send to each address")
+	cmd.MarkFlagRequired("amount")
+
+	return cmd
+}
+
 func CreateWalletCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "wallet",
@@ -342,6 +407,7 @@ func CreateWalletCmd() *cobra.Command {
 		CreateSendTransactionCmd(),
 		CreateCountTransactionCmd(),
 		CreateWallet(),
+		CreateMultiSendCmd(),
 	)
 
 	return cmd

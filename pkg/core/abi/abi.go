@@ -473,3 +473,10 @@ func HashLimitOk(left, right interface{}) ABI {
 		Value: []interface{}{left, right},
 	}
 }
+
+func Slice(target, start, length interface{}) ABI {
+	return ABI{
+		Key:   "$slice",
+		Value: []interface{}{target, start, length},
+	}
+}

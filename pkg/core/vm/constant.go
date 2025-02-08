@@ -56,6 +56,7 @@ var OperatorFunctions = map[string]map[string]MethodFunc{
 		"$as_string":   OpAsString,
 		"$sutime":      OpSUtime,
 		"$space_id":    OpSpaceID,
+		"$slice":       OpSlice,
 	},
 	"CastOperator": {
 		"$get_type":   OpGetType,
