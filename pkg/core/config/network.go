@@ -38,9 +38,9 @@ func init() {
 	BIN_EXEC_ALIAS = network.Key("bin_exec_alias").MustString("sg")
 }
 
-const SEND_FEE = "10000000000000000"
-const TRNF_FEE = "10000000000000000"
-const MINT_FEE = "500000000000000000"
+const SEND_FEE = "50000000000000"
+const TRNF_FEE = "50000000000000"
+const MINT_FEE = "50000000000000"
 const SWAP_DEDUCT_RATE = "0.997"
 const SWAP_FEE_RATE = "0.003"
 const REWARD_DIFFICULTY = "2000"

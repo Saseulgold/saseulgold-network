@@ -1,0 +1,9 @@
+network.ini
+*.log
+*.out
+data*
+test*
+*.test
+/bin
+sg
+qt

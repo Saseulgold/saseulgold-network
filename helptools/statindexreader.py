@@ -1,7 +1,3 @@
-
-
-
-
 import os
 
 STATUS_KEY_BYTES = 64

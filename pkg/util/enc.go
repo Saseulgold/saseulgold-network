@@ -174,7 +174,7 @@ func StatusHash(owner string, space string, attr string, key string) string {
 }
 
 func NetworkStatusHash(key, attr string) string {
-	return StatusHash(C.ZERO_ADDRESS, RootSpace(), attr, key)
+	return StatusHash(C.ZERO_ADDRESS, RootSpace(), key, attr)
 }
 
 func StatusPrefix(owner string, space string, attr string) string {

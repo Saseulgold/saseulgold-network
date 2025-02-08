@@ -232,6 +232,7 @@ func (m *Machine) PreCommit() (string, error) {
 
 		m.interpreter.Read()
 	}
+
 	difficultyHash := util.NetworkStatusHash("network_difficulty", C.ZERO_ADDRESS)
 	m.interpreter.AddUniversalLoads(difficultyHash)
 	m.interpreter.LoadUniversalStatus()

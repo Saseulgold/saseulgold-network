@@ -51,6 +51,67 @@ func Faucet() *Method {
 	return method
 }
 
+func MultiSend() *Method {
+	method := NewMethod(map[string]interface{}{
+		"type":    "contract",
+		"name":    "MultiSend",
+		"version": "1",
+		"space":   RootSpace(),
+		"writer":  ZERO_ADDRESS,
+	})
+
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "from",
+		"type":         "string",
+		"maxlength":    64,
+		"requirements": true,
+	}))
+
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "to",
+		"type":         "string",
+		"maxlength":    220,
+		"requirements": true,
+	}))
+
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "amount",
+		"type":         "string",
+		"maxlength":    96,
+		"requirements": true,
+	}))
+
+	from := abi.Param("from")
+	amount := abi.Param("amount")
+	count := 5
+	totalAmount := abi.PreciseMul(amount, abi.AsString(count))
+
+	fromBalance := abi.ReadUniversal("balance", from, "0")
+
+	method.AddExecution(abi.Condition(
+		abi.Ne(from, to),
+		"Sender and receiver address must be different.",
+	))
+
+	method.AddExecution(abi.Condition(
+		abi.Gt(amount, "0"),
+		"Amount must be greater than zero.",
+	))
+
+	method.AddExecution(abi.Condition(
+		abi.Gt(fromBalance, abi.PreciseAdd(totalAmount, SEND_FEE, 0)),
+		"Balance is not enough.",
+	))
+
+	method.AddExecution(abi.WriteUniversal("balance", from, abi.PreciseSub(fromBalance, abi.PreciseAdd(amount, SEND_FEE, 0), 0)))
+	method.AddExecution(abi.WriteUniversal("balance", to, abi.PreciseAdd(toBalance, amount, 0)))
+
+	network_fee_reserve := abi.ReadUniversal("network_fee_reserve", ZERO_ADDRESS, "0")
+	method.AddExecution(abi.WriteUniversal("network_fee_reserve", ZERO_ADDRESS, abi.PreciseAdd(network_fee_reserve, SEND_FEE, 0)))
+
+	return method
+}
+
 func Send() *Method {
 	method := NewMethod(map[string]interface{}{
 		"type":    "contract",

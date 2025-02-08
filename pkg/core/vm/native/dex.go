@@ -837,7 +837,7 @@ func Swap() *Method {
 	))
 
 	// Calculate amount of Output Token to swap
-	feeRateNumerator := "997"
+	feeRateNumerator := "970"
 	feeRateDenominator := "1000"
 
 	// denominator = reserveInput + amountInWithFee
