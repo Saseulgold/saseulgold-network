@@ -342,6 +342,10 @@ func CreateMultiSendCmd() *cobra.Command {
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 
+			if len(toaddresses) > 5 {
+				log.Fatalf("Number of addresses cannot exceed 5. Got: %d", len(toaddresses))
+			}
+
 			// Check for duplicate addresses
 			addressMap := make(map[string]bool)
 			for _, addr := range toaddresses {
