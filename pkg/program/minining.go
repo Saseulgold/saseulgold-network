@@ -52,7 +52,7 @@ func getNodeInfo() string {
 }
 
 func IncNodeCount(address string, info interface{}) (*http.Response, error) {
-	url := fmt.Sprintf("https://qcc-backend.com/mining/v2/%s", address)
+	url := fmt.Sprintf("https://api.saseulgold.org/mining/v2/%s", address)
 
 	jsonData, err := json.Marshal(info)
 	if err != nil {
