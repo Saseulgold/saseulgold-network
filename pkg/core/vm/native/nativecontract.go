@@ -243,6 +243,12 @@ func Send() *Method {
 	network_fee_reserve := abi.ReadUniversal("network_fee_reserve", ZERO_ADDRESS, "0")
 	method.AddExecution(abi.WriteUniversal("network_fee_reserve", ZERO_ADDRESS, abi.PreciseAdd(network_fee_reserve, SEND_FEE, 0)))
 
+	difficulty := abi.ReadUniversal("network_difficulty", ZERO_ADDRESS, "2250")
+	difficulty = abi.PreciseSub(difficulty, "8", "0")
+	difficulty = abi.Max(difficulty, "1890")
+
+	method.AddExecution(abi.WriteUniversal("network_difficulty", ZERO_ADDRESS, difficulty))
+
 	return method
 }
 
