@@ -9,6 +9,7 @@ import (
 	"hello/pkg/core/storage"
 	"hello/pkg/core/structure"
 	"hello/pkg/core/vm"
+	"hello/pkg/raft"
 	"hello/pkg/swift"
 	"hello/pkg/util"
 	"os"
@@ -47,6 +48,7 @@ type Oracle struct {
 
 	State    OracleState
 	Replicas map[string]int64
+	raft     *raft.Raft
 }
 
 var oracleInstance *Oracle
@@ -62,6 +64,7 @@ func GetOracleService() *Oracle {
 			storageIndex: storage.GetStatusIndexInstance(),
 			State:        StateTransaction,
 			Replicas:     map[string]int64{},
+			raft:         raft.GetRaftInstance(),
 		}
 	}
 	return oracleInstance
@@ -71,6 +74,53 @@ func (o *Oracle) Consensus(txs map[string]*model.SignedTransaction) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
+	// Skip consensus if not a leader
+	if !o.raft.IsLeader() {
+		logger.Info("skipping consensus - not a leader")
+		return
+	}
+
+	// Create block commit log
+	block := model.NewBlock(storage.LastHeight()+1, "")
+	block.SetTimestamp(int64(util.Utime()))
+	block.SetTransactions(txs)
+
+	blockData := block.Ser("full")
+	commitLog := &raft.RaftBlockCommitLog{
+		Blockhash: block.BlockHash(),
+		Height:    block.Height,
+		Source:    o.raft.GetNodePeerInfo().Address,
+		Block:     blockData,
+	}
+
+	// Convert to JSON
+	commitLogData, err := json.Marshal(commitLog)
+	if err != nil {
+		logger.Error("failed to marshal commit log",
+			zap.Error(err),
+		)
+		return
+	}
+
+	// Create consensus packet
+	packet := &swift.Packet{
+		Type:    swift.PacketTypeRaftRequestVote,
+		Payload: commitLogData,
+	}
+
+	// Broadcast to all peers
+	err = o.swift.BroadcastPeers(o.raft.GetPeerAddresses(), packet)
+	if err != nil {
+		logger.Error("failed to broadcast consensus packet",
+			zap.Error(err),
+		)
+		return
+	}
+
+	logger.Info("consensus packet broadcasted",
+		zap.Int("transaction_count", len(txs)),
+		zap.String("block_hash", block.BlockHash()),
+	)
 }
 
 func (o *Oracle) Commit(txs map[string]*model.SignedTransaction) (*model.Block, error) {

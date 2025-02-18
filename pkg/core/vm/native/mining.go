@@ -43,6 +43,71 @@ func Mining() *Method {
 	from := abi.Param("from")
 	epoch := abi.Param("epoch")
 
+	// Add block hash verification for current and previous 5 blocks
+	blockHeight := abi.AsString(epoch)
+	block := abi.GetBlock(blockHeight, "full")
+	blockHash := abi.Get(block, "hash", nil)
+
+	method.AddExecution(abi.Condition(
+		abi.Ne(blockHash, nil),
+		"Invalid block height or block not found.",
+	))
+
+	method.AddExecution(abi.Condition(
+		abi.Eq(blockHash, epoch),
+		"Block hash does not match with epoch.",
+	))
+
+	// Verify previous 5 blocks
+	prevBlock1 := abi.GetBlock(abi.PreciseSub(blockHeight, "1", "0"), "full")
+	prevBlock2 := abi.GetBlock(abi.PreciseSub(blockHeight, "2", "0"), "full")
+	prevBlock3 := abi.GetBlock(abi.PreciseSub(blockHeight, "3", "0"), "full")
+	prevBlock4 := abi.GetBlock(abi.PreciseSub(blockHeight, "4", "0"), "full")
+	prevBlock5 := abi.GetBlock(abi.PreciseSub(blockHeight, "5", "0"), "full")
+
+	prevHash1 := abi.Get(prevBlock1, "hash", nil)
+	prevHash2 := abi.Get(prevBlock2, "hash", nil)
+	prevHash3 := abi.Get(prevBlock3, "hash", nil)
+	prevHash4 := abi.Get(prevBlock4, "hash", nil)
+	prevHash5 := abi.Get(prevBlock5, "hash", nil)
+
+	method.AddExecution(abi.Condition(
+		abi.And(
+			abi.Ne(prevHash1, nil),
+			abi.Ne(prevHash2, nil),
+			abi.Ne(prevHash3, nil),
+			abi.Ne(prevHash4, nil),
+			abi.Ne(prevHash5, nil),
+		),
+		"Previous blocks not found.",
+	))
+
+	// Verify block chain continuity
+	method.AddExecution(abi.Condition(
+		abi.Eq(abi.Get(block, "prev_hash", nil), prevHash1),
+		"Block chain continuity broken at height -1",
+	))
+
+	method.AddExecution(abi.Condition(
+		abi.Eq(abi.Get(prevBlock1, "prev_hash", nil), prevHash2),
+		"Block chain continuity broken at height -2",
+	))
+
+	method.AddExecution(abi.Condition(
+		abi.Eq(abi.Get(prevBlock2, "prev_hash", nil), prevHash3),
+		"Block chain continuity broken at height -3",
+	))
+
+	method.AddExecution(abi.Condition(
+		abi.Eq(abi.Get(prevBlock3, "prev_hash", nil), prevHash4),
+		"Block chain continuity broken at height -4",
+	))
+
+	method.AddExecution(abi.Condition(
+		abi.Eq(abi.Get(prevBlock4, "prev_hash", nil), prevHash5),
+		"Block chain continuity broken at height -5",
+	))
+
 	nonce := abi.Param("nonce")
 	calculatedHash := abi.Param("calculated_hash")
 	// difficulty := abi.ReadUniversal("network_difficulty", ZERO_ADDRESS, "1")
