@@ -24,7 +24,7 @@ SaseulGold mining requires **a GPU environment**. Ensure the following commands 
 
 ### 1️⃣ Downloading and Installing the SaseulGold Client
 ```bash
-wget https://github.com/Saseulgold/saseulgold-network/raw/refs/heads/dp.v0.3.4/sg-main.zip
+wget https://github.com/Saseulgold/saseulgold-network/raw/refs/heads/main/sg-main.zip
 unzip sg-main.zip -d sg_network  # Uncompressed
 cd sg_network  # Move folder
 ```
