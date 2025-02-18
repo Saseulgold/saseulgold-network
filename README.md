@@ -28,7 +28,7 @@ sh init.sh
 ✅ example:
 Private Key: 8d7a0bb37a9044aba0dab18968b8ad6f071790c2429de209855bc041d904833d
 Public Key: 0b2da6013dda3bfd5dc1a24e4927f151b33b027dd8b7402516d4c5020c04fd18
-지갑 주소: eb4e0202345542b5e3405debd9385043f4a852411a1a
+Wallet address: eb4e0202345542b5e3405debd9385043f4a852411a1a
 ```
 4️⃣ Initial Wallet Settings
 ```bash
