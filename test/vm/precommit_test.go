@@ -32,7 +32,7 @@ func TestPreCommit(t *testing.T) {
 
 	tx0, err := model.NewSignedTransaction(data)
 
-	// 테스트용 트랜잭션 생성
+	// Create transactions for testing
 	data = S.NewOrderedMap()
 	txData = S.NewOrderedMap()
 	txData.Set("type", "Send")

@@ -336,12 +336,12 @@ func TestConditionFalse(t *testing.T) {
 }
 
 func TestOpGetAndLoadParam(t *testing.T) {
-	// 인터프리터 초기화
+	// Interpreter Initialization
 	interpreter := vm.NewInterpreter()
 	interpreter.Init("transaction")
 	post := &Method{}
 
-	// 테스트 메소드 정의
+	// Test Method Definition
 	methodTest := &Method{
 		Parameters: Parameters{
 			"user": NewParameter(map[string]interface{}{
@@ -350,13 +350,13 @@ func TestOpGetAndLoadParam(t *testing.T) {
 			}),
 		},
 		Executions: []Execution{
-			// OpGet 테스트
+			// OpGet test
 			abi.Get(abi.Param("user"), "name"),
 			abi.Get(abi.Get(abi.Param("user"), "address"), "city"),
 		},
 	}
 
-	// 테스트 데이터를 직접 설정
+	// Set test data directly
 	signedData := NewSignedData()
 	signedData.SetAttribute("user", map[string]interface{}{
 		"name": "John",
@@ -367,7 +367,7 @@ func TestOpGetAndLoadParam(t *testing.T) {
 		},
 	})
 
-	// 실행
+	// Practice
 	interpreter.Reset()
 	interpreter.SetSignedData(signedData)
 	interpreter.SetCode(methodTest)
@@ -375,17 +375,17 @@ func TestOpGetAndLoadParam(t *testing.T) {
 	_, err := interpreter.Execute()
 
 	if err != nil {
-		t.Errorf("실행 중 오류 발생: %v", err)
+		t.Errorf("Error during execution: %v", err)
 	}
 
-	// 결과 검증
+	// Verifying Results
 	executions := methodTest.GetExecutions()
 
-	// OpGet 결과 검증
+	// Verifying OpGet Results
 	if executions[0] != "John" {
-		t.Errorf("첫 번째 실행 결과 오류. 기대값: John, 실제값: %v", executions[0])
+		t.Errorf("First execution result error. Expected value: John, Actual value: %v", executions[0])
 	}
 	if executions[1] != "Seoul" {
-		t.Errorf("두 번째 실행 결과 오류. 기대값: Seoul, 실제값: %v", executions[1])
+		t.Errorf("Second execution result error. Expected value: Seoul, Actual value: %v", executions[1])
 	}
 }

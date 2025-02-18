@@ -3,7 +3,7 @@
 #include <string.h>
 #include <cuda_runtime.h>
 
-// SHA-256 상수 K 테이블
+// SHA-256 Constant K table
 __device__ __constant__ uint32_t k[64] = {
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
     0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -23,12 +23,12 @@ __device__ __constant__ uint32_t k[64] = {
     0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
 };
 
-// 비트 회전 함수
+// Bit rotation function
 __device__ inline uint32_t rotr(uint32_t x, uint32_t n) {
     return (x >> n) | (x << (32 - n));
 }
 
-// 문자열을 숫자로 변환 (단순히 0-9 숫자만 처리)
+// Converting strings to numbers (simply processing 0-9 numbers only)
 __device__ void uint_to_str(uint64_t num, char *str, int max_len) {
     int i = max_len - 1;
     str[i] = '\0';
@@ -51,21 +51,21 @@ __device__ void uint_to_str(uint64_t num, char *str, int max_len) {
     str[j] = '\0';
 }
 
-// SHA-256 패딩 처리
+// SHA-256 Padding treatment
 __device__ int sha256_pad(const char *input, int input_len, uint8_t *padded, int padded_size) {
-    // 현재 구현은 간단히 64바이트 메시지만 처리 (길이가 55바이트 이하일 때)
+    // The current implementation simply handles 64-byte messages (when the length is 55 bytes or less)
     if (input_len > 55) return -1;
 
-    // 복사
+    // duplication
     for(int i=0; i<input_len; i++) {
         padded[i] = input[i];
     }
-    // 패딩 시작
+    // Padding, start
     padded[input_len] = 0x80;
     for(int i=input_len+1; i<56; i++) {
         padded[i] = 0x00;
     }
-    // 메시지 길이 (비트 단위)
+    // Message Length (in bits)
     uint64_t bit_len = input_len * 8;
     padded[56] = (bit_len >> 56) & 0xFF;
     padded[57] = (bit_len >> 48) & 0xFF;
@@ -79,10 +79,10 @@ __device__ int sha256_pad(const char *input, int input_len, uint8_t *padded, int
     return 0;
 }
 
-// SHA-256 변환 함수
+// SHA-256 Transformation function
 __device__ void sha256_transform(const uint8_t *data, uint32_t *state) {
     uint32_t w[64];
-    // 메시지 파싱 및 스케줄 생성
+    // Parsing messages and generating
     for (int i = 0; i < 16; ++i) {
         w[i] = (data[i * 4] << 24) |
                (data[i * 4 + 1] << 16) |
@@ -126,43 +126,43 @@ __device__ void sha256_transform(const uint8_t *data, uint32_t *state) {
     state[7] += h;
 }
 
-// 논스 기반 SHA-256 CUDA 커널
+// Nonce-based SHA-256 CUDA Kernel
 __global__ void sha256_nonce_kernel(const char *seed, int seed_len, uint32_t *output, uint64_t num_threads, uint64_t start_nonce, uint64_t *nonce_found) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= num_threads) return;
 
     uint64_t nonce = start_nonce + (uint64_t)idx;
 
-    // 현재 nonce_found가 아직 초기값(0xFFFFFFFFFFFFFFFF)인지 확인
+    // Verify that the current nonce_found is still an initial value (0xFFFFFFFFFFFFFFFFFFFFFFFFFFFF)
     if (atomicCAS((unsigned long long int*)nonce_found, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF) == 0xFFFFFFFFFFFFFFFF) {
-        // 문자열 결합: seed + "," + nonce + ","
+        // String combination: seed + "," + nonce + ","
         char nonce_str[25];
         uint_to_str(nonce, nonce_str, 25);
 
-        // ',' 삽입
+        // ',' insert
         int comma_pos = seed_len;
         char full_input[64] = {0};
         for(int i=0; i<seed_len; i++) {
             full_input[i] = seed[i];
         }
         full_input[comma_pos++] = ',';
-        // nonce_str 뒤에 ',' 추가
+        // Add ',' after nonce_str
         int j = 0;
         while(nonce_str[j] != '\0' && comma_pos < 63) {
             full_input[comma_pos++] = nonce_str[j++];
         }
         full_input[comma_pos++] = ',';
         full_input[comma_pos] = '\0';
-        int full_len = comma_pos; // 실제 입력 길이
+        int full_len = comma_pos; // Actual Input Length
 
-        // 패딩
+        // Padding
         uint8_t padded[64];
         if (sha256_pad(full_input, full_len, padded, 64) != 0) {
-            // 패딩 실패 (메시지 길이 초과)
+            // Padding failed (message length exceeded)
             return;
         }
 
-        // 초기 해시 상태
+        // Initial hash status
         uint32_t state[8] = {
             0x6a09e667,
             0xbb67ae85,
@@ -174,14 +174,14 @@ __global__ void sha256_nonce_kernel(const char *seed, int seed_len, uint32_t *ou
             0x5be0cd19
         };
 
-        // SHA-256 변환
+        // SHA-256 conversion
         sha256_transform(padded, state);
-        // 특정 조건 확인 (예: 해시 값 상위 20비트가 0)
-        // if (state[0] < 0x00000000 && state[1] < 0x80000000) { // 예시: 상위 20비트가 0이 되도록
-        if (state[0] < 0x00000001) { // 예시: 상위 20비트가 0이 되도록
-            // 최초로 찾은 nonce만 기록
+        // Check specific conditions (e.g. hash value top 20 bits are 0)
+        // if (state[0] < 0x00000000 && state[1] < 0x80000000) {
+        if (state[0] < 0x00000001) { // // Example: To ensure that the top 20 bits are zero
+            // Record only the first nonce found
             if (atomicCAS((unsigned long long int*)nonce_found, 0xFFFFFFFFFFFFFFFF, nonce) == 0xFFFFFFFFFFFFFFFF) {
-                // 해시 결과 저장
+                // Save hash results
                 for(int i=0; i<8; i++) {
                     output[i] = state[i];
                 }
@@ -234,7 +234,7 @@ int main(int argc, char *argv[]) {
     // Null-terminate the seed string
     seed[pos] = '\0';
 
-    const uint64_t num_threads = 1024 * 1024;  // 스레드 수 (예: 1,048,576)
+    const uint64_t num_threads = 1024 * 1024;  // Number of Threads (ex: 1,048,576)
     uint32_t *h_output = (uint32_t *)malloc(8 * sizeof(uint32_t));
     uint64_t h_nonce_found = 0xFFFFFFFFFFFFFFFF;
 
@@ -256,28 +256,28 @@ int main(int argc, char *argv[]) {
     bool found = false;
 
     while(!found) {
-        // 현재 nonce_found를 초기값으로 재설정
+        // Reset the current nonce_found to its initial value
         h_nonce_found = 0xFFFFFFFFFFFFFFFF;
         cudaMemcpy(d_nonce_found, &h_nonce_found, sizeof(uint64_t), cudaMemcpyHostToDevice);
 
-        // 커널 실행
+        // Run the kernel
         sha256_nonce_kernel<<<num_blocks_cuda, threads_per_block>>>(d_seed, seed_len, d_output, num_threads, start_nonce, d_nonce_found);
         cudaDeviceSynchronize();
 
-        // nonce_found 복사
+        // Copy nonce_found
         cudaMemcpy(&h_nonce_found, d_nonce_found, sizeof(uint64_t), cudaMemcpyDeviceToHost);
 
         if (h_nonce_found != 0xFFFFFFFFFFFFFFFF) {
-            // nonce가 발견됨
+            // Nonce found
             printf("%llu\n", h_nonce_found);
-            // 해당 nonce의 해시값을 호스트로 복사하여 출력
+            // Copy and output the hash value of that nonce to the host
             cudaMemcpy(h_output, d_output, 8 * sizeof(uint32_t), cudaMemcpyDeviceToHost);
             printf("%08x%08x%08x%08x%08x%08x%08x%08x\n",
                    h_output[0], h_output[1], h_output[2], h_output[3],
                    h_output[4], h_output[5], h_output[6], h_output[7]);
             found = true;
         } else {
-            // nonce가 발견되지 않음, 시작 nonce를 증가시킴
+            // Nonce not found, increasing start nonce
             start_nonce += num_threads;
             // printf("Nonce not found in range %llu to %llu. Trying next range...\n", start_nonce, start_nonce + num_threads - 1);
         }

@@ -15,7 +15,7 @@ func TestGenesisBlock(t *testing.T) {
 	// sfi := S.GetStatusIndexInstance()
 	sf := S.GetStatusFileInstance()
 
-	// Genesis 블록 생성
+	// Generating Genesis Block
 	block := NewBlock(0, "")
 	block.SetTimestamp(1731062860000000)
 
@@ -29,7 +29,7 @@ func TestGenesisBlock(t *testing.T) {
 	//tx := NewSignedTransaction(txData)
 	block.Init()
 
-	// Universal Updates 정의
+	// Universal Updates Definition
 	balanceUpdate := Update{
 		Key: F.StatusHash(C.ZERO_ADDRESS, F.RootSpace(), "balance", C.ZERO_ADDRESS),
 		Old: nil,
@@ -44,7 +44,7 @@ func TestGenesisBlock(t *testing.T) {
 
 	t.Logf("balanceUpdate Key: %s", balanceUpdate.Key)
 	t.Logf("genesisUpdate Key: %s", genesisUpdate.Key)
-	// Universal Updates 추가
+	// Universal Updates Add
 	// block.AppendUniversalUpdate(balanceUpdate)
 	block.AppendUniversalUpdate(genesisUpdate)
 

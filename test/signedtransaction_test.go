@@ -50,19 +50,19 @@ func aaTestSignedTransaction_WithRealData(t *testing.T) {
 		t.Errorf("tx: %s", err)
 	}
 
-	// 검증
+	// Verification
 	errMsg := tx.Validate()
 	if errMsg != nil {
 		t.Errorf("tx.Validate(): %s", errMsg)
 	}
 
-	// 서명 검증
+	// signature verification
 	if tx.Signature == "" {
-		t.Error("서명이 없습니다")
+		t.Error("There's no signature")
 	}
 
 	if tx.Xpub == "" {
-		t.Error("공개키가 없습니다")
+		t.Error("There's no public key")
 	}
 }
 
@@ -86,24 +86,24 @@ func TestSignedTransaction_WithRealData2(t *testing.T) {
 		t.Errorf("NewSignedTransaction(): %s", err)
 	}
 
-	// 검증
+	// Verification
 	errMsg := tx.Validate()
 	if errMsg != nil {
 		t.Errorf("tx.Validate(): %s", errMsg)
 	}
 
-	// 서명 검증
+	// signature verification
 	if tx.Signature == "" {
-		t.Error("서명이 없습니다")
+		t.Error("There's no signature")
 	}
 
 	if tx.Xpub == "" {
-		t.Error("공개키가 없습니다")
+		t.Error("There's no public key")
 	}
 }
 
 func TestFromRawData(t *testing.T) {
-	// 테스트 데이터 설정
+	// Test Data Settings
 	privateKey := "dd97b057aa5d0fcc01acd23bdde9243dc22ec93110440c36800623b70c1c78c3"
 	publicKey := "bdfcefde7c536e8342f1ec65c69373f9ff46f33c18acf0f5848c71e037eca9f2"
 	expectedSignature := "b102bd8eff4b6eb377e843da5b1d335d7a27591972e9d4c88f47f788d87545fa4edc9c823778d6461f98cbf8a9a89892fc172800dab19780ab5cdde7b4050d08"
@@ -115,22 +115,22 @@ func TestFromRawData(t *testing.T) {
 	txData.Set("from", "4a8fd2ebb308370a689c3ef47cb83ba182683def3d4f")
 	txData.Set("timestamp", int64(1734143956554000))
 
-	// FromRawData 함수 실행
+	// Run the FromRawData function
 	tx, err := FromRawData(txData, privateKey, publicKey)
 
-	// 검증
+	// Verification
 	assert.NoError(t, err)
 	assert.NotNil(t, tx)
 	assert.Equal(t, publicKey, tx.GetXpub())
 	assert.NotEmpty(t, tx.GetSignature())
 	assert.Equal(t, expectedSignature, tx.GetSignature(), "Invalid signature")
 
-	// 트랜잭션 데이터 검증
+	// Verifying Transaction Data
 	transaction, ok := tx.Data.Get("transaction")
 	assert.True(t, ok)
 	assert.NotNil(t, transaction)
 
-	// 서명 유효성 검증
+	// Signature Validation
 	err = tx.Validate()
 	assert.NoError(t, err)
 }

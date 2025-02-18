@@ -161,7 +161,7 @@ func (s *Server) HandleConnection(conn net.Conn) error {
 		return fmt.Errorf("failed to set read deadline: %v", err)
 	}
 
-	// context에 연결 정보 추가
+	// Add connection information to context
 	ctx := context.WithValue(context.Background(), "connection", conn)
 
 	for {
@@ -208,7 +208,7 @@ func (s *Server) HandleConnection(conn net.Conn) error {
 			// server peer list to client
 			peerListJSON, err := json.Marshal(peerList)
 			if err != nil {
-				return fmt.Errorf("peer list 직렬화 실패: %v", err)
+				return fmt.Errorf("peer list serialization failed: %v", err)
 			}
 
 			if err := s.Send(ctx, &Packet{
@@ -325,7 +325,7 @@ func (s *Server) BroadcastPeers(peers []string, packet *Packet) error {
 	return nil
 }
 
-// BroadcastBlock은 블록을 모든 피어에게 전송합니다
+// BroadcastBlock sends blocks to all peers
 func (s *Server) Broadcast(ctx context.Context, packet *Packet) error {
 	s.mu.RLock()
 	peers := make([]net.Conn, 0, len(s.peers))

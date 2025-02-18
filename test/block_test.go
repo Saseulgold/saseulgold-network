@@ -13,7 +13,7 @@ func TestBlock_WithMultipleUpdates(t *testing.T) {
 	C.CORE_TEST_MODE = true
 	C.DATA_TEST_ROOT_DIR = "genesis_test_2"
 
-	// 트랜잭션 생성
+	// Create Transaction
 	txData := S.NewOrderedMap()
 	data := S.NewOrderedMap()
 	txData.Set("type", "Submit")
@@ -30,7 +30,7 @@ func TestBlock_WithMultipleUpdates(t *testing.T) {
 		t.Fatalf("Failed to create tx: %v", err)
 	}
 
-	// 블록 생성
+	// Create a block
 	previousBlockhash := "062845bbcea340127a64fb4398a575f8d56ee511c92525b020df2ae24156154c568c2c459dc10e"
 	block := NewBlock(1281776, previousBlockhash)
 	block.SetTimestamp(1733129867000000)
@@ -39,7 +39,7 @@ func TestBlock_WithMultipleUpdates(t *testing.T) {
 	block.Vout = "738036000000000000000"
 	block.Nonce = "9916046"
 
-	// Universal Updates 추가
+	// Universal Updates added
 	block.AppendUniversalUpdate(Update{
 		Key: "fe38ef5ff626c7e8caeeba0eecb873d8652b03283aaf3bd1721ad58aa073b4b700000000000000000000000000000000000000000000",
 		Old: "00000000000000000000000000000000000000000000",
@@ -100,17 +100,17 @@ func TestBlock_WithMultipleUpdates(t *testing.T) {
 		New: "738036000000000000000",
 	})
 
-	// Local Updates 추가
+	// Local Updates added
 	block.AppendLocalUpdate(Update{
 		Key: "724d2935080d38850e49b74927eb0351146c9ee955731f4ef53f24366c5eb9b100000000000000000000000000000000000000000000",
 		Old: 3561659,
 		New: 3561660,
 	})
 
-	// 트랜잭션 추가
+	// Add Transaction
 	block.AppendTransaction(tx)
 
-	// 검증 로직
+	// Verification logic
 
 	expectedTxRoot := "1790d8a9c5c07a12c5f3c8a7d18512a1dc1d5082345d097dcabeea126e36a12e"
 	actualTxRoot := block.TransactionRoot()

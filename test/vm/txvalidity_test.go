@@ -32,7 +32,7 @@ func TestTxValidity(t *testing.T) {
 	data.Set("signature", "f2d8bb8a72f8d77caa44e0e153e431b60e3dfd997e0d12d47ae6b026d6b5c6d9c3d3daf7565e40b5329f955706baf15a32fb144eda52aaeebb1715460586230b")
 
 	tx0, err := model.NewSignedTransaction(data)
-	// 테스트용 트랜잭션 생성
+	// Create transactions for testing
 
 	fmt.Println("tx0: ", tx0.Data.Ser())
 

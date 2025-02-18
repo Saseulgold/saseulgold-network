@@ -18,7 +18,7 @@ func TestStorageIndex(t *testing.T) {
 		sf := GetStatusFileInstance()
 		sf.Commit()
 
-		// 테스트 데이터 준비
+		// Preparing test data
 		testKey := StatusHash(C.ZERO_ADDRESS, F.RootSpace(), "balance", C.ZERO_ADDRESS)
 		update := Update{
 			Key: testKey,
@@ -26,7 +26,7 @@ func TestStorageIndex(t *testing.T) {
 			New: "1000000000000000000000000",
 		}
 
-		// 상태 업데이트 수행
+		// Perform status updates
 		err := sf.Cache()
 		if err != nil {
 			t.Fatal(err)
@@ -50,13 +50,13 @@ func TestStorageIndex(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		// 인덱스 확인
+		// Check the index
 		cursor, exists := sf.CachedUniversalIndexes[testKey]
 		if !exists {
 			t.Error("Index not found")
 		}
 
-		// 데이터 검증
+		// data verification
 		data, err := ReadPart(sf.UniversalBundle(cursor.FileID), cursor.Seek, int(cursor.Length))
 		if err != nil {
 			t.Fatal(err)
@@ -77,7 +77,7 @@ func TestStorageIndex(t *testing.T) {
 
 		testKey := StatusHash(C.ZERO_ADDRESS, F.RootSpace(), "balance", C.ZERO_ADDRESS)
 
-		// 첫 번째 업데이트
+		// First Update
 		update1 := Update{
 			Key: testKey,
 			Old: nil,
@@ -111,7 +111,7 @@ func TestStorageIndex(t *testing.T) {
 		// initialLength := initialCursor.Length
 
 		/**
-			// 두 번째 업데이트 (더 큰 데이터)
+			// Second update (larger data)
 			update2 := Update{
 				Key: testKey,
 				Old: "1000000000000000000000000",

@@ -7,17 +7,17 @@ import (
 )
 
 func TestChainStorage_Block(t *testing.T) {
-	// 테스트 설정
+	// Test Settings
 	C.CORE_TEST_MODE = true
 
 	cs := &storage.ChainStorage{}
 	last := cs.LastIdx()
 	t.Logf("last idx: %v", last)
 
-	// 테스트 케이스들
+	// test cases
 	tests := []struct {
 		name    string
-		height  int // 블록 높이로 인덱스를 읽어옴
+		height  int // Read index to block height
 		wantErr bool
 	}{
 		{
@@ -42,7 +42,7 @@ func TestChainStorage_Block(t *testing.T) {
 		},
 	}
 
-	// 각 테스트 케이스에 대해 실제 인덱스 데이터 준비
+	// Prepare real index data for each test case
 	for i := range tests {
 		needles, err := cs.Index(tests[i].height)
 		if err != nil {
