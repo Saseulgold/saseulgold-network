@@ -1,15 +1,14 @@
 package vm
 
 import (
-	. "hello/pkg/core/abi"
 	"strconv"
+	 "math/big"
+
 )
 
 func OpEq(i *Interpreter, vars interface{}) interface{} {
 	left, right := Unpack2(vars)
 
-	DebugLog("OpEq: left =", left)
-	DebugLog("OpEq: right =", right)
 	switch {
 	case isNumeric(left).(bool) && isNumeric(right).(bool):
 		return toFloat64(left) == toFloat64(right)
@@ -31,8 +30,6 @@ func OpNeq(i *Interpreter, vars interface{}) interface{} {
 
 func OpGt(i *Interpreter, vars interface{}) interface{} {
 	left, right := Unpack2(vars)
-	DebugLog("OpGt: left =", left)
-	DebugLog("OpGt: right =", right)
 
 	switch {
 	case isNumeric(left).(bool) && isNumeric(right).(bool):
@@ -51,6 +48,52 @@ func OpGte(i *Interpreter, vars interface{}) interface{} {
 	default:
 		return false
 	}
+}
+
+func isValidHex(s string) bool {
+    if len(s) == 0 {
+        return false
+    }
+    for _, c := range s {
+        if !((c >= '0' && c <= '9') ||
+            (c >= 'a' && c <= 'f') ||
+            (c >= 'A' && c <= 'F')) {
+            return false
+        }
+    }
+    return true
+}
+
+
+func OpHashLimitOk(i *Interpreter, vars interface{}) interface{} {
+	left, right := Unpack2(vars)
+
+    leftStr, ok1 := left.(string)
+    rightStr, ok2 := right.(string)
+    if !ok1 || !ok2 {
+        return false
+    }
+
+    // Verify that the hash string is a valid hexadecimal number
+    if !isValidHex(leftStr) || !isValidHex(rightStr) {
+        return false
+    }
+
+    // Converting to a Large integer
+    leftInt := new(big.Int)
+    _, ok := leftInt.SetString(leftStr, 16)
+    if !ok {
+        return false
+    }
+
+    rightInt := new(big.Int)
+    _, ok = rightInt.SetString(rightStr, 16)
+    if !ok {
+        return false
+    }
+
+    // compare
+    return leftInt.Cmp(rightInt) < 0
 }
 
 func OpLt(i *Interpreter, vars interface{}) interface{} {
@@ -80,11 +123,11 @@ func isNumeric(v interface{}) interface{} {
 	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
 		return true
 	case string:
-		// 문자열이 숫자 형식인지 확인
+		// Verify that the string is in numeric format
 		if len(val) == 0 {
 			return false
 		}
-		// 첫 문자가 - 인 경우 음수 허용
+		// Allow negative numbers if the first letter is -
 		start := 0
 		if val[0] == '-' {
 			if len(val) == 1 {
@@ -92,7 +135,7 @@ func isNumeric(v interface{}) interface{} {
 			}
 			start = 1
 		}
-		// 소수점 카운트
+		// decimal count
 		dotCount := 0
 		for i := start; i < len(val); i++ {
 			if val[i] == '.' {

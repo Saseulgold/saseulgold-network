@@ -18,9 +18,13 @@ import (
 	"hello/pkg/core/storage"
 	"hello/pkg/core/vm"
 	"hello/pkg/util"
+
+	"go.uber.org/zap"
 )
 
 type PacketHandler func(ctx context.Context, packet *Packet) error
+
+var logger = util.GetLogger()
 
 type RetryConfig struct {
 	RetryDelay time.Duration
@@ -93,7 +97,7 @@ func (s *Server) Start() error {
 	var err error
 
 	machine := vm.GetMachineInstance()
-	machine.GetInterpreter().Reset()
+	machine.GetInterpreter().Reset(true)
 
 	if s.security.UseTLS {
 		tlsConfig, err := newTLSConfig(s.security)
@@ -110,17 +114,17 @@ func (s *Server) Start() error {
 	if err != nil {
 		return err
 	}
-
+	/**
 	isRunning := util.ServiceIsRunning(storage.DataRootDir(), "swift")
 
 	if isRunning {
 		return fmt.Errorf("swift is already running")
 	}
+	**/
 
 	s.listener = listener
 
 	go s.acceptConnections()
-	go s.processJobQueue()
 	go s.collectMetrics()
 
 	err = util.ProcessStart(storage.DataRootDir(), "swift", os.Getpid())
@@ -143,22 +147,6 @@ func (s *Server) acceptConnections() {
 	}
 }
 
-func (s *Server) processJobQueue() {
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			if s.priorityQueue.Len() > 0 {
-				if job := s.priorityQueue.Pop(); job != nil {
-					// job processing logic
-				}
-			}
-		}
-	}
-}
-
 func (s *Server) collectMetrics() {
 	for {
 		// s.metrics.Update()
@@ -177,7 +165,9 @@ func (s *Server) HandleConnection(conn net.Conn) error {
 	ctx := context.WithValue(context.Background(), "connection", conn)
 
 	for {
-		SwiftInfoLog("new connection request: %s\n", conn.RemoteAddr().String())
+		logger.Info("new connection request",
+			zap.String("remote_addr", conn.RemoteAddr().String()),
+		)
 		header := make([]byte, 4)
 		if _, err := io.ReadFull(conn, header); err != nil {
 			if err == io.EOF {
@@ -185,10 +175,9 @@ func (s *Server) HandleConnection(conn net.Conn) error {
 			}
 			return fmt.Errorf("failed to read header: %v", err)
 		}
-		SwiftInfoLog("received header: %v\n", header)
-
 		// get packet length
 		packetLen := binary.BigEndian.Uint32(header)
+		s.metrics.AddBytesReceived(uint64(packetLen))
 
 		// read packet data
 		packetBytes := make([]byte, packetLen)
@@ -202,7 +191,6 @@ func (s *Server) HandleConnection(conn net.Conn) error {
 		if err := json.Unmarshal(packetBytes, &packet); err != nil {
 			return fmt.Errorf("failed to parse packet: %v", err)
 		}
-		SwiftInfoLog("received packet: %v\n", packet)
 
 		// process packet
 		switch packet.Type {
@@ -216,7 +204,6 @@ func (s *Server) HandleConnection(conn net.Conn) error {
 			continue
 		case PacketTypePeerRequest:
 			peerList := s.FormatPeerList()
-			SwiftInfoLog("peer list: %s\n", peerList)
 
 			// server peer list to client
 			peerListJSON, err := json.Marshal(peerList)
@@ -231,11 +218,18 @@ func (s *Server) HandleConnection(conn net.Conn) error {
 				return fmt.Errorf("failed to send peer response: %v", err)
 			}
 			continue
+		case PacketTypeMetricsRequest:
+			metrics := s.metrics.GetStats()
+			metricsJSON, err := json.Marshal(metrics)
+			if err != nil {
+				return fmt.Errorf("failed to marshal metrics: %v", err)
+			}
+			s.Send(ctx, &Packet{Type: PacketTypeMetricsResponse, Payload: metricsJSON})
+			continue
 		default:
 			if handler, ok := s.handlers[packet.Type]; ok {
 				err := handler(ctx, &packet)
 				if err != nil {
-					SwiftInfoLog("packet handler error: %v", err)
 					return s.SendErrorResponse(ctx, err.Error())
 				}
 			} else {
@@ -261,6 +255,76 @@ func (s *Server) CloseConnection(conn net.Conn) error {
 	return conn.Close()
 }
 
+func (s *Server) BroadcastPeers(peers []string, packet *Packet) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	var broadcastErrors []error
+
+	for _, peer := range peers {
+		start := s.metrics.BroadcastStart()
+
+		// Create new connection with timeout
+		dialer := net.Dialer{Timeout: 5 * time.Second}
+		conn, err := dialer.DialContext(ctx, "tcp", peer)
+		if err != nil {
+			logger.Info("failed to connect to peer when broadcasting",
+				zap.String("peer", peer),
+				zap.Error(err),
+			)
+			s.metrics.BroadcastEnd(start, packet.Payload)
+			broadcastErrors = append(broadcastErrors, fmt.Errorf("failed to connect to %s: %v", peer, err))
+			continue
+		}
+
+		// Ensure connection is closed after we're done
+		defer conn.Close()
+
+		// TCP Keep Alive to detect connection problems
+		if tcpConn, ok := conn.(*net.TCPConn); ok {
+			tcpConn.SetKeepAlive(true)
+			tcpConn.SetKeepAlivePeriod(3 * time.Second)
+		}
+
+		// Set write deadline
+		if err := conn.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
+			logger.Info("failed to set write deadline",
+				zap.String("peer", peer),
+				zap.Error(err),
+			)
+			s.metrics.BroadcastEnd(start, packet.Payload)
+			broadcastErrors = append(broadcastErrors, fmt.Errorf("failed to set deadline for %s: %v", peer, err))
+			continue
+		}
+
+		connCtx := context.WithValue(ctx, "connection", conn)
+
+		// Send packet with error checking
+		if err := s.Send(connCtx, packet); err != nil {
+			logger.Info("failed to send packet to peer when broadcasting",
+				zap.String("peer", peer),
+				zap.Error(err),
+			)
+			s.metrics.BroadcastEnd(start, packet.Payload)
+			broadcastErrors = append(broadcastErrors, fmt.Errorf("failed to send to %s: %v", peer, err))
+			continue
+		}
+
+		// Successfully sent to this peer
+		logger.Info("successfully broadcasted to peer",
+			zap.String("peer", peer),
+		)
+		s.metrics.BroadcastEnd(start, packet.Payload)
+	}
+
+	// If any errors occurred during broadcast, return them
+	if len(broadcastErrors) > 0 {
+		return fmt.Errorf("broadcast errors: %v", broadcastErrors)
+	}
+
+	return nil
+}
+
 // BroadcastBlock은 블록을 모든 피어에게 전송합니다
 func (s *Server) Broadcast(ctx context.Context, packet *Packet) error {
 	s.mu.RLock()
@@ -269,10 +333,6 @@ func (s *Server) Broadcast(ctx context.Context, packet *Packet) error {
 		peers = append(peers, conn)
 	}
 	s.mu.RUnlock()
-
-	if len(peers) == 0 {
-		return fmt.Errorf("no active connections")
-	}
 
 	for _, conn := range peers {
 		connCtx := context.WithValue(ctx, "connection", conn)
@@ -298,6 +358,8 @@ func (s *Server) Send(ctx context.Context, packet *Packet) error {
 	if err != nil {
 		return fmt.Errorf("failed to serialize packet: %v", err)
 	}
+
+	s.metrics.AddBytesSent(uint64(len(packetBytes)))
 
 	header := make([]byte, 4)
 	binary.BigEndian.PutUint32(header, uint32(len(packetBytes)))
@@ -361,7 +423,6 @@ func (s *Server) Connect(targetAddr string) error {
 		return fmt.Errorf("connection failed: %v", err)
 	}
 
-	SwiftInfoLog("peer connection success: %s\n", targetAddr)
 	s.peers[targetAddr] = conn
 	go s.HandleConnection(conn)
 

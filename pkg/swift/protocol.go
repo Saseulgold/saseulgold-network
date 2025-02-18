@@ -25,8 +25,33 @@ const (
 
 	PacketTypeBroadcastBlockRequest  // Block transmission
 	PacketTypeBroadcastBlockResponse // Block transmission
+	PacketTypeRawRequest             // Raw request
+	PacketTypeRawResponse            // Raw response
+
+	PacketTypeReplicateBlockRequest  // Block transmission
+	PacketTypeReplicateBlockResponse // Block transmission
 
 	PacketTypeErrorResponse // Error
+
+	// Consensus
+	PacketTypeRaftRequestVote  // Raft request vote
+	PacketTypeRaftResponseVote // Raft response vote
+	PacketTypeRaftHeartbeat    // Raft heartbeat
+
+	PacketTypeRegisterReplicaRequest  // Register replica
+	PacketTypeRegisterReplicaResponse // Register replica
+
+	PacketTypeMetricsRequest  // Metrics request
+	PacketTypeMetricsResponse // Metrics response
+
+	PacketTypeSearchRequest  // Search request
+	PacketTypeSearchResponse // Search response
+
+	PacketTypeLastHeightRequest
+	PacketTypeLastHeightResponse
+
+	PacketTypeSyncBlockRequest
+	PacketTypeSyncBlockResponse
 
 	// FOR DEV
 	PacketTypeGetStatusBundleRequest  // Get status bundle
@@ -39,3 +64,5 @@ type Packet struct {
 	Type    PacketType      `json:"type"`
 	Payload json.RawMessage `json:"payload"`
 }
+
+// CallRawRequest sends a raw RPC request to the node

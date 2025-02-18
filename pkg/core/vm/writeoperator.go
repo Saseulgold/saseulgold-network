@@ -5,10 +5,11 @@ import (
 	C "hello/pkg/core/config"
 	"hello/pkg/core/debug"
 	F "hello/pkg/util"
+
+	"go.uber.org/zap"
 )
 
 func OpWriteUniversal(i *Interpreter, vars interface{}) interface{} {
-	OperatorLog("op start", i.process.String(), i.state.String())
 
 	attr, key, value := Unpack3(vars)
 
@@ -26,8 +27,6 @@ func OpWriteUniversal(i *Interpreter, vars interface{}) interface{} {
 	var statusHash string
 	if i.process == ProcessMain {
 		statusHash = F.StatusHash(i.code.GetWriter(), i.code.GetSpace(), attr.(string), key.(string))
-		debug.DebugLog("write_universal main: attr=%s; key=%s; writer=%s; space=%s; status_hash=%s",
-			attr, key, i.code.GetWriter(), i.code.GetSpace(), statusHash)
 	} else if i.process == ProcessPost {
 		statusHash = F.StatusHash(i.postProcess.GetWriter(), i.postProcess.GetSpace(), attr.(string), key.(string))
 	}
@@ -39,11 +38,9 @@ func OpWriteUniversal(i *Interpreter, vars interface{}) interface{} {
 	var result interface{}
 	switch i.state {
 	case StateRead:
-		OperatorLog("OpWriteUniversal READ ", statusHash)
 		i.AddUniversalLoads(statusHash)
 		result = nil
 	case StateCondition:
-		OperatorLog("OpWriteUniversal CONDITION ", statusHash, value)
 		length := len(F.String(value))
 
 		if length > C.STATUS_SIZE_LIMIT {
@@ -64,6 +61,7 @@ func OpWriteUniversal(i *Interpreter, vars interface{}) interface{} {
 		result = i.SetUniversalStatus(statusHash, value)
 	}
 
+	logger.Info("write_universal", zap.String("statusHash", statusHash), zap.Any("value", value), zap.Any("result", result))
 	return result
 }
 

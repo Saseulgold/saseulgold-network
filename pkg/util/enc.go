@@ -3,12 +3,13 @@ package util
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	_ "fmt"
 	"strconv"
 
 	"golang.org/x/crypto/ripemd160"
 
 	C "hello/pkg/core/config"
+	"math/big"
+	"strings"
 )
 
 func Hash(data string) string {
@@ -18,9 +19,16 @@ func Hash(data string) string {
 	return hex.EncodeToString(hashBytes)
 }
 
+func FillHashSuffix(suffix string) string {
+	if len(suffix) < 64 {
+		return PadRight(suffix, "0", 64)
+	}
+	return suffix
+}
+
 func FillHash(hash string) string {
-	if len(hash) < C.STATUS_HASH_BYTES {
-		return PadRight(hash, "0", C.STATUS_HASH_BYTES)
+	if len(hash) < C.STATUS_HASH_BYTES*2 {
+		return PadRight(hash, "0", C.STATUS_HASH_BYTES*2)
 	}
 	return hash
 }
@@ -165,6 +173,10 @@ func StatusHash(owner string, space string, attr string, key string) string {
 	return StatusPrefix(owner, space, attr) + key
 }
 
+func NetworkStatusHash(key, attr string) string {
+	return StatusHash(C.ZERO_ADDRESS, RootSpace(), key, attr)
+}
+
 func StatusPrefix(owner string, space string, attr string) string {
 	return Hash(Concat(owner, space, attr))
 }
@@ -199,4 +211,57 @@ func IsHex(hex string) bool {
 	}
 
 	return true
+}
+
+func HashMany(vars ...interface{}) string {
+	var result strings.Builder
+
+	for _, v := range vars {
+		if str, ok := v.(string); ok {
+			result.WriteString(str)
+			result.WriteString(",")
+		} else {
+			panic("HashMany: input is not a string")
+		}
+	}
+
+	return Hash(result.String())
+}
+
+func DivideByE18(amount string) string {
+	// Remove quotes if present
+	amount = strings.Trim(amount, "\"")
+
+	// Convert string to big.Int
+	value := new(big.Int)
+	_, ok := value.SetString(amount, 10)
+	if !ok {
+		return "0"
+	}
+
+	// Create divisor (10^18)
+	divisor := new(big.Int)
+	divisor.Exp(big.NewInt(10), big.NewInt(18), nil)
+
+	// Perform division
+	result := new(big.Int)
+	result.Div(value, divisor)
+
+	return result.String()
+}
+
+func MulByE18(amount string) string {
+	amount = strings.Trim(amount, "\"")
+
+	value := new(big.Int)
+	_, ok := value.SetString(amount, 10)
+	if !ok {
+		return "0"
+	}
+
+	multiplier := new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
+
+	result := new(big.Int).Mul(value, multiplier)
+
+	return result.String()
 }

@@ -3,24 +3,13 @@ package network
 import (
 	"encoding/binary"
 	"encoding/json"
-
-	// . "hello/pkg/core/debug"
+	"hello/pkg/rpc"
 	"hello/pkg/swift"
 	"io"
 	"log"
 	"net"
 	"time"
 )
-
-type RPCRequest struct {
-	Method string                 `json:"method"`
-	Params map[string]interface{} `json:"params"`
-}
-
-type RPCResponse struct {
-	Status string `json:"status"`
-	Error  string `json:"error,omitempty"`
-}
 
 func CallRPC(targetNode string, packet swift.Packet) (swift.Packet, error) {
 	// Connect to the server
@@ -72,4 +61,22 @@ func CallRPC(targetNode string, packet swift.Packet) (swift.Packet, error) {
 
 	// Log and return the response
 	return response, nil
+}
+
+func CallRawRequest(reqeust *rpc.RawRequest) (swift.Packet, error) {
+	packet := swift.Packet{
+		Type:    swift.PacketTypeRawRequest,
+		Payload: json.RawMessage(reqeust.Payload),
+	}
+
+	return CallRPC(reqeust.Peer, packet)
+}
+
+func CallTransactionRequest(reqeust *rpc.TransactionRequest) (swift.Packet, error) {
+	packet := swift.Packet{
+		Type:    swift.PacketTypeBroadcastTransactionRequest,
+		Payload: json.RawMessage(reqeust.Payload),
+	}
+
+	return CallRPC(reqeust.Peer, packet)
 }

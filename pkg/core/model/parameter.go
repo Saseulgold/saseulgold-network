@@ -118,7 +118,7 @@ func (p *Parameter) StructureValidity(value interface{}) error {
 }
 
 func (p *Parameter) TypeValidity(value interface{}) error {
-	if !p.Requirements {
+	if !p.Requirements && value == nil {
 		return nil
 	}
 
@@ -128,8 +128,11 @@ func (p *Parameter) TypeValidity(value interface{}) error {
 			return fmt.Errorf("Parameter '%s' must be of string type.", p.Name)
 		}
 	case "int":
-		if _, ok := value.(int); !ok {
-			return fmt.Errorf("Parameter '%s' must be of integer type.", p.Name)
+		switch value.(type) {
+		case int, int64:
+			return nil
+		default:
+			return fmt.Errorf("Parameter '%s' must be of integer type (int or int64).", p.Name)
 		}
 	case "float64":
 		if _, ok := value.(float64); !ok {

@@ -15,7 +15,15 @@ func NativeRequests() map[string]map[string]*Method {
 	requests[rootCid] = make(map[string]*Method)
 	requests[rootCid]["GetBlock"] = native.GetBlock()
 	requests[rootCid]["ListBlock"] = native.ListBlock()
+	requests[rootCid]["ListTransaction"] = native.ListTransaction()
+
 	requests[rootCid]["GetBalance"] = native.GetBalance()
+	requests[rootCid]["GetTokenInfo"] = native.GetTokenInfo()
+	requests[rootCid]["GetPairInfo"] = native.GetPairInfo()
+
+	requests[rootCid]["BalanceOf"] = native.BalanceOf()
+	requests[rootCid]["BalanceOfLP"] = native.BalanceOfLP()
+
 	return requests
 }
 
@@ -25,21 +33,18 @@ func NativeContracts() map[string]map[string]*Method {
 
 	contracts[rootCid] = make(map[string]*Method)
 	contracts[rootCid]["Genesis"] = native.Genesis()
-	contracts[rootCid]["Register"] = native.Register()
-	contracts[rootCid]["Revoke"] = native.Revoke()
 	contracts[rootCid]["Faucet"] = native.Faucet()
 	contracts[rootCid]["Publish"] = native.Publish()
 	contracts[rootCid]["Send"] = native.Send()
+	contracts[rootCid]["MultiSend"] = native.MultiSend()
+	contracts[rootCid]["Mint"] = native.Mint()
+	contracts[rootCid]["Transfer"] = native.Transfer()
+	contracts[rootCid]["LiquidityProvide"] = native.LiquidityProvide()
+	contracts[rootCid]["LiquidityWithdraw"] = native.LiquidityWithdraw()
+	contracts[rootCid]["Swap"] = native.Swap()
+
+	contracts[rootCid]["Mining"] = native.Mining()
+	contracts[rootCid]["Count"] = native.Count()
 
 	return contracts
 }
-
-func GetNativeContract(methodName string) *Method {
-	return NativeContracts()[F.RootSpace()][methodName]
-}
-
-/**
-func GetContract(cid string, methodName string) *Method {
-	return Contracts()[cid][methodName]
-}
-**/

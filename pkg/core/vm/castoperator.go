@@ -7,7 +7,7 @@ import (
 )
 
 func OperatorLog(args ...interface{}) interface{} {
-	fmt.Println(args...)
+	// fmt.Println(args...)
 	return true
 }
 
@@ -60,9 +60,20 @@ func OpIsInt(i *Interpreter, vars interface{}) interface{} {
 
 func OpAsString(i *Interpreter, vars interface{}) interface{} {
 	value := Unpack1(vars)
-	result := reflect.ValueOf(value).String()
-	OperatorLog("OpAsString", "input:", vars, "result:", result)
-	return result
+
+	switch v := value.(type) {
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		result := strconv.FormatInt(reflect.ValueOf(v).Int(), 10)
+		OperatorLog("OpAsString", "input:", vars, "result:", result)
+		return result
+	case string:
+		OperatorLog("OpAsString", "input:", vars, "result:", v)
+		return v
+	default:
+		result := fmt.Sprintf("%v", value)
+		OperatorLog("OpAsString", "input:", vars, "result:", result)
+		return result
+	}
 }
 
 func OpIsString(i *Interpreter, vars interface{}) interface{} {

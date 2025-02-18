@@ -15,7 +15,7 @@ var QUANTUM_ROOT_DIR = func() string {
 }()
 
 var DATA_ROOT_DIR = func() string {
-	return QUANTUM_ROOT_DIR + "/data"
+	return "data"
 }()
 
 const LEDGER_FILESIZE_LIMIT = 268435456

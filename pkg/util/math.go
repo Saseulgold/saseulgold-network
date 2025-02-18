@@ -65,18 +65,23 @@ func Div(a, b string, scale *int) *string {
 		return nil
 	}
 
-	af := new(big.Float)
-	bf := new(big.Float)
+	af := new(big.Float).SetPrec(256)
+	bf := new(big.Float).SetPrec(256)
 	af.SetString(a)
 	bf.SetString(b)
 
-	result := new(big.Float).Quo(af, bf)
+	result := new(big.Float).SetPrec(256).Quo(af, bf)
 	str := FormatFloat(result, s)
 	return &str
 }
 
 // Pow raises a to the power of b
-func Pow(a, b string) string {
+func Pow(a, b string, scale *int) *string {
+	s := MaxScale(a, b)
+	if scale != nil {
+		s = *scale
+	}
+
 	af := new(big.Float)
 	bf := new(big.Float)
 	af.SetString(a)
@@ -85,11 +90,12 @@ func Pow(a, b string) string {
 	afloat, _ := af.Float64()
 	bfloat, _ := bf.Float64()
 	result := new(big.Float).SetFloat64(math.Pow(afloat, bfloat))
-	return FormatFloat(result, MaxScale(a, b))
+	rstr := FormatFloat(result, s)
+	return &rstr
 }
 
 // Mod returns modulo of a divided by b
-func Mod(a, b string) *string {
+func Mod(a, b string) string {
 	af := new(big.Int)
 	bf := new(big.Int)
 	af.SetString(a, 10)
@@ -97,7 +103,7 @@ func Mod(a, b string) *string {
 
 	result := new(big.Int).Mod(af, bf)
 	str := result.String()
-	return &str
+	return str
 }
 
 // Equal returns true if a equals b
@@ -190,6 +196,26 @@ func Round(a string, scale int) string {
 
 	result := new(big.Float).Sub(af, half)
 	return FormatFloat(result, scale)
+}
+
+// Sqrt returns the square root of a with optional scale
+func Sqrt(a string, scale *int) *string {
+	if !IsNumeric(a) || Lt(a, "0") {
+		return nil
+	}
+
+	s := GetScale(a)
+	if scale != nil {
+		s = *scale
+	}
+
+	af := new(big.Float)
+	af.SetString(a)
+
+	afloat, _ := af.Float64()
+	result := new(big.Float).SetFloat64(math.Sqrt(afloat))
+	str := FormatFloat(result, s)
+	return &str
 }
 
 // Helper functions

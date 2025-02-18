@@ -50,20 +50,18 @@ func (sf *StatusFile) Touch() error {
 		return err
 	}
 
-	fmt.Println("sf.StatusBundle(): ", sf.StatusBundle())
-
 	files := []string{
 		sf.TempFile(),
 		sf.InfoFile(),
-		sf.LocalFile(),
-		sf.LocalBundle(),
-		sf.UniversalBundle("0000"),
-		sf.LocalBundleIndex(),
-		sf.UniversalBundleIndex(),
+		// sf.LocalFile(),
+		// sf.LocalBundle(),
+		// sf.UniversalBundle("0000"),
+		// sf.LocalBundleIndex(),
+		// sf.UniversalBundleIndex(),
 	}
 
 	for _, file := range files {
-		fmt.Println("f: ", file)
+
 		f, err := os.OpenFile(file, os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			return err
@@ -88,12 +86,13 @@ func (sf *StatusFile) Reset() error {
 
 // Cache loads indexes into memory
 func (sf *StatusFile) Cache() error {
+	return nil
 	if len(sf.CachedLocalIndexes) == 0 && len(sf.CachedUniversalIndexes) == 0 {
 		if err := sf.Touch(); err != nil {
 			return err
 		}
 
-		// 임시 파일이 비어있는 경우 Commit() 호출을 건너뜁니다
+		// TOCO Check
 		tmpData, err := os.ReadFile(sf.TempFile())
 		if err != nil || len(tmpData) == 0 {
 			sf.CachedUniversalIndexes = ReadStatusStorageIndex(sf.UniversalBundleIndex(), true)
@@ -182,7 +181,7 @@ func (sf *StatusFile) maxFileId(prefix string) string {
 		return maxId
 	}
 
-	return fmt.Sprintf("%02x", 0)
+	return fmt.Sprintf("%04x", 0)
 }
 
 func (sf *StatusFile) WriteLocal(localUpdates UpdateMap) error {
@@ -212,6 +211,7 @@ func (sf *StatusFile) WriteLocal(localUpdates UpdateMap) error {
 		index, exists := sf.CachedLocalIndexes[key]
 		data, err := json.Marshal(update.New)
 		if err != nil {
+			panic(fmt.Sprintf("error unmarshaling data: %v", err))
 			return err
 		}
 		length := int64(len(data))
@@ -261,15 +261,11 @@ func (sf *StatusFile) WriteLocal(localUpdates UpdateMap) error {
 }
 
 func (sf *StatusFile) WriteUniversal(blockUpdates UpdateMap) error {
-	for key, index := range sf.CachedUniversalIndexes {
-		DebugLog(fmt.Sprintf("Cached Universal Index - Key: %s, FileID: %s, Seek: %d, Length: %d, Iseek: %d",
-			key, index.FileID, index.Seek, index.Length, index.Iseek))
-	}
+	si := GetStatusIndexInstance()
 
 	null := byte(0)
-	latestFileID := sf.maxFileId("ubundle-")
-	latestFile := sf.UniversalBundle(latestFileID)
-	indexFile := sf.UniversalBundleIndex()
+	latestFileID := sf.maxFileId("universals-")
+	latestFile := sf.UniversalFile(latestFileID)
 
 	if err := AppendFile(latestFile, ""); err != nil {
 		return err
@@ -279,24 +275,21 @@ func (sf *StatusFile) WriteUniversal(blockUpdates UpdateMap) error {
 	if err != nil {
 		return err
 	}
+
 	seek := int64(latestFileInfo.Size())
-
-	indexFileInfo, err := os.Stat(indexFile)
-	if err != nil {
-		return err
-	}
-
-	iseek := int64(indexFileInfo.Size())
 
 	for key, update := range *blockUpdates {
 		key = F.FillHash(key)
 		index, exists := sf.CachedUniversalIndexes[key]
 
 		data, err := json.Marshal(update.New)
-		DebugLog(fmt.Sprintf("WriteUniversal - Data: %s", data))
-		DebugLog(fmt.Sprintf("Index: %v", index))
+
+		if len(data) == 0 {
+			panic(fmt.Sprintf("Data len is zero: %s", key))
+		}
 
 		if err != nil {
+			panic(fmt.Sprintf("error unmarshaling data: %v", err))
 			return err
 		}
 
@@ -326,9 +319,8 @@ func (sf *StatusFile) WriteUniversal(blockUpdates UpdateMap) error {
 
 			if oldLength == 0 {
 				// New data
-				DebugLog(fmt.Sprintf("New data: Key=%s, FileID=%s, Seek=%d, Length=%d, exists=%t\n", key, fileID, currSeek, length, exists))
-				currIseek = iseek
-				iseek += C.STATUS_HEAP_BYTES
+				currIseek = 0
+				// iseek += C.STATUS_HEAP_BYTES
 			} else {
 				// Update existing data
 				currIseek = index.Iseek
@@ -352,14 +344,16 @@ func (sf *StatusFile) WriteUniversal(blockUpdates UpdateMap) error {
 			Iseek:  currIseek,
 		}
 
-		indexData := IndexRaw(key, fileID, currSeek, length)
-		DebugAssert(len(indexData) == C.STATUS_HEAP_BYTES, "invalid index data length: %d, expected: %d", len(indexData), C.STATUS_HEAP_BYTES)
+		// indexData := IndexRaw(key, fileID, currSeek, length)
+		// DebugAssert(len(indexData) == C.STATUS_HEAP_BYTES, "invalid index data length: %d, expected: %d", len(indexData), C.STATUS_HEAP_BYTES)
 
 		sf.CachedUniversalIndexes[key] = newIndex
+		si.SetUniversalIndex(key, newIndex)
+
 		sf.Tasks = append(sf.Tasks,
-			StorageTask{FilePath: sf.UniversalBundle(fileID), Seek: currSeek, Data: data},
-			StorageTask{FilePath: sf.UniversalBundleIndex(), Seek: currIseek, Data: indexData})
-		fmt.Println("sf.a", currIseek)
+			StorageTask{FilePath: sf.UniversalFile(fileID), Seek: currSeek, Data: data},
+			// StorageTask{FilePath: sf.UniversalBundleIndex(), Seek: currIseek, Data: indexData},
+		)
 	}
 	return nil
 }
@@ -367,6 +361,7 @@ func (sf *StatusFile) WriteUniversal(blockUpdates UpdateMap) error {
 func (sf *StatusFile) WriteTasks() error {
 	tasksData, err := json.Marshal(sf.Tasks)
 	if err != nil {
+		panic(fmt.Sprintf("error unmarshaling data: %v", err))
 		return fmt.Errorf("Failed to serialize tasks: %v", err)
 	}
 
@@ -387,6 +382,7 @@ func (sf *StatusFile) Commit() error {
 
 	var tasks []StorageTask
 	if err := json.Unmarshal(raw, &tasks); err != nil {
+		panic(fmt.Sprintf("error unmarshaling data: %v", err))
 		return fmt.Errorf("failed to unmarshal tasks: %v", err)
 	}
 
@@ -404,7 +400,6 @@ func (sf *StatusFile) Commit() error {
 				return fmt.Errorf("failed to open file: %v", err)
 			}
 			defer f.Close()
-			DebugLog(fmt.Sprintf("write data at %s, seek: %d, data length: %d", task.FilePath, task.Seek, len(task.Data)))
 
 			if _, err := f.WriteAt(task.Data, task.Seek); err != nil {
 				return fmt.Errorf("failed to write data: %v", err)
@@ -428,7 +423,7 @@ func (sf *StatusFile) GetLocalIndexes(keys []string) map[string]StorageIndexCurs
 }
 
 func (sf *StatusFile) BundleHeight() int {
-	data, err := ioutil.ReadFile(sf.InfoFile())
+	data, err := os.ReadFile(sf.InfoFile())
 	if err != nil {
 		return 0
 	}
@@ -449,10 +444,13 @@ func (sf *StatusFile) Write(block *Block) error {
 	if err != nil {
 		return err
 	}
+
+	/**
 	err = sf.WriteLocal(block.LocalUpdates)
 	if err != nil {
 		return err
 	}
+	**/
 
 	// make function for making height to byte
 	heightData := []byte(strconv.FormatInt(int64(block.Height), 10))
@@ -485,7 +483,11 @@ func (sf *StatusFile) UpdateUniversal(indexes map[string]StorageIndexCursor, uni
 	for key, update := range *universalUpdates {
 		key = F.FillHash(key)
 		index, exists := indexes[key]
-		data, _ := json.Marshal(update.New)
+
+		data, err := json.Marshal(update.New)
+		if err != nil {
+			panic(fmt.Sprintf("error unmarshaling data: %v", err))
+		}
 		length := int64(len(data))
 		var storedLength int64
 		if exists {
@@ -530,7 +532,11 @@ func (sf *StatusFile) UpdateLocal(indexes map[string]StorageIndexCursor, localUp
 	for key, update := range *localUpdates {
 		key = F.FillHash(key)
 		index, exists := indexes[key]
-		data, _ := json.Marshal(update.New)
+
+		data, err := json.Marshal(update.New)
+		if err != nil {
+			panic(fmt.Sprintf("error unmarshaling data: %v", err))
+		}
 		length := int64(len(data))
 		var storedLength int64
 		if exists {
@@ -639,7 +645,7 @@ func (sf *StatusFile) CountUniversalStatus(prefix string) int {
 // ReadUniversalStatus reads a single status value using the given index cursor
 func (sf *StatusFile) ReadUniversalStatus(index StorageIndexCursor) (interface{}, error) {
 	if index.FileID == "" || index.Seek < 0 || index.Length <= 0 {
-		return nil, fmt.Errorf("invalid index cursor")
+		return nil, fmt.Errorf("invalid index cursor: %s %s %s", index.FileID, index.Seek, index.Length)
 	}
 
 	file, err := os.Open(sf.UniversalFile(index.FileID))
@@ -660,7 +666,10 @@ func (sf *StatusFile) ReadUniversalStatus(index StorageIndexCursor) (interface{}
 	}
 
 	var value interface{}
-	if err := json.Unmarshal(data, &value); err != nil {
+	trimmedData := bytes.TrimRight(data, "\x00")
+
+	if err := json.Unmarshal(trimmedData, &value); err != nil {
+		panic(fmt.Sprintf("error unmarshaling data: %v", err))
 		return nil, fmt.Errorf("error unmarshaling data: %v", err)
 	}
 
@@ -673,7 +682,6 @@ func (sf *StatusFile) ReadUniversalStatuses(indexes map[string]StorageIndexCurso
 	for key, index := range indexes {
 		value, err := sf.ReadUniversalStatus(index)
 		if err != nil {
-			DebugLog(fmt.Sprintf("Failed to read universal status for key %s: %v", key, err))
 			result[key] = nil
 			continue
 		}
@@ -681,4 +689,25 @@ func (sf *StatusFile) ReadUniversalStatuses(indexes map[string]StorageIndexCurso
 	}
 
 	return result
+}
+
+func (sf *StatusFile) GetUniversalStatus(key string) interface{} {
+	key = F.FillHash(key)
+
+	indexes := sf.GetUniversalIndexes([]string{key})
+	DebugLog(fmt.Sprintf("GetUniversalStatus - indexes: %v", indexes))
+
+	index, exists := indexes[key]
+
+	if !exists {
+		return nil
+	}
+
+	value, err := sf.ReadUniversalStatus(index)
+
+	if err != nil {
+		return nil
+	}
+
+	return value
 }

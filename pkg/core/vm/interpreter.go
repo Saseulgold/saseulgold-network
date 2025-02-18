@@ -5,11 +5,15 @@ import (
 	. "hello/pkg/core/abi"
 	C "hello/pkg/core/config"
 	. "hello/pkg/core/model"
+	"hello/pkg/core/storage"
 
 	. "hello/pkg/crypto"
 	F "hello/pkg/util"
-	"reflect"
+
+	"go.uber.org/zap"
 )
+
+var logger = F.GetLogger()
 
 type State int
 
@@ -95,13 +99,22 @@ func NewInterpreter() *Interpreter {
 	}
 }
 
-func (i *Interpreter) Reset() {
+func (i *Interpreter) Reset(all bool) {
+	logger.Info("reset", zap.Bool("truncate", all))
+
 	i.SignedData = nil
 	i.code = nil
 	i.postProcess = nil
 	i.breakFlag = false
 	i.result = ""
 	i.weight = 0
+
+	if all {
+		i.universals = make(map[string]interface{})
+		i.locals = make(map[string]interface{})
+		i.state = StateNull
+		i.process = ProcessNull
+	}
 
 	i.universalUpdates = &map[string]Update{}
 	i.localUpdates = &map[string]Update{}
@@ -113,7 +126,7 @@ func (i *Interpreter) Set(data *SignedData, code *Method, postProcess *Method) {
 	i.postProcess = postProcess
 	i.breakFlag = false
 	i.weight = 0
-	i.result = "Conditional Error"
+	i.result = ""
 	i.setDefaultValue()
 }
 
@@ -122,6 +135,8 @@ func (i *Interpreter) SetSignedData(signedData *SignedData) {
 }
 
 func (i *Interpreter) Init(mode string) {
+	logger.Info("init", zap.String("value", mode))
+
 	if mode == "" {
 		mode = "transaction"
 	}
@@ -146,9 +161,9 @@ func (i *Interpreter) Init(mode string) {
 }
 
 func (i *Interpreter) Read() {
+	logger.Info("read")
 	i.state = StateRead
 	i.process = ProcessMain
-	DebugLog("Read Contract:", i.code.GetName(), "; state:", i.state, "; process:", i.process)
 
 	// common
 	for _, execution := range i.code.GetExecutions() {
@@ -178,10 +193,6 @@ func (i *Interpreter) Process(abi interface{}) interface{} {
 		}
 
 		if arr, ok := op.Value.([]interface{}); ok {
-			for idx, v := range arr {
-				DebugLog("Array item", idx, ":", v, "type:", reflect.TypeOf(v))
-			}
-
 			processedArr := make([]interface{}, len(arr))
 			for index, v := range arr {
 				if abiVal, isABI := v.(ABI); isABI {
@@ -259,32 +270,31 @@ func (i *Interpreter) setDefaultValue() {
 			i.SignedData.SetAttribute("hash", i.SignedData.Hash)
 		}
 
+		/**
 		if i.SignedData.GetAttribute("size") == nil {
 			i.SignedData.SetAttribute("size", i.SignedData.Size())
 		}
 
 		i.weight += i.SignedData.GetInt64("size")
+		**/
 	}
 }
 
 func (i *Interpreter) Execute() (interface{}, error) {
+
 	executions := i.code.GetExecutions()
 	postExecutions := i.postProcess.GetExecutions()
+	logger.Info("execute", zap.Bool("breakFlag", i.breakFlag), zap.String("executions", fmt.Sprintf("%v", executions)))
 
 	i.state = StateCondition
 	i.process = ProcessMain
-
-	DebugLog("MainCondition", i.process.String(), i.state.String())
 
 	// main, condition
 	for key, execution := range executions {
 		executions[key] = i.Process(execution)
 
 		if i.breakFlag {
-			OperatorLog("MainCondition breakFlag:", i.breakFlag, i.result)
 			return nil, fmt.Errorf("%v", i.result)
-		} else {
-			OperatorLog("MainCondition ok:", i.result)
 		}
 	}
 
@@ -311,10 +321,7 @@ func (i *Interpreter) Execute() (interface{}, error) {
 		postExecutions[key] = i.Process(execution)
 
 		if i.breakFlag {
-			OperatorLog("PostCondition breakFlag:", i.breakFlag, postExecutions[key])
 			return postExecutions[key], fmt.Errorf("%v", i.result)
-		} else {
-			OperatorLog("PostCondition ok:", postExecutions[key])
 		}
 	}
 
@@ -322,18 +329,11 @@ func (i *Interpreter) Execute() (interface{}, error) {
 	i.state = StateExecution
 	i.process = ProcessMain
 
-	DebugLog("MainExecution", i.process.String(), i.state.String())
-	DebugLog("MainExecution executions:", executions)
-
 	for key, execution := range executions {
-		DebugLog("MainExecution", i.process.String(), i.state.String(), "execution: ", execution)
 		executions[key] = i.Process(execution)
 
 		if i.breakFlag {
-			OperatorLog("MainExecution breakFlag:", i.breakFlag, executions[key])
 			return executions[key], fmt.Errorf("%v", i.result)
-		} else {
-			OperatorLog("MainExecution ok:", executions[key])
 		}
 	}
 
@@ -344,14 +344,11 @@ func (i *Interpreter) Execute() (interface{}, error) {
 		postExecutions[key] = i.Process(execution)
 
 		if i.breakFlag {
-			OperatorLog("PostExecution breakFlag:", i.breakFlag, postExecutions[key])
 			return postExecutions[key], fmt.Errorf("%v", i.result)
-		} else {
-			OperatorLog("PostExecution ok:", postExecutions[key])
 		}
 	}
 
-	return executions[len(executions)-1], nil
+	return i.result, nil
 }
 
 func (i *Interpreter) SetCode(code *Method) {
@@ -368,6 +365,7 @@ func (i *Interpreter) GetResult() interface{} {
 
 func (i *Interpreter) AddUniversalLoads(statusHash string) {
 	statusHash = F.FillHash(statusHash)
+	logger.Info("add universal loads", zap.String("hash", statusHash))
 
 	if _, ok := i.universals[statusHash]; !ok {
 		i.universals[statusHash] = nil
@@ -388,6 +386,7 @@ func (i *Interpreter) SetLocalLoads(statusHash string, value interface{}) {
 }
 
 func (i *Interpreter) SetUniversalLoads(statusHash string, value interface{}) {
+	logger.Info("set universal loads", zap.String("hash", statusHash), zap.String("value", fmt.Sprintf("%s", value)))
 	statusHash = F.FillHash(statusHash)
 	i.universals[statusHash] = value
 }
@@ -401,8 +400,14 @@ func (i *Interpreter) GetLocalStatus(statusHash string, defaultVal interface{}) 
 }
 
 func (i *Interpreter) SetLocalStatus(statusHash string, value interface{}) bool {
-	if updates, ok := (*i.localUpdates)[statusHash]; ok {
-		updates.New = value
+	statusHash = F.FillHash(statusHash)
+
+	if _, ok := (*i.localUpdates)[statusHash]; ok {
+		oldUpdate := (*i.localUpdates)[statusHash]
+		(*i.localUpdates)[statusHash] = Update{
+			Old: oldUpdate.Old,
+			New: value,
+		}
 	} else {
 		(*i.localUpdates)[statusHash] = Update{
 			Old: i.GetLocalStatus(statusHash, nil),
@@ -410,26 +415,29 @@ func (i *Interpreter) SetLocalStatus(statusHash string, value interface{}) bool 
 		}
 	}
 
-	statusHash = F.FillHash(statusHash)
 	i.locals[statusHash] = value
 
 	return true
 }
 
 func (i *Interpreter) SetUniversalStatus(statusHash string, value interface{}) bool {
-	OperatorLog("SetUniversalStatus", "statusHash:", statusHash, "value:", value)
-	if updates, ok := (*i.universalUpdates)[statusHash]; ok {
-		updates.New = value
+	statusHash = F.FillHash(statusHash)
+
+	if _, ok := (*i.universalUpdates)[statusHash]; ok {
+		oldUpdate := (*i.universalUpdates)[statusHash]
+		(*i.universalUpdates)[statusHash] = Update{
+			Old: oldUpdate.Old,
+			New: value,
+		}
 	} else {
-		OperatorLog("SetUniversalStatus else", "statusHash:", statusHash, "value:", value)
 		(*i.universalUpdates)[statusHash] = Update{
 			Old: i.GetUniversalStatus(statusHash, nil),
 			New: value,
 		}
 	}
 
-	statusHash = F.FillHash(statusHash)
 	i.universals[statusHash] = value
+	logger.Info("Interpreter set univ", zap.String("value", fmt.Sprintf("%v", value)), zap.String("statusHash", statusHash))
 
 	return true
 }
@@ -440,11 +448,15 @@ func (i *Interpreter) GetUniversals() map[string]interface{} {
 
 func (i *Interpreter) GetUniversalStatus(statusHash string, defaultVal interface{}) interface{} {
 	statusHash = F.FillHash(statusHash)
+
 	if val, ok := i.universals[statusHash]; ok {
-		OperatorLog("GetUniversalStatus", "statusHash:", statusHash, "value:", val)
+		if val == nil {
+			logger.Info("Interpreter get univ default", zap.String("value", fmt.Sprintf("%v", defaultVal)), zap.String("statusHash", statusHash))
+			return defaultVal
+		}
+		logger.Info("Interpreter get univ ", zap.String("value", fmt.Sprintf("%v", val)), zap.String("statusHash", statusHash))
 		return val
 	}
-	OperatorLog("GetUniversalStatus default", "statusHash:", statusHash, "value:", defaultVal)
 	return defaultVal
 }
 
@@ -456,21 +468,24 @@ func (i *Interpreter) GetLocalUpdates() UpdateMap {
 	return i.localUpdates
 }
 
-/**
 func (i *Interpreter) LoadUniversalStatus() {
+	logger.Info("load univ status", zap.Int("len", len(i.universals)))
 
-	if len(i.universals) > 0 {
-		statusFile := S.GetStatusFileInstance()
-		// keys := make([]string, 0, len(i.universals))
+	if len(i.universals) == 0 {
+		return
+	}
+	statusFile := storage.GetStatusFileInstance()
 
-		for k := range i.universals {
-			value := statusFile.GetUniversalStatus(k)
-			i.universals[k] = value
-			// keys = append(keys, k)
-		}
+	for k := range i.universals {
+		value := statusFile.GetUniversalStatus(k)
+		i.universals[k] = value
+		logger.Info("Loading from status file",
+			zap.String("key", k),
+			zap.Any("value", value))
 	}
 }
 
+/**
 
 func (i *Interpreter) LoadLocalStatus() {
 	if len(i.locals) > 0 {

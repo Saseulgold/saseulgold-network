@@ -5,8 +5,39 @@ import (
 	"fmt"
 	"hello/pkg/util"
 	"regexp"
+	"strconv"
 	"strings"
+	// "math"
 )
+
+func OpSet(i *Interpreter, vars interface{}) interface{} {
+	origin, key, value := Unpack3(vars)
+	var originObj map[string]interface{}
+	var ok bool
+
+	if origin == nil {
+		originObj = make(map[string]interface{})
+		ok = true
+	} else {
+		originObj, ok = origin.(map[string]interface{})
+	}
+
+	if !ok {
+		OperatorLog("OpObjectSet", "input:", vars, "result:", map[string]interface{}{})
+		return map[string]interface{}{}
+	}
+
+	keyStr, ok := key.(string)
+	if !ok {
+		OperatorLog("OpObjectSet", "input:", vars, "result:", originObj)
+		return originObj
+	}
+
+	originObj[keyStr] = value
+	OperatorLog("OpObjectSet", "input:", vars, "result:", originObj)
+
+	return originObj
+}
 
 func OpArrayPush(i *Interpreter, vars interface{}) interface{} {
 	origin, key, value := Unpack3(vars)
@@ -157,12 +188,15 @@ func OpHashMany(i *Interpreter, vars interface{}) interface{} {
 		for _, v := range arr {
 			if str, ok := v.(string); ok {
 				result.WriteString(str)
+				result.WriteString(",")
 			}
 		}
+	} else {
+		panic("OpHashMany: input is not an array")
 	}
 
 	hashResult := util.Hash(result.String())
-	OperatorLog("OpHashMany", "input:", vars, "result:", hashResult)
+	OperatorLog("OpHashMany", "input:", vars, "string: ", result.String(), "result:", hashResult)
 	return hashResult
 }
 
@@ -236,4 +270,98 @@ func OpSignVerify(i *Interpreter, vars interface{}) interface{} {
 	// return crypto.VerifySignature(obj, publicKey, signature)
 	OperatorLog("OpSignVerify", "input:", vars, "result:", true)
 	return true
+}
+
+func OpLen(i *Interpreter, vars interface{}) interface{} {
+	arr := Unpack1(vars)
+
+	switch v := arr.(type) {
+	case string:
+		return len(v)
+	case []interface{}:
+		return len(v)
+	default:
+		return 0
+	}
+}
+
+func OpEra(i *Interpreter, vars interface{}) interface{} {
+	mined_total := Unpack1(vars)
+
+	era := util.GetEra(mined_total.(string))
+	return int(era)
+}
+
+func OpSUtime(i *Interpreter, vars interface{}) interface{} {
+	time := util.Utime()
+	return strconv.FormatInt(time, 10)
+}
+
+func OpSpaceID(i *Interpreter, vars interface{}) interface{} {
+	writer, space := Unpack2(vars)
+	return util.SpaceID(writer.(string), space.(string))
+}
+
+func OpSlice(i *Interpreter, vars interface{}) interface{} {
+	str, start, length := Unpack3(vars)
+	fmt.Printf("OpSlice input - str: %v, start: %v, length: %v\n", str, start, length)
+
+	inputStr, ok1 := str.(string)
+	if !ok1 {
+		fmt.Println("OpSlice: string conversion failed")
+		return nil
+	}
+
+	// Convert string numbers to integers
+	var startIdx, lengthInt int
+	var err error
+
+	// Handle start parameter
+	switch start := start.(type) {
+	case string:
+		startIdx, err = strconv.Atoi(start)
+		if err != nil {
+			fmt.Println("OpSlice: invalid start number format")
+			return nil
+		}
+	case float64:
+		startIdx = int(start)
+	default:
+		fmt.Println("OpSlice: unsupported start parameter type")
+		return nil
+	}
+
+	// Handle length parameter
+	switch length := length.(type) {
+	case string:
+		lengthInt, err = strconv.Atoi(length)
+		if err != nil {
+			fmt.Println("OpSlice: invalid length number format")
+			return nil
+		}
+	case float64:
+		lengthInt = int(length)
+	default:
+		fmt.Println("OpSlice: unsupported length parameter type")
+		return nil
+	}
+
+	fmt.Printf("OpSlice converted indices - startIdx: %d, length: %d\n", startIdx, lengthInt)
+
+	// Check if start index is out of bounds
+	if startIdx < 0 || startIdx >= len(inputStr) {
+		fmt.Printf("OpSlice invalid start index: %d\n", startIdx)
+		return nil
+	}
+
+	// Calculate end index
+	endIdx := startIdx + lengthInt
+	if endIdx > len(inputStr) {
+		fmt.Printf("OpSlice adjusting end index from %d to %d\n", endIdx, len(inputStr))
+		endIdx = len(inputStr)
+	}
+
+	result := inputStr[startIdx:endIdx]
+	fmt.Printf("OpSlice result: %s\n", result)
+	return result
 }

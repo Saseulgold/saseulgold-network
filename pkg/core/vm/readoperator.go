@@ -101,6 +101,5 @@ func OpReadUniversal(i *Interpreter, vars interface{}) interface{} {
 		result = i.GetUniversalStatus(statusHash, defaultVal)
 	}
 
-	OperatorLog("OpReadUniversal", "input:", vars, "result:", result)
 	return result
 }

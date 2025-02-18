@@ -8,18 +8,22 @@ import (
 	"hello/pkg/core/storage"
 	"hello/pkg/rpc"
 	"hello/pkg/util"
+	"sync"
+
+	"go.uber.org/zap"
 )
 
 type Machine struct {
+	mu sync.RWMutex
+
 	interpreter *Interpreter
 
 	contracts           map[string]map[string]*Method
 	requests            map[string]map[string]*Method
 	postProcessContract map[string]interface{}
 
-	previousBlock  *Block
-	roundTimestamp int64
-	transactions   *map[string]*SignedTransaction
+	previousBlock *Block
+	transactions  *map[string]*SignedTransaction
 }
 
 var instance *Machine
@@ -27,27 +31,42 @@ var instance *Machine
 func GetMachineInstance() *Machine {
 	if instance == nil {
 		instance = &Machine{
-			interpreter:    NewInterpreter(),
-			previousBlock:  nil,
-			roundTimestamp: 0,
+			interpreter:   NewInterpreter(),
+			previousBlock: nil,
 		}
 	}
 	return instance
+}
+
+func NewMachine(previousBlock *Block) *Machine {
+	m := &Machine{
+		interpreter:   NewInterpreter(),
+		previousBlock: previousBlock,
+	}
+
+	m.Init(previousBlock)
+	return m
 }
 
 func (m *Machine) GetInterpreter() *Interpreter {
 	return m.interpreter
 }
 
-func (m *Machine) Init(previousBlock *Block, roundTimestamp int64) {
-	m.interpreter.Reset()
+func (m *Machine) Init(previousBlock *Block) {
+	m.interpreter.Reset(true)
 	m.interpreter.Init("transaction")
 
 	m.previousBlock = previousBlock
-	m.roundTimestamp = roundTimestamp
+
+	m.loadContracts()
+	m.loadRequests()
 }
 
 func (m *Machine) ValidateTxTimestamp(tx *SignedTransaction) bool {
+	if m.previousBlock != nil && tx.GetTimestamp() <= m.previousBlock.GetTimestamp()-C.TIME_STAMP_FORWARD_ERROR_LIMIT {
+		return false
+	}
+
 	if tx.GetTimestamp() > int64(util.Utime())+C.TIME_STAMP_ERROR_LIMIT {
 		return false
 	}
@@ -56,6 +75,8 @@ func (m *Machine) ValidateTxTimestamp(tx *SignedTransaction) bool {
 }
 
 func (m *Machine) Commit(block *Block) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
 	chain := storage.GetChainStorageInstance()
 	sf := storage.GetStatusFileInstance()
@@ -65,14 +86,20 @@ func (m *Machine) Commit(block *Block) error {
 	if err := chain.Write(block); err != nil {
 		return err
 	}
-	if err := sf.Write(block); err != nil {
-		return err
-	}
+
 	/**
 	if err := sf.Update(block); err != nil {
 		return err
 	}
 	**/
+
+	if err := sf.Write(block); err != nil {
+		return err
+	}
+
+	m.previousBlock = block
+	block.Timestamp_s = util.Utime()
+	m.transactions = &map[string]*SignedTransaction{}
 
 	return nil
 }
@@ -98,6 +125,8 @@ func (m *Machine) SetTransactions(txs map[string]*SignedTransaction) {
 }
 
 func (m *Machine) TxValidity(tx *SignedTransaction) (bool, error) {
+	logger.Info("txValidity", zap.String("tx", fmt.Sprintf("%v", tx)))
+
 	size, err := tx.GetSize()
 	if err != nil {
 		return false, err
@@ -113,23 +142,18 @@ func (m *Machine) TxValidity(tx *SignedTransaction) (bool, error) {
 
 	chain := storage.GetChainStorageInstance()
 	lastBlock, err := chain.LastBlock()
+
 	if err != nil {
 		return false, err
 	}
-	roundTimestamp := util.Utime() + C.TIME_STAMP_ERROR_LIMIT
+	m.Init(lastBlock)
 
-	m.Init(lastBlock, roundTimestamp)
-
-	txHash := tx.GetTxHash()
-
-	m.SetTransactions(map[string]*SignedTransaction{
-		txHash: tx,
-	})
-
-	fmt.Println("tx: ", tx.GetTxData().Data.Ser())
-
-	if err := m.PreCommit(); err != nil {
+	if err := m.PreCommitOne(tx); err != nil {
 		return false, err
+	}
+
+	if m.interpreter.GetResult() != "" {
+		return false, fmt.Errorf("transaction is not valid: %s", m.interpreter.GetResult())
 	}
 
 	return true, nil
@@ -139,56 +163,102 @@ func (m *Machine) loadContracts() {
 	m.contracts = rpc.NativeContracts()
 }
 
-func (m *Machine) PreCommit() error {
-	m.loadContracts()
+func (m *Machine) loadRequests() {
+	m.requests = rpc.NativeRequests()
+}
 
+func (m *Machine) loadUserDefinedContract(cid string, name string) *Method {
+	contractKey := cid + util.FillHashSuffix(name)
+	si := storage.GetStatusFileInstance()
+
+	cursor, ok := si.CachedUniversalIndexes[contractKey]
+	fmt.Println("contractKey:", contractKey)
+	fmt.Println("cursor:", cursor)
+	if !ok {
+		return nil
+	}
+
+	data, err := si.ReadUniversalStatus(cursor)
+	if err != nil {
+		return nil
+	}
+
+	contract := ParseMethod(data.(string))
+
+	return contract
+}
+
+func (m *Machine) deleteTransaction(txHash string, err error) {
+	delete(*m.transactions, txHash)
+
+	if err != nil {
+		logger.Error("deleteTransaction", zap.String("txHash", txHash), zap.Error(err))
+	}
+}
+
+func (m *Machine) PreCommit() (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	logger.Info("preCommit", zap.String("transactions", fmt.Sprintf("%v", *m.transactions)))
+
+	m.loadContracts()
+	var err error
 	txs := util.SortedValueK[*SignedTransaction](*m.transactions)
 
 	for _, tx := range txs {
 		txHash := tx.GetTxHash()
-		DebugLog("read tx:", string(tx.Data.Ser()))
-		DebugLog("preCommitRead	:", txHash)
 
-		if m.ValidateTxTimestamp(tx) && tx.Validate() == nil {
-			if err := m.MountContract(*tx); err == nil {
-				if err := m.interpreter.ParameterValidate(); err == nil {
-					m.interpreter.Read()
-					continue
-				} else {
-					DebugLog("ParameterValidate error: %v", err)
-				}
-			} else {
-				DebugLog("MountContract error: %v", err)
-			}
+		if !(m.ValidateTxTimestamp(tx)) {
+			err = fmt.Errorf("tx timestamp error: %s", txHash)
+			m.deleteTransaction(txHash, err)
+			continue
 		}
 
-		DebugLog("Delete tx: ", txHash)
-		delete(*m.transactions, txHash)
+		if err = tx.Validate(); err != nil {
+			m.deleteTransaction(txHash, err)
+			continue
+		}
+
+		if err = m.MountContract(*tx); err != nil {
+			m.deleteTransaction(txHash, err)
+			continue
+		}
+
+		if err := m.interpreter.ParameterValidate(); err != nil {
+			m.deleteTransaction(txHash, err)
+			continue
+		}
+
+		m.interpreter.Read()
 	}
+
+	difficultyHash := util.NetworkStatusHash("network_difficulty", C.ZERO_ADDRESS)
+	m.interpreter.AddUniversalLoads(difficultyHash)
+	m.interpreter.LoadUniversalStatus()
+
+	txs = util.SortedValueK[*SignedTransaction](*m.transactions)
 
 	for _, transaction := range txs {
 		hash := transaction.GetTxHash()
 		if err := m.MountContract(*transaction); err == nil {
+			logger.Info("excute", zap.String("hash", hash))
 			if result, err := m.interpreter.Execute(); err == nil {
-				DebugLog("Execute ", hash, " result:", result)
+				logger.Info("excuted", zap.String("hash", hash), zap.Any("result", result))
 				continue
 			}
-		} else {
-			DebugPanic("MountContract error: %v", err)
 		}
 
-		delete(*m.transactions, hash)
+		m.deleteTransaction(hash, err)
 	}
 
-	return nil
+	c := m.interpreter.GetUniversalStatus(difficultyHash, "2250")
+	fmt.Println("c:", c)
+	return c.(string), err
 }
 
 func (m *Machine) MountContract(tx SignedTransaction) error {
 	txMap := tx.GetTxData()
-	DebugLog("MountContract tx:", string(txMap.Data.Ser()))
-	DebugLog("MountContract tx type:", txMap.Type)
-	DebugLog("MountContract tx cid:", tx.GetCID())
-
 	cid := tx.GetCID()
 
 	txType, ok := txMap.Data.Get("type")
@@ -196,17 +266,25 @@ func (m *Machine) MountContract(tx SignedTransaction) error {
 		return fmt.Errorf("transaction type not found")
 	}
 	name := txType.(string)
+	var code *Method
 
-	code, ok := m.contracts[cid][name]
-	if !ok {
-		return fmt.Errorf("contract not found for cid %s and method %s", cid, name)
+	if cid == util.RootSpaceId() {
+		code = m.contracts[cid][name]
+		if code == nil {
+			return fmt.Errorf("contract not found for cid %s and method %s", cid, name)
+		}
+
+		m.interpreter.Set(tx.GetTxData(), code.Copy(), new(Method))
+		return nil
+	} else {
+		code = m.loadUserDefinedContract(cid, name)
 	}
 
 	if code == nil {
 		return fmt.Errorf("contract code is nil")
 	}
 
-	m.interpreter.Set(tx.GetTxData(), code, new(Method))
+	m.interpreter.Set(tx.GetTxData(), code.Copy(), new(Method))
 
 	return nil
 }
@@ -215,26 +293,18 @@ func (m *Machine) NextBlock() *Block {
 	return &Block{
 		Height:            m.previousBlock.Height + 1,
 		Transactions:      m.transactions,
-		Timestamp_s:       m.roundTimestamp,
+		Timestamp_s:       util.Utime(),
 		UniversalUpdates:  m.interpreter.GetUniversalUpdates(),
 		LocalUpdates:      m.interpreter.GetLocalUpdates(),
 		PreviousBlockhash: m.previousBlock.BlockHash(),
 	}
 }
 
-func (m *Machine) TimeValidity(tx *SignedTransaction, timestamp int64) (bool, error) {
-	if m.previousBlock.Timestamp_s < tx.GetTimestamp() && tx.GetTimestamp() <= int64(timestamp) {
-		return true, nil
-	}
-
-	return false, fmt.Errorf("Timestamp must be greater than %d and less than %d", m.previousBlock.Timestamp_s, timestamp)
-}
-
 func (m *Machine) Epoch() string {
-	currentTime := util.Utime()
-	timeInEpoch := currentTime % 5000
+	currentTime := util.Utime() / 1000
+	timeInEpoch := currentTime % 3000
 
-	if timeInEpoch < 3000 {
+	if timeInEpoch < 2000 {
 		return "txtime"
 	}
 	return "blocktime"
@@ -244,7 +314,7 @@ func (m *Machine) IsInBlockTime() bool {
 	currentTime := util.Utime()
 	timeInEpoch := currentTime % 5000
 
-	return timeInEpoch >= 3000 // 마지막 2초는 블록 생성 시간
+	return timeInEpoch >= 3000 // The last two seconds are block generation time
 }
 
 func (m *Machine) GetCurrentEpoch() int64 {
@@ -255,7 +325,7 @@ func (m *Machine) GetPreviousBlock() *Block {
 	return m.previousBlock
 }
 
-func (m *Machine) ExpectedBlock() *Block {
+func (m *Machine) ExpectedBlock(difficulty string) *Block {
 	previousBlock := m.GetPreviousBlock()
 
 	var previousBlockhash string
@@ -272,20 +342,26 @@ func (m *Machine) ExpectedBlock() *Block {
 	expectedBlock := &Block{
 		Height:            Height + 1,
 		Transactions:      m.transactions,
-		Timestamp_s:       m.roundTimestamp,
+		Timestamp_s:       util.Utime(),
 		UniversalUpdates:  m.interpreter.GetUniversalUpdates(),
 		LocalUpdates:      m.interpreter.GetLocalUpdates(),
 		PreviousBlockhash: previousBlockhash,
+		Difficulty:        difficulty,
 	}
 
 	return expectedBlock
 }
 func (m *Machine) Response(request SignedRequest) (interface{}, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	logger.Info("Response", zap.String("request", fmt.Sprintf("%v", request)))
+
 	if err := request.Validate(); err != nil {
 		return nil, err
 	}
 
-	m.interpreter.Reset()
+	m.interpreter.Reset(true)
 	m.interpreter.Init("request")
 
 	m.loadRequests()
@@ -302,25 +378,59 @@ func (m *Machine) Response(request SignedRequest) (interface{}, error) {
 	}
 
 	m.interpreter.Read()
+	m.interpreter.LoadUniversalStatus()
 
-	result, err := m.interpreter.Execute()
-	if err != nil {
-		return nil, err
-	}
+	_, result := m.interpreter.Execute()
 
 	return result, nil
 }
 
-func (m *Machine) loadRequests() {
-	m.requests = rpc.NativeRequests()
-}
-
 func (m *Machine) suitedRequest(request SignedRequest) *Method {
 	requestType := request.GetRequestType()
+
 	if methods, ok := m.requests[request.GetRequestCID()]; ok {
 		if method, exists := methods[requestType]; exists {
 			return method
 		}
 	}
 	return nil
+}
+
+func (m *Machine) PreCommitOne(tx *SignedTransaction) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	logger.Info("preCommitOne", zap.String("tx", fmt.Sprintf("%v", tx)))
+
+	m.loadContracts()
+	var err error
+
+	txHash := tx.GetTxHash()
+
+	if !(m.ValidateTxTimestamp(tx)) {
+		return fmt.Errorf("tx timestamp error: %s", txHash)
+	}
+
+	if err = tx.Validate(); err != nil {
+		return err
+	}
+
+	if err = m.MountContract(*tx); err != nil {
+		return err
+	}
+
+	if err := m.interpreter.ParameterValidate(); err != nil {
+		return err
+	}
+
+	m.interpreter.Read()
+	m.interpreter.LoadUniversalStatus()
+
+	result, err := m.interpreter.Execute()
+
+	if result != nil && result != "" {
+		return fmt.Errorf("%v", result)
+	}
+
+	return err
 }

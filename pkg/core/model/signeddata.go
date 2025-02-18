@@ -45,6 +45,26 @@ func NewSignedDataFromRequest(req *SignedRequest) *SignedData {
 	}
 }
 
+func NewSignedDataFromRequestData(req *SignedRequest) *SignedData {
+	hash := req.GetRequestHash()
+	reqData, ok := req.Data.Get("request")
+	if !ok {
+		return nil
+	}
+	return &SignedData{
+		Data:            reqData.(*S.OrderedMap),
+		PublicKey:       req.GetRequestXpub(),
+		Signature:       req.GetRequestSignature(),
+		Hash:            hash,
+		Cid:             req.GetRequestCID(),
+		Type:            req.GetRequestType(),
+		Timestamp:       req.GetRequestTimestamp(),
+		Attributes:      make(map[string]interface{}),
+		CachedUniversal: make(map[string]interface{}),
+		CachedLocal:     make(map[string]interface{}),
+	}
+}
+
 func NewSignedDataFromTransaction(tx *SignedTransaction) *SignedData {
 
 	hash := tx.GetTxHash()

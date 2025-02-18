@@ -3,7 +3,6 @@ package storage
 import (
 	"fmt"
 	C "hello/pkg/core/config"
-	. "hello/pkg/core/debug"
 	F "hello/pkg/util"
 	"sort"
 	"sync"
@@ -32,23 +31,29 @@ func (s *StatusIndex) Load() {
 
 	// bundling
 	statusFile := GetStatusFileInstance()
-	statusFile.Cache()
+	// statusFile.Cache()
 
-	fixedHeight := LastHeight()
-	bundleHeight := statusFile.BundleHeight()
+	var bundleHeight int
+	var i int	
+	var fixedHeight int
 
-	for i := bundleHeight + 1; i <= fixedHeight; i++ {
+	fixedHeight = LastHeight()
+	bundleHeight = int(C.SG_HARDFORK_START_HEIGHT)
+
+	for i = bundleHeight; i <= fixedHeight; i++ {
+
+		if i%256 == 0 {
+			fmt.Println(fmt.Sprintf("Commit block: %v", i))
+		}
+
 		block, err := chainStorage.GetBlock(i)
 		if err != nil {
 			panic(err)
 		}
 		statusFile.Write(block)
-
-		if i%256 == 0 || i == fixedHeight {
-			DebugLog(fmt.Sprintf("Commit Bundle: Bundling.. %d", i))
-		}
 	}
 
+	/**
 	statusFile.Flush()
 
 	// update indexes
@@ -81,6 +86,8 @@ func (s *StatusIndex) Load() {
 	// cache
 	s.AddLocalIndexes(localIndexes)
 	s.AddUniversalIndexes(universalIndexes)
+	**/
+
 }
 
 func (s *StatusIndex) LocalIndexes(keys []string) map[string]StorageIndexCursor {
@@ -89,9 +96,10 @@ func (s *StatusIndex) LocalIndexes(keys []string) map[string]StorageIndexCursor 
 	for _, key := range keys {
 		key = F.FillHash(key)
 		prefix, suffix := s.Split(key)
+		suffix = F.FillHashSuffix(suffix)
 
-		if prefixMap, ok := s.localIndexes[prefix]; ok {
-			if cursor, exists := prefixMap[suffix]; exists {
+		if _, ok := s.localIndexes[prefix]; ok {
+			if cursor, ok := s.localIndexes[prefix][suffix]; ok {
 				indexes[key] = cursor
 			}
 		}
@@ -106,9 +114,11 @@ func (s *StatusIndex) UniversalIndexes(keys []string) map[string]StorageIndexCur
 	for _, key := range keys {
 		key = F.FillHash(key)
 		prefix, suffix := s.Split(key)
+		suffix = F.FillHashSuffix(suffix)
 
-		if prefixMap, ok := s.universalIndexes[prefix]; ok {
-			if cursor, exists := prefixMap[suffix]; exists {
+		// Get the inner map once
+		if innerMap, ok := s.universalIndexes[prefix]; ok {
+			if cursor, ok := innerMap[suffix]; ok {
 				indexes[key] = cursor
 			}
 		}
@@ -118,7 +128,11 @@ func (s *StatusIndex) UniversalIndexes(keys []string) map[string]StorageIndexCur
 }
 
 func (s *StatusIndex) AddLocalIndexes(indexes map[string]StorageIndexCursor) bool {
-	for key, _ := range indexes {
+	for key, cursor := range indexes {
+		if len(key) == 0 {
+			panic(fmt.Sprintf("invalid key: %s", key))
+		}
+
 		key = F.FillHash(key)
 		prefix, suffix := s.Split(key)
 
@@ -126,17 +140,17 @@ func (s *StatusIndex) AddLocalIndexes(indexes map[string]StorageIndexCursor) boo
 			s.localIndexes[prefix] = make(map[string]StorageIndexCursor)
 		}
 
-		cursor := StorageIndexCursor{
-			Key: key,
-			// 다른 필드들도 필요에 따라 설정
-		}
 		s.localIndexes[prefix][suffix] = cursor
 	}
 	return true
 }
 
 func (s *StatusIndex) AddUniversalIndexes(indexes map[string]StorageIndexCursor) bool {
-	for key, _ := range indexes {
+	for key, cursor := range indexes {
+		if len(key) == 0 {
+			panic(fmt.Sprintf("invalid key: %s", key))
+		}
+
 		key = F.FillHash(key)
 		prefix, suffix := s.Split(key)
 
@@ -144,9 +158,6 @@ func (s *StatusIndex) AddUniversalIndexes(indexes map[string]StorageIndexCursor)
 			s.universalIndexes[prefix] = make(map[string]StorageIndexCursor)
 		}
 
-		cursor := StorageIndexCursor{
-			Key: key,
-		}
 		s.universalIndexes[prefix][suffix] = cursor
 	}
 	return true
@@ -196,42 +207,36 @@ func (s *StatusIndex) SearchLocalIndexes(item []interface{}) map[string]StorageI
 	return indexes
 }
 
-func (s *StatusIndex) SearchUniversalIndexes(item []interface{}) map[string]StorageIndexCursor {
-	indexes := make(map[string]StorageIndexCursor)
-	if len(item) == 0 {
-		return indexes
-	}
+func (s *StatusIndex) SearchUniversalIndexes(prefix string, page int, count int) []string {
+	keys := []string{}
+	offset := (page-1) * count
 
-	prefix := item[0].(string)
+	var start int
+	var end int
+
 	if _, ok := s.universalIndexes[prefix]; ok {
-		page := 0
-		count := 50
-		if len(item) > 1 {
-			page = item[1].(int)
-		}
-		if len(item) > 2 {
-			count = item[2].(int)
-		}
 
-		offset := page * count
-		keys := make([]string, 0, len(s.universalIndexes[prefix]))
 		for k := range s.universalIndexes[prefix] {
+			if len(keys) >= offset + count {
+				break
+			}
+
+			fmt.Println(k)
 			keys = append(keys, k)
 		}
-		sort.Strings(keys)
-
-		end := offset + count
-		if end > len(keys) {
-			end = len(keys)
-		}
-		if offset < len(keys) {
-			for _, k := range keys[offset:end] {
-				indexes[prefix+k] = s.universalIndexes[prefix][k]
-			}
-		}
 	}
 
-	return indexes
+	start = offset
+	end = offset + count
+
+	if len(keys) < end {
+		end = len(keys)
+	}
+	if len(keys) < start {
+		start = len(keys)
+	}
+
+	return keys[start:end]
 }
 
 func (s *StatusIndex) CountUniversalIndexes(prefix string) int {
@@ -246,4 +251,14 @@ func (s *StatusIndex) CountLocalIndexes(prefix string) int {
 		return len(indexes)
 	}
 	return 0
+}
+
+func (s *StatusIndex) SetUniversalIndex(statuskey string, cursor StorageIndexCursor) {
+	prefix, suffix := s.Split(statuskey)
+
+	if _, exists := s.universalIndexes[prefix]; !exists {
+		s.universalIndexes[prefix] = make(map[string]StorageIndexCursor)
+	}
+
+	s.universalIndexes[prefix][suffix] = cursor
 }

@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"fmt"
 	. "hello/pkg/core/abi"
 	D "hello/pkg/core/debug"
 	"reflect"
@@ -118,7 +119,7 @@ func OpIf(i *Interpreter, vars interface{}) interface{} {
 	} else {
 		result = falseVal
 	}
-	OperatorLog("OpIf", "input:", vars, "result:", result)
+
 	return result
 }
 
@@ -199,6 +200,9 @@ func OpIn(i *Interpreter, vars interface{}) interface{} {
 }
 
 func OpCheck(i *Interpreter, vars interface{}) interface{} {
-	OperatorLog("OpCheck value:", vars, "type:", reflect.TypeOf(vars))
-	return vars
+	v, k := Unpack1Or2(vars)
+
+	fmt.Println("OpCheck value:", k, v, "type:", reflect.TypeOf(v))
+
+	return vars.([]interface{})[0]
 }

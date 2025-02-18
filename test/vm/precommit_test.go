@@ -18,7 +18,7 @@ func TestPreCommit(t *testing.T) {
 	C.DATA_TEST_ROOT_DIR = "precommit_test"
 
 	machine := GetMachineInstance()
-	machine.GetInterpreter().Reset()
+	machine.GetInterpreter().Reset(true)
 
 	data := S.NewOrderedMap()
 	txData := S.NewOrderedMap()
@@ -66,7 +66,7 @@ func TestPreCommit(t *testing.T) {
 		txHash1: &tx1,
 	}
 
-	machine.Init(nil, 0)
+	machine.Init(nil)
 	machine.SetTransactions(txs)
 
 	// PreCommit 실행
@@ -85,7 +85,7 @@ func TestPreCommit2(t *testing.T) {
 	C.DATA_TEST_ROOT_DIR = "precommit_test"
 
 	machine := GetMachineInstance()
-	machine.GetInterpreter().Reset()
+	machine.GetInterpreter().Reset(true)
 
 	// 테스트용 트랜잭션 생성
 	data := S.NewOrderedMap()
@@ -120,7 +120,7 @@ func TestPreCommit2(t *testing.T) {
 	}
 
 	DebugLog("BeforeInit: ", machine.GetInterpreter().GetUniversalUpdates())
-	machine.Init(nil, 0)
+	machine.Init(nil)
 	DebugLog("AfterInit: ", machine.GetInterpreter().GetUniversalUpdates())
 	machine.SetTransactions(txs)
 

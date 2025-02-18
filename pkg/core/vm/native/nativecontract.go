@@ -1,262 +1,414 @@
 package native
 
 import (
-    abi "hello/pkg/core/abi"
-    . "hello/pkg/core/config"
-    . "hello/pkg/core/model"
-    . "hello/pkg/util"
+	abi "hello/pkg/core/abi"
+	. "hello/pkg/core/config"
+	. "hello/pkg/core/model"
+	. "hello/pkg/util"
 )
 
-// Genesis creates the Genesis pre-compiled contract.
-func Genesis() *PreCompiledContract {
-    contract := NewPreCompiledContract(map[string]interface{}{
-        "type":    "contract",
-        "name":    "Genesis",
-        "version": "1",
-        "space":   RootSpace(),
-        "writer":  ZERO_ADDRESS,
-    })
+func Genesis() *Method {
+	method := NewMethod(map[string]interface{}{
+		"type":    "contract",
+		"name":    "Genesis",
+		"version": "1",
+		"space":   RootSpace(),
+		"writer":  ZERO_ADDRESS,
+	})
 
-    genesis := abi.ReadLayerL2("genesis", "00", nil)
+	genesis := abi.ReadUniversal("genesis", "00", nil)
 
-    contract.AddExecution(abi.Condition(
-        abi.Ne(genesis, true),
-        "There was already a Genesis.",
-    ))
+	method.AddExecution(abi.Condition(
+		abi.Ne(genesis, true),
+		"There was already a Genesis.",
+	))
 
-    contract.AddExecution(abi.WriteLayerL1("genesis", "00", true))
+	method.AddExecution(abi.WriteUniversal("genesis", "00", true))
 
-    return contract
+	return method
 }
 
-// Register registers a new code in the Register pre-compiled contract.
-func Register() *PreCompiledContract {
-    contract := NewPreCompiledContract(map[string]interface{}{
-        "type":    "contract",
-        "name":    "Register",
-        "version": "1",
-        "space":   RootSpace(),
-        "writer":  ZERO_ADDRESS,
-    })
+func Faucet() *Method {
+	// For testing
+	method := NewMethod(map[string]interface{}{
+		"type":    "contract",
+		"name":    "Faucet",
+		"version": "1",
+		"space":   RootSpace(),
+		"writer":  ZERO_ADDRESS,
+	})
 
-    contract.AddParameter(NewParameter(map[string]interface{}{
-        "name":         "code",
-        "type":         "string",
-        "maxlength":    65536,
-        "requirements": true,
-    }))
+	from := abi.Param("from")
+	balance := "100000000000000000000000000"
 
-    from := abi.Param("from")
-    code := abi.Param("code")
+	method.AddExecution(abi.Condition(
+		abi.Eq(IS_TESTNET, true),
+		abi.EncodeJSON("faucet is not supported in mainnet"),
+	))
 
-    decodedCode := abi.DecodeJSON(code)
-    codeType, name, nonce, version, writer := extractCodeDetails(decodedCode)
+	method.AddExecution(abi.WriteUniversal("balance", from, balance))
 
-    codeID := abi.IDHash(name, nonce)
-    contractInfo := abi.DecodeJSON(abi.ReadLayerL2("contract", codeID, nil))
-    requestInfo := abi.DecodeJSON(abi.ReadLayerL2("request", codeID, nil))
-
-    contractVersion, requestVersion := getCodeVersions(contractInfo, requestInfo)
-
-    isNetworkManager := abi.ReadLayerL2("network_manager", from, nil)
-    contract.AddExecution(abi.Condition(
-        abi.Eq(isNetworkManager, true),
-        "You are not network manager.",
-    ))
-
-    validateContractInputs(contract, codeType, name, writer, version, requestVersion, contractVersion)
-
-    update := createUpdateEntry(codeType, codeID, code)
-    contract.AddExecution(update)
-
-    return contract
+	return method
 }
 
-// Revoke represents the Revoke pre-compiled contract which revokes permissions.
-func Revoke() *PreCompiledContract {
-    contract := NewPreCompiledContract(map[string]interface{}{
-        "type":    "contract",
-        "name":    "Revoke",
-        "version": "1",
-        "space":   RootSpace(),
-        "writer":  ZERO_ADDRESS,
-    })
+func MultiSend() *Method {
+	method := NewMethod(map[string]interface{}{
+		"type":    "contract",
+		"name":    "MultiSend",
+		"version": "1",
+		"space":   RootSpace(),
+		"writer":  ZERO_ADDRESS,
+	})
 
-    from := abi.Param("from")
-    isNetworkManager := abi.ReadLayerL2("network_manager", from, nil)
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "from",
+		"type":         "string",
+		"maxlength":    64,
+		"requirements": true,
+	}))
 
-    contract.AddExecution(abi.Condition(
-        abi.Eq(isNetworkManager, true),
-        "You are not network manager.",
-    ))
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "beneficiaries",
+		"type":         "string",
+		"maxlength":    220,
+		"requirements": true,
+	}))
 
-    contract.AddExecution(abi.WriteLayerL2("network_manager", from, false))
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "txcount",
+		"type":         "string",
+		"maxlength":    1,
+		"requirements": true,
+	}))
 
-    return contract
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "amount",
+		"type":         "string",
+		"maxlength":    64,
+		"requirements": true,
+	}))
+
+	from := abi.Param("from")
+	amount := abi.Param("amount")
+	txcount := abi.Param("txcount")
+	beneficiaries := abi.Param("beneficiaries")
+
+	beneficiariesLen := abi.Len(beneficiaries)
+
+	method.AddExecution(abi.Condition(
+		abi.Eq(beneficiariesLen, abi.PreciseMul(txcount, "44", "0")),
+		"invalid beneficiaries.",
+	))
+
+	totalAmount := abi.PreciseMul(amount, txcount, "0")
+	totalFee := abi.PreciseMul(SEND_FEE, txcount, "0")
+	fromBalance := abi.ReadUniversal("balance", from, "0")
+
+	method.AddExecution(abi.Condition(
+		abi.Gt(amount, "0"),
+		"amount must be greater than zero.",
+	))
+
+	method.AddExecution(abi.Condition(
+		abi.Gt(fromBalance, abi.PreciseAdd(totalAmount, totalFee, 0)),
+		"Balance is not enough.",
+	))
+
+	beneficiary0 := abi.Slice(beneficiaries, "0", "44")
+	beneficiary1 := abi.Slice(beneficiaries, "44", "44")
+	beneficiary2 := abi.Slice(beneficiaries, "88", "44")
+	beneficiary3 := abi.Slice(beneficiaries, "132", "44")
+	beneficiary4 := abi.Slice(beneficiaries, "176", "44")
+
+	method.AddExecution(abi.Condition(
+		abi.Ne(from, beneficiary0),
+		"sender address must be different.",
+	))
+	method.AddExecution(abi.Condition(
+		abi.Ne(from, beneficiary1),
+		"Sender address must be different.",
+	))
+	method.AddExecution(abi.Condition(
+		abi.Ne(from, beneficiary2),
+		"Sender address must be different.",
+	))
+	method.AddExecution(abi.Condition(
+		abi.Ne(from, beneficiary3),
+		"Sender address must be different.",
+	))
+	method.AddExecution(abi.Condition(
+		abi.Ne(from, beneficiary4),
+		"Sender address must be different.",
+	))
+
+	method.AddExecution(abi.If(
+		abi.Ne(beneficiary0, nil),
+		abi.WriteUniversal("balance", beneficiary0, abi.PreciseAdd(abi.ReadUniversal("balance", beneficiary0, "0"), amount, 0)),
+		nil,
+	))
+
+	method.AddExecution(abi.If(
+		abi.Ne(beneficiary1, nil),
+		abi.WriteUniversal("balance", beneficiary1, abi.PreciseAdd(abi.ReadUniversal("balance", beneficiary1, "0"), amount, 0)),
+		nil,
+	))
+
+	method.AddExecution(abi.If(
+		abi.Ne(beneficiary2, nil),
+		abi.WriteUniversal("balance", beneficiary2, abi.PreciseAdd(abi.ReadUniversal("balance", beneficiary2, "0"), amount, 0)),
+		nil,
+	))
+
+	method.AddExecution(abi.If(
+		abi.Ne(beneficiary3, nil),
+		abi.WriteUniversal("balance", beneficiary3, abi.PreciseAdd(abi.ReadUniversal("balance", beneficiary3, "0"), amount, 0)),
+		nil,
+	))
+
+	method.AddExecution(abi.If(
+		abi.Ne(beneficiary4, nil),
+		abi.WriteUniversal("balance", beneficiary4, abi.PreciseAdd(abi.ReadUniversal("balance", beneficiary4, "0"), amount, 0)),
+		nil,
+	))
+
+	method.AddExecution(abi.WriteUniversal("balance", from, abi.PreciseSub(fromBalance, abi.PreciseAdd(totalAmount, totalFee, 0), 0)))
+
+	network_fee_reserve := abi.ReadUniversal("network_fee_reserve", ZERO_ADDRESS, "0")
+	method.AddExecution(abi.WriteUniversal("network_fee_reserve", ZERO_ADDRESS, abi.PreciseAdd(network_fee_reserve, totalFee, 0)))
+
+	difficulty := abi.ReadUniversal("network_difficulty", ZERO_ADDRESS, "2250")
+	difficulty = abi.PreciseSub(difficulty, "8", "0")
+	difficulty = abi.Max(difficulty, "1890")
+
+	method.AddExecution(abi.WriteUniversal("network_difficulty", ZERO_ADDRESS, difficulty))
+
+	return method
 }
 
-// Send transfers balances between accounts in the Send pre-compiled contract.
-func Send() *PreCompiledContract {
-    contract := NewPreCompiledContract(map[string]interface{}{
-        "type":    "contract",
-        "name":    "Send",
-        "version": "1",
-        "space":   RootSpace(),
-        "writer":  ZERO_ADDRESS,
-    })
+func Send() *Method {
+	method := NewMethod(map[string]interface{}{
+		"type":    "contract",
+		"name":    "Send",
+		"version": "1",
+		"space":   RootSpace(),
+		"writer":  ZERO_ADDRESS,
+	})
 
-    from := abi.Param("from")
-    to := abi.Param("to")
-    amount := abi.Param("amount")
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "from",
+		"type":         "string",
+		"maxlength":    64,
+		"requirements": true,
+	}))
 
-    fromBalance := abi.ReadLayerL1("balance", from, "0")
-    toBalance := abi.ReadLayerL1("balance", to, "0")
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "to",
+		"type":         "string",
+		"maxlength":    64,
+		"requirements": true,
+	}))
 
-    contract.AddExecution(abi.Condition(
-        abi.Ne(from, to),
-        "Sender and receiver address must be different.",
-    ))
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "amount",
+		"type":         "string",
+		"maxlength":    256,
+		"requirements": true,
+	}))
 
-    contract.AddExecution(abi.Condition(
-        abi.Gt(fromBalance, amount),
-        "Balance is not enough.",
-    ))
+	from := abi.Param("from")
+	to := abi.Param("to")
+	amount := abi.Param("amount")
 
-    contract.AddExecution(abi.WriteLayerL1("balance", from, abi.PreciseSub(fromBalance, amount, 0)))
-    contract.AddExecution(abi.WriteLayerL1("balance", to, abi.PreciseAdd(toBalance, amount, 0)))
+	fromBalance := abi.ReadUniversal("balance", from, "0")
+	toBalance := abi.ReadUniversal("balance", to, "0")
 
-    return contract
+	method.AddExecution(abi.Condition(
+		abi.Ne(from, to),
+		"Sender and receiver address must be different.",
+	))
+
+	method.AddExecution(abi.Condition(
+		abi.Gt(amount, "0"),
+		"Amount must be greater than zero.",
+	))
+
+	method.AddExecution(abi.Condition(
+		abi.Gt(fromBalance, abi.PreciseAdd(amount, SEND_FEE, 0)),
+		"Balance is not enough.",
+	))
+
+	method.AddExecution(abi.WriteUniversal("balance", from, abi.PreciseSub(fromBalance, abi.PreciseAdd(amount, SEND_FEE, 0), 0)))
+	method.AddExecution(abi.WriteUniversal("balance", to, abi.PreciseAdd(toBalance, amount, 0)))
+
+	network_fee_reserve := abi.ReadUniversal("network_fee_reserve", ZERO_ADDRESS, "0")
+	method.AddExecution(abi.WriteUniversal("network_fee_reserve", ZERO_ADDRESS, abi.PreciseAdd(network_fee_reserve, SEND_FEE, 0)))
+
+	difficulty := abi.ReadUniversal("network_difficulty", ZERO_ADDRESS, "2250")
+	difficulty = abi.PreciseSub(difficulty, "8", "0")
+	difficulty = abi.Max(difficulty, "1890")
+
+	method.AddExecution(abi.WriteUniversal("network_difficulty", ZERO_ADDRESS, difficulty))
+
+	return method
 }
 
-// Publish releases new code versions within the Publish pre-compiled contract.
-func Publish() *PreCompiledContract {
-    contract := NewPreCompiledContract(map[string]interface{}{
-        "type":    "contract",
-        "name":    "Publish",
-        "version": "1",
-        "space":   RootSpace(),
-        "writer":  ZERO_ADDRESS,
-    })
+func Publish() *Method {
+	method := NewMethod(map[string]interface{}{
+		"type":    "contract",
+		"name":    "Publish",
+		"version": "1",
+		"space":   RootSpace(),
+		"writer":  ZERO_ADDRESS,
+	})
 
-    contract.AddParameter(NewParameter(map[string]interface{}{
-        "name":         "code",
-        "type":         "string",
-        "maxlength":    65536,
-        "requirements": true,
-    }))
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "code",
+		"type":         "string",
+		"maxlength":    16384,
+		"requirements": true,
+	}))
 
-    from := abi.Param("from")
-    code := abi.Param("code")
-    decodedCode := abi.DecodeJSON(code)
+	method.AddParameter(NewParameter(map[string]interface{}{
+		"name":         "from",
+		"type":         "string",
+		"maxlength":    44,
+		"requirements": true,
+	}))
 
-    codeType, name, space, version, writer := extractCodeSpecs(decodedCode)
+	from := abi.Param("from")
+	code := abi.Param("code")
+	decodedCode := abi.DecodeJSON(code)
 
-    codeID := abi.Hash(writer, space, name)
-    contractInfo := abi.DecodeJSON(abi.ReadLayerL2("contract", codeID, nil))
-    requestInfo := abi.DecodeJSON(abi.ReadLayerL2("request", codeID, nil))
-    contractVersion, requestVersion := getCodeVersions(contractInfo, requestInfo)
+	codeType := abi.Get(decodedCode, "t", nil)
+	name := abi.Get(decodedCode, "n", nil)
+	space := abi.Get(decodedCode, "s", nil)
+	version := abi.Get(decodedCode, "v", nil)
+	writer := abi.Get(decodedCode, "w", nil)
 
-    contract.AddExecution(abi.Condition(
-        abi.Eq(writer, from),
-        "Writer must be the same as the from address",
-    ))
+	spaceID := abi.SpaceID(writer, abi.Hash(space))
+	contractID := abi.HashMany(spaceID, name)
 
-    validateContractInputs(contract, codeType, name, writer, version, requestVersion, contractVersion)
+	exists := abi.If(
+		abi.Eq(codeType, "contract"),
+		abi.ReadUniversal("contract", contractID, nil),
+		abi.ReadUniversal("request", contractID, nil),
+	)
 
-    contract.AddExecution(abi.If(
-        abi.Eq(codeType, "contract"),
-        abi.WriteLayerL2("contract", codeID, code),
-        abi.If(
-            abi.Eq(codeType, "request"),
-            abi.WriteLayerL2("request", codeID, code),
-            false,
-        ),
-    ))
+	method.AddExecution(abi.Condition(
+		abi.Eq(writer, from),
+		abi.EncodeJSON("Writer must be the same as the from address"),
+	))
 
-    return contract
+	method.AddExecution(abi.Condition(
+		abi.IsString(codeType),
+		abi.EncodeJSON(abi.Concat("Invalid type: ", codeType)),
+	))
+
+	method.AddExecution(abi.Condition(
+		abi.Or(
+			abi.Eq(codeType, "contract"),
+			abi.Eq(codeType, "request"),
+		),
+		abi.EncodeJSON("Type must be one of the following: contract, request"),
+	))
+
+	method.AddExecution(abi.Condition(
+		abi.IsString(name),
+		abi.EncodeJSON(abi.Concat("Invalid name: ", name)),
+	))
+
+	method.AddExecution(abi.Condition(
+		abi.RegMatch("/^[A-Za-z_0-9]+$/", name),
+		abi.EncodeJSON("The name must consist of A-Za-z_0-9"),
+	))
+
+	method.AddExecution(abi.Condition(
+		abi.IsNumeric(version),
+		abi.EncodeJSON(abi.Concat("Invalid version: ", version)),
+	))
+
+	method.AddExecution(abi.Condition(
+		abi.IsString(space),
+		abi.EncodeJSON("invalid space"),
+	))
+
+	fee := abi.PreciseMul(
+		abi.AsString(abi.Len(code)),
+		PUBLISH_FEE_PER_BYTE,
+		"0",
+	)
+
+	fee = abi.Check(fee, "publish_fee")
+	userBalance := abi.ReadUniversal("balance", from, "0")
+
+	method.AddExecution(
+		abi.Condition(
+			abi.Gte(userBalance, fee),
+			abi.EncodeJSON("Balance is not enough"),
+		),
+	)
+
+	info := abi.ReadUniversal(spaceID, name, nil)
+	info = abi.DecodeJSON(info)
+	deployedVersion := abi.Get(info, "v", "0")
+
+	method.AddExecution(abi.Condition(
+		abi.Or(
+			abi.Eq(exists, nil),
+			abi.If(
+				abi.Eq(codeType, "contract"),
+				abi.Gt(version, deployedVersion),
+				abi.If(
+					abi.Eq(codeType, "request"),
+					abi.Gt(version, deployedVersion),
+					false,
+				),
+			),
+		),
+		abi.EncodeJSON("Only new versions of code can be registered"),
+	))
+
+	method.AddExecution(abi.If(
+		abi.Eq(codeType, "contract"),
+		abi.WriteUniversal("contract", contractID, from),
+		abi.If(
+			abi.Eq(codeType, "request"),
+			abi.WriteUniversal("request", contractID, from),
+			false,
+		),
+	))
+
+	method.AddExecution(abi.WriteUniversal(spaceID, name, code))
+	method.AddExecution(abi.WriteUniversal("balance", from, abi.PreciseSub(userBalance, fee, 0)))
+	method.AddExecution(abi.WriteUniversal("network_fee_reserve", ZERO_ADDRESS, fee))
+
+	difficulty := abi.ReadUniversal("network_difficulty", ZERO_ADDRESS, "2250")
+	difficulty = abi.PreciseSub(difficulty, "8", "0")
+	difficulty = abi.Max(difficulty, "1890")
+
+	method.AddExecution(abi.WriteUniversal("network_difficulty", ZERO_ADDRESS, difficulty))
+
+	return method
 }
 
-// Helper functions for contract operations
+func Count() *Method {
+	method := NewMethod(map[string]interface{}{
+		"type":    "contract",
+		"name":    "Count",
+		"version": "1",
+		"space":   RootSpace(),
+		"writer":  ZERO_ADDRESS,
+	})
 
-func extractCodeDetails(decodedCode interface{}) (codeType, name, nonce, version, writer interface{}) {
-    codeType = abi.Get(decodedCode, "type", nil)
-    name = abi.Param("name")
-    nonce = abi.Get(decodedCode, "nonce", "")
-    version = abi.Get(decodedCode, "version", nil)
-    writer = abi.Get(decodedCode, "writer", nil)
-    return
-}
+	count := abi.ReadUniversal("count", "count", "0")
+	update := abi.PreciseAdd(count, "1", 0)
+	wr := abi.WriteUniversal("count", "count", update)
+	method.AddExecution(wr)
 
-func getCodeVersions(contractInfo, requestInfo interface{}) (contractVersion, requestVersion string) {
-    contractVersion = abi.Get(contractInfo, "version", "0")
-    requestVersion = abi.Get(requestInfo, "version", "0")
-    return
-}
+	difficulty := abi.ReadUniversal("network_difficulty", ZERO_ADDRESS, "2250")
+	difficulty = abi.PreciseSub(difficulty, "8", "0")
 
-func validateContractInputs(contract *PreCompiledContract, codeType, name, writer, version, reqVersion, conVersion interface{}) {
-    contract.AddExecution(abi.Condition(
-        abi.Eq(writer, ZERO_ADDRESS),
-        "Writer must be zero address",
-    ))
+	method.AddExecution(abi.WriteUniversal("network_difficulty", ZERO_ADDRESS, difficulty))
 
-    contract.AddExecution(abi.Condition(
-        abi.IsString(codeType),
-        "Invalid type",
-    ))
-
-    contract.AddExecution(abi.Condition(
-        abi.In(codeType, []interface{}{"contract", "request"}),
-        "Type must be one of the following: contract, request",
-    ))
-
-    contract.AddExecution(abi.Condition(
-        abi.IsString(name),
-        "Invalid name",
-    ))
-
-    contract.AddExecution(abi.Condition(
-        abi.RegMatch("^[A-Za-z_0-9]+$", name),
-        "The name must consist of A-Za-z_0-9.",
-    ))
-
-    contract.AddExecution(abi.Condition(
-        abi.IsNumeric([]interface{}{version}),
-        "Invalid version",
-    ))
-
-    versionCheck := abi.If(
-        abi.Eq(codeType, "contract"),
-        abi.Gt(version, conVersion),
-        abi.If(
-            abi.Eq(codeType, "request"),
-            abi.Gt(version, reqVersion),
-            false,
-        ),
-    )
-
-    contract.AddExecution(abi.Condition(
-        versionCheck,
-        "Only new versions of code can be registered.",
-    ))
-}
-
-func createUpdateEntry(codeType, codeID, code interface{}) interface{} {
-    return abi.If(
-        abi.Eq(codeType, "contract"),
-        abi.WriteLayerL2("contract", codeID, code),
-        abi.If(
-            abi.Eq(codeType, "request"),
-            abi.WriteLayerL2("request", codeID, code),
-            nil,
-        ),
-    )
-}
-
-func extractCodeSpecs(decodedCode interface{}) (codeType, name, space, version, writer interface{}) {
-    codeType = abi.Get(decodedCode, "t", nil)
-    name = abi.Get(decodedCode, "n", nil)
-    space = abi.Get(decodedCode, "s", nil)
-    version = abi.Get(decodedCode, "v", nil)
-    writer = abi.Get(decodedCode, "w", nil)
-    return
+	return method
 }

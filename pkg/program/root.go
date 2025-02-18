@@ -1,8 +1,10 @@
 package program
 
 import (
+	"encoding/json"
 	"fmt"
 	. "hello/pkg/core/debug"
+	"hello/pkg/core/network"
 	"hello/pkg/service"
 	"hello/pkg/swift"
 	"log"
@@ -85,6 +87,43 @@ func createNetworkStartCmd(useTLS *bool) *cobra.Command {
 	return cmd
 }
 
+func createConnectReplicaCmd() *cobra.Command {
+	var targetAddr string
+	var peerAddr string
+
+	cmd := &cobra.Command{
+		Use:   "replica",
+		Short: "network replica",
+		Run: func(cmd *cobra.Command, args []string) {
+
+			if targetAddr == peerAddr {
+				fmt.Println("target address and peer address cannot be the same")
+				return
+			}
+
+			response, err := network.CallRPC(peerAddr, swift.Packet{
+				Type:    swift.PacketTypeRegisterReplicaRequest,
+				Payload: json.RawMessage(`{"targetAddr": "` + targetAddr + `"}`),
+			})
+
+			if err != nil {
+				log.Fatalf("Failed to send request: %v", err)
+			}
+
+			rstr := FormatResponse(&response.Payload)
+			fmt.Println(rstr)
+		},
+	}
+
+	cmd.Flags().StringVarP(&targetAddr, "target", "t", "", "target address")
+	cmd.MarkFlagRequired("target")
+	cmd.Flags().StringVarP(&peerAddr, "peer", "p", "localhost:9001", "peer address")
+	cmd.Flags().BoolVarP(&C.CORE_TEST_MODE, "debug", "d", false, "Enable test mode")
+	cmd.Flags().StringVarP(&C.DATA_TEST_ROOT_DIR, "rootdir", "r", "", "root dir")
+
+	return cmd
+}
+
 func createNetworkStopCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "stop",
@@ -100,6 +139,34 @@ func createNetworkStopCmd() *cobra.Command {
 	return cmd
 }
 
+func createNetworkMetricsCmd() *cobra.Command {
+	var peer string
+
+	cmd := &cobra.Command{
+		Use:   "metrics",
+		Short: "network metrics",
+		Run: func(cmd *cobra.Command, args []string) {
+			packet := swift.Packet{
+				Type:    swift.PacketTypeMetricsRequest,
+				Payload: json.RawMessage(`{}`),
+			}
+
+			response, err := network.CallRPC(peer, packet)
+			if err != nil {
+				log.Fatalf("Failed to send request: %v", err)
+			}
+
+			rstr := FormatResponse(&response.Payload)
+			fmt.Println(rstr)
+		},
+	}
+
+	cmd.Flags().StringVarP(&peer, "peer", "p", "", "peer address")
+	cmd.MarkFlagRequired("peer")
+
+	return cmd
+}
+
 func RunNetworkCMD() *cobra.Command {
 	var useTLS bool
 
@@ -107,16 +174,31 @@ func RunNetworkCMD() *cobra.Command {
 	networkCmd := createNetworkCmd()
 	networkStartCmd := createNetworkStartCmd(&useTLS)
 	networkStopCmd := createNetworkStopCmd()
+	networkConnectReplicaCmd := createConnectReplicaCmd()
+	networkMetricsCmd := createNetworkMetricsCmd()
 
 	networkCmd.AddCommand(networkStartCmd)
 	networkCmd.AddCommand(networkStopCmd)
+	networkCmd.AddCommand(networkConnectReplicaCmd)
+	networkCmd.AddCommand(networkMetricsCmd)
+
 	rootCmd.AddCommand(networkCmd)
 
+	walletCmd := CreateWalletCmd()
+	dexCmd := CreateDexCmd()
+	apiCmd := CreateApiCmd()
+	miningCmd := CreateMiningCmd()
+
+	//TODO remove dev commands in production
 	nodeCmd := createNodeCmd()
 	scriptCmd := createScriptCmd()
 
 	rootCmd.AddCommand(nodeCmd)
 	rootCmd.AddCommand(scriptCmd)
+	rootCmd.AddCommand(walletCmd)
+	rootCmd.AddCommand(apiCmd)
+	rootCmd.AddCommand(dexCmd)
+	rootCmd.AddCommand(miningCmd)
 
 	return rootCmd
 }

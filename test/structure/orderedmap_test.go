@@ -329,3 +329,24 @@ func TestParseOrderedMap_NestedWithPointers(t *testing.T) {
 	// Final verification of complete structure equality
 
 }
+
+func TestParseOrderedMap_UnicodeEscapedString(t *testing.T) {
+	// JSON string with Unicode escaped characters
+	jsonStr := `{
+		"to": "\uc9c0\uac11\uc8fc\uc18c:07b34fc98273274556f8b540127d2d27fbbb92a6bc7e"
+	}`
+
+	// Parse into OrderedMap
+	om, err := structure.ParseOrderedMap(jsonStr)
+	if err != nil {
+		t.Fatalf("Error during parsing: %v", err)
+	}
+
+	// Validate the 'to' field
+	expectedToValue := "지갑주소:07b34fc98273274556f8b540127d2d27fbbb92a6bc7e"
+	toValue, ok := om.Get("to")
+	fmt.Println("toValue: ", toValue)
+	if !ok || toValue != expectedToValue {
+		t.Errorf("to value mismatch. Expected: %v, Got: %v", expectedToValue, toValue)
+	}
+}
