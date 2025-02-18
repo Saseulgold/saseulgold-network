@@ -314,7 +314,7 @@ func (m *Machine) IsInBlockTime() bool {
 	currentTime := util.Utime()
 	timeInEpoch := currentTime % 5000
 
-	return timeInEpoch >= 3000 // 마지막 2초는 블록 생성 시간
+	return timeInEpoch >= 3000 // The last two seconds are block generation time
 }
 
 func (m *Machine) GetCurrentEpoch() int64 {

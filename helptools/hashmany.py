@@ -16,7 +16,7 @@ def op_hash_many(vars):
 
     return hash_result
 
-# 테스트
+# Test
 # test_input = ["hello", "world", "test"]
 test_input = ["blk-1", "4975" ]
 
