@@ -42,7 +42,7 @@ Wallet address: eb4e0202345542b5e3405debd9385043f4a852411a1a
 ```
 ### 4️⃣ Initial Wallet Settings
 ```bash
-./sg wallet set -k 8d7a0bb37a9044aba0dab18968b8ad6f071790c2429de209855bc041d904833d
+./sg wallet set -k ${private_key}
 ```
 ### 5️⃣ Test (Check balance)
 ```bash
