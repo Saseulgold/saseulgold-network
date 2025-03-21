@@ -56,3 +56,80 @@ Wallet address: eb4e0202345542b5e3405debd9385043f4a852411a1a
 ```bash
 ./sg mining stop
 ```
+
+
+---
+
+## 🔄 Setting Up an Auto-Restart Script for Mining
+To ensure the mining process restarts automatically if it stops, you can set up the following script.
+### 1️⃣ Create the Restart Script
+```bash
+sudo vim /home/SSG/auto_start_ssg.sh
+```
+Add the following content to the file:
+```bash
+#!/bin/bash
+
+# Assumes the script is run from the sg_network folder
+cd <sg_network folder>
+
+gpu_status="driver not installed"
+gpu_model="unknown"
+
+if command -v nvidia-smi > /dev/null 2>&1; then
+    output=$(nvidia-smi -L 2>&1) 
+
+    case "$output" in
+        *"Unknown Error"* | *"No devices"* | *"NVIDIA_SMI has Failed"*)
+            gpu_status="not found"
+            ;;
+        *"version mismatch"*)
+            gpu_status="version mismatch"
+            ;;
+        *)
+            gpu_status="detected"
+
+            if [ "$(nvidia-smi | grep -c 'cmine')" -gt 1 ]; then
+                echo "Multiple SSG Detected - Reboot."
+                sleep 120
+                reboot
+            fi
+            ;;
+    esac
+fi
+
+miner_status=$(pgrep cmine > /dev/null && echo "running" || echo "stopped")
+
+if [[ "$gpu_status" == "detected" && "$miner_status" == "stopped" ]]; then
+    ./sg mining start
+    sleep 1
+    miner_status="starting"
+fi
+
+timestamp=$(date +"%y-%m-%d %H:%M:%S")
+
+ssg_address=$(grep "Address:" wallet.info | awk '{print $2}')
+
+echo "Miner Status: $miner_status"
+echo "GPU Status: $gpu_status"
+echo "Checked Time: $timestamp"
+echo "SSG Address: $ssg_address"
+echo "============================================================="
+echo "============================================================="
+```
+
+### 2️⃣ Schedule with Crontab (Run Every 5 Minutes)
+```bash
+sudo crontab -e
+```
+Add the following line, replacing /path/to/sg_network with the actual path to your sg_network folder:
+```bash
+*/5 * * * * bash -c /path/to/sg_network/auto_start_ssg.sh >> /path/to/sg_network/auto_start_ssg.log 2>&1
+```
+>Tip: To find the full path, run pwd inside the sg_network folder and use that in the crontab command.
+
+### 3️⃣ Grant Execution Permissions
+```bash
+sudo chmod 755 auto_start_ssg.sh
+```
+>Note: Use sudo chmod 755 to make the script executable. Avoid sudo chmod -x as it removes execution permissions.
