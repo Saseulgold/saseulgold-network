@@ -132,4 +132,8 @@ Add the following line, replacing /path/to/sg_network with the actual path to yo
 ```bash
 sudo chmod 755 auto_start_ssg.sh
 ```
->Note: Use sudo chmod 755 to make the script executable. Avoid sudo chmod -x as it removes execution permissions.
+or
+```bash
+sudo chmod -x auto_start_ssg.sh
+```
+>Recommand : Use sudo chmod 755 to make the script executable. Avoid sudo chmod -x as it removes execution permissions.
